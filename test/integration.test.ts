@@ -334,4 +334,10 @@ describe('record integration tests', function (this: ISuite) {
 
     expect(text).to.equal('4\n3\n2\n1\n5');
   });
+
+  it('should nest record iframe', async () => {
+    const page: puppeteer.Page = await this.browser.newPage();
+    await page.goto('about:blank');
+    await page.setContent(getHtml.call(this, 'iframe.html'));
+  });
 });

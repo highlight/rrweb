@@ -94,7 +94,7 @@ export type scrollData = {
 
 export type viewportResizeData = {
   source: IncrementalSource.ViewportResize;
-} & viewportResizeDimention;
+} & viewportResizeDimension;
 
 export type inputData = {
   source: IncrementalSource.Input;
@@ -225,6 +225,8 @@ export type mutationRecord = {
   addedNodes: NodeList;
   removedNodes: NodeList;
   attributeName: string | null;
+  doc: Document;
+  dimension: documentDimension;
 };
 
 export type textCursor = {
@@ -348,12 +350,12 @@ export type fontParam = {
 
 export type fontCallback = (p: fontParam) => void;
 
-export type viewportResizeDimention = {
+export type viewportResizeDimension = {
   width: number;
   height: number;
 };
 
-export type viewportResizeCallback = (d: viewportResizeDimention) => void;
+export type viewportResizeCallback = (d: viewportResizeDimension) => void;
 
 export type inputValue = {
   text: string;
@@ -373,6 +375,11 @@ export type mediaInteractionParam = {
 };
 
 export type mediaInteractionCallback = (p: mediaInteractionParam) => void;
+
+export type documentDimension = {
+  x: number;
+  y: number;
+};
 
 export type Mirror = {
   map: idNodeMap;

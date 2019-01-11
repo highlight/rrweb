@@ -2749,6 +2749,9 @@ rollup@^2.3.3:
   optionalDependencies:
     fsevents "~2.1.2"
 
+rrweb-snapshot@../snapshot:
+  version "0.8.4"
+
 rrweb-snapshot@^0.8.4:
   version "0.8.4"
   resolved "https://registry.yarnpkg.com/rrweb-snapshot/-/rrweb-snapshot-0.8.4.tgz#3f8bf1270975f9dfad60321a29067d2ea39e3c39"

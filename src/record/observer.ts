@@ -35,6 +35,7 @@ import {
   canvasMutationCallback,
   fontCallback,
   fontParam,
+  documentDimension,
 } from '../types';
 import MutationBuffer from './mutation';
 
@@ -42,6 +43,7 @@ export const mutationBuffer = new MutationBuffer();
 
 function initMutationObserver(
   cb: mutationCallBack,
+  doc: Document,
   blockClass: blockClass,
   inlineStylesheet: boolean,
   maskInputOptions: MaskInputOptions,
@@ -56,7 +58,7 @@ function initMutationObserver(
     recordCanvas,
   );
   const observer = new MutationObserver(
-    mutationBuffer.processMutations.bind(mutationBuffer)
+    mutationBuffer.processMutations.bind(mutationBuffer),
   );
   observer.observe(document, {
     attributes: true,
@@ -104,8 +106,8 @@ function initMoveObserver(
         timeBaseline = Date.now();
       }
       positions.push({
-        x: clientX,
-        y: clientY,
+        x: dimension.x + clientX,
+        y: dimension.y + clientY,
         id: mirror.getId(target as INode),
         timeOffset: Date.now() - timeBaseline,
       });
@@ -127,6 +129,8 @@ function initMoveObserver(
 
 function initMouseInteractionObserver(
   cb: mouseInteractionCallBack,
+  doc: Document,
+  dimension: documentDimension,
   blockClass: blockClass,
   sampling: SamplingStrategy,
 ): listenerHandler {
@@ -152,8 +156,8 @@ function initMouseInteractionObserver(
       cb({
         type: MouseInteractions[eventKey],
         id,
-        x: clientX,
-        y: clientY,
+        x: dimension.x + clientX,
+        y: dimension.y + clientY,
       });
     };
   };
@@ -167,7 +171,7 @@ function initMouseInteractionObserver(
     .forEach((eventKey: keyof typeof MouseInteractions) => {
       const eventName = eventKey.toLowerCase();
       const handler = getHandler(eventKey);
-      handlers.push(on(eventName, handler));
+      handlers.push(on(eventName, handler, doc));
     });
   return () => {
     handlers.forEach((h) => h());
@@ -176,6 +180,7 @@ function initMouseInteractionObserver(
 
 function initScrollObserver(
   cb: scrollCallback,
+  doc: Document,
   blockClass: blockClass,
   sampling: SamplingStrategy,
 ): listenerHandler {
@@ -184,8 +189,8 @@ function initScrollObserver(
       return;
     }
     const id = mirror.getId(evt.target as INode);
-    if (evt.target === document) {
-      const scrollEl = (document.scrollingElement || document.documentElement)!;
+    if (evt.target === doc) {
+      const scrollEl = (doc.scrollingElement || doc.documentElement)!;
       cb({
         id,
         x: scrollEl.scrollLeft,
@@ -220,6 +225,7 @@ export const INPUT_TAGS = ['INPUT', 'TEXTAREA', 'SELECT'];
 const lastInputValueMap: WeakMap<EventTarget, inputValue> = new WeakMap();
 function initInputObserver(
   cb: inputCallback,
+  doc: Document,
   blockClass: blockClass,
   ignoreClass: string,
   maskInputOptions: MaskInputOptions,
@@ -259,7 +265,7 @@ function initInputObserver(
     // the other radios with the same name attribute will be unchecked.
     const name: string | undefined = (target as HTMLInputElement).name;
     if (type === 'radio' && name && isChecked) {
-      document
+      doc
         .querySelectorAll(`input[type="radio"][name="${name}"]`)
         .forEach((el) => {
           if (el !== target) {
