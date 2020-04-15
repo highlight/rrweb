@@ -4,7 +4,7 @@ package-lock.json
 yarn.lock
 build
 dist
-es
+# es
 lib
 
 temp

@@ -193,9 +193,9 @@ export class Replayer {
     this.wrapper.appendChild(this.mouse);
 
     this.iframe = document.createElement('iframe');
-    this.iframe.setAttribute('sandbox', 'allow-same-origin');
-    this.iframe.setAttribute('scrolling', 'no');
-    this.iframe.setAttribute('style', 'pointer-events: none');
+    this.iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
+    // this.iframe.setAttribute('scrolling', 'no');
+    // this.iframe.setAttribute('style', 'pointer-events: none');
     this.wrapper.appendChild(this.iframe);
   }
 
