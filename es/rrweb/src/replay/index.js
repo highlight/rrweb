@@ -1,11 +1,11 @@
-import { __values, __assign } from '../../node_modules/tslib/tslib.es6.js';
+import { __assign, __values } from '../../node_modules/tslib/tslib.es6.js';
 import { rebuild, buildNodeWithSN } from '../../node_modules/rrweb-snapshot/es/rrweb-snapshot.js';
 import { mirror, polyfill } from '../utils.js';
 import { ReplayerEvents, EventType, IncrementalSource, MediaInteractions, MouseInteractions } from '../types.js';
 import * as mittProxy from '../../node_modules/mitt/dist/mitt.es.js';
 import mitt$1 from '../../node_modules/mitt/dist/mitt.es.js';
 import { polyfill as smoothscroll_1 } from '../../node_modules/smoothscroll-polyfill/dist/smoothscroll.js';
-import Timer from './timer.js';
+import { Timer } from './timer.js';
 import { createPlayerService } from './machine.js';
 import getInjectStyleRules from './styles/inject-style.js';
 
@@ -27,14 +27,19 @@ var defaultConfig = {
 };
 var Replayer = (function () {
     function Replayer(events, config) {
-        this.events = [];
         this.emitter = mitt();
-        this.baselineTime = 0;
         this.noramlSpeed = -1;
         this.missingNodeRetryMap = {};
-        if (events.length < 2) {
+        if (!(config === null || config === void 0 ? void 0 : config.liveMode) && events.length < 2) {
             throw new Error('Replayer need at least 2 events.');
         }
+        this.config = Object.assign({}, defaultConfig, config);
+        this.handleResize = this.handleResize.bind(this);
+        this.getCastFn = this.getCastFn.bind(this);
+        this.emitter.on('resize', this.handleResize);
+        smoothscroll_1();
+        polyfill();
+        this.setupDom();
         this.service = createPlayerService({
             events: events.map(function (e) {
                 if (config && config.unpackFn) {
@@ -42,24 +47,29 @@ var Replayer = (function () {
                 }
                 return e;
             }),
-            timeOffset: 0,
+            timer: new Timer(this.config),
             speed: (config === null || config === void 0 ? void 0 : config.speed) || defaultConfig.speed,
+            timeOffset: 0,
+            baselineTime: 0,
+            lastPlayedEvent: null,
+        }, {
+            getCastFn: this.getCastFn,
+            emitter: this.emitter,
         });
         this.service.start();
-        this.events = events.map(function (e) {
-            if (config && config.unpackFn) {
-                return config.unpackFn(e);
+        this.service.subscribe(function (state) {
+            if (!state.changed) {
+                return;
             }
-            return e;
         });
-        this.handleResize = this.handleResize.bind(this);
-        this.config = Object.assign({}, defaultConfig, config);
-        this.timer = new Timer(this.config);
-        smoothscroll_1();
-        polyfill();
-        this.setupDom();
-        this.emitter.on('resize', this.handleResize);
     }
+    Object.defineProperty(Replayer.prototype, "timer", {
+        get: function () {
+            return this.service.state.context.timer;
+        },
+        enumerable: true,
+        configurable: true
+    });
     Replayer.prototype.on = function (event, handler) {
         this.emitter.on(event, handler);
     };
@@ -73,8 +83,9 @@ var Replayer = (function () {
         }
     };
     Replayer.prototype.getMetaData = function () {
-        var firstEvent = this.events[0];
-        var lastEvent = this.events[this.events.length - 1];
+        var events = this.service.state.context.events;
+        var firstEvent = events[0];
+        var lastEvent = events[events.length - 1];
         return {
             totalTime: lastEvent.timestamp - firstEvent.timestamp,
         };
@@ -83,93 +94,34 @@ var Replayer = (function () {
         return this.timer.timeOffset + this.getTimeOffset();
     };
     Replayer.prototype.getTimeOffset = function () {
-        return this.baselineTime - this.events[0].timestamp;
+        var _a = this.service.state.context, baselineTime = _a.baselineTime, events = _a.events;
+        return baselineTime - events[0].timestamp;
     };
     Replayer.prototype.play = function (timeOffset) {
-        var e_1, _a;
-        var _this = this;
         if (timeOffset === void 0) { timeOffset = 0; }
-        this.timer.clear();
-        this.baselineTime = this.events[0].timestamp + timeOffset;
-        var actions = new Array();
-        var _loop_1 = function (event) {
-            var isSync = event.timestamp < this_1.baselineTime;
-            var castFn = this_1.getCastFn(event, isSync);
-            if (isSync) {
-                castFn();
-            }
-            else {
-                actions.push({
-                    doAction: function () {
-                        castFn();
-                        _this.emitter.emit(ReplayerEvents.EventCast, event);
-                    },
-                    delay: this_1.getDelay(event),
-                });
-            }
-        };
-        var this_1 = this;
-        try {
-            for (var _b = __values(this.events), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var event = _c.value;
-                _loop_1(event);
-            }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-            }
-            finally { if (e_1) throw e_1.error; }
-        }
-        this.timer.addActions(actions);
-        this.timer.start();
-        this.service.send({ type: 'PLAY' });
+        this.service.send({ type: 'PLAY', payload: { timeOffset: timeOffset } });
         this.emitter.emit(ReplayerEvents.Start);
     };
     Replayer.prototype.pause = function () {
-        this.timer.clear();
         this.service.send({ type: 'PAUSE' });
         this.emitter.emit(ReplayerEvents.Pause);
     };
     Replayer.prototype.resume = function (timeOffset) {
-        var e_2, _a;
         if (timeOffset === void 0) { timeOffset = 0; }
-        this.timer.clear();
-        this.baselineTime = this.events[0].timestamp + timeOffset;
-        var actions = new Array();
-        try {
-            for (var _b = __values(this.events), _c = _b.next(); !_c.done; _c = _b.next()) {
-                var event = _c.value;
-                if (event.timestamp <= this.lastPlayedEvent.timestamp ||
-                    event === this.lastPlayedEvent) {
-                    continue;
-                }
-                var castFn = this.getCastFn(event);
-                actions.push({
-                    doAction: castFn,
-                    delay: this.getDelay(event),
-                });
-            }
-        }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
-            }
-            finally { if (e_2) throw e_2.error; }
-        }
-        this.timer.addActions(actions);
-        this.timer.start();
-        this.service.send({ type: 'RESUME' });
+        this.service.send({ type: 'RESUME', payload: { timeOffset: timeOffset } });
         this.emitter.emit(ReplayerEvents.Resume);
     };
+    Replayer.prototype.startLive = function (baselineTime) {
+        this.service.send({ type: 'TO_LIVE', payload: { baselineTime: baselineTime } });
+    };
     Replayer.prototype.addEvent = function (rawEvent) {
+        var _this = this;
         var event = this.config.unpackFn
             ? this.config.unpackFn(rawEvent)
             : rawEvent;
-        var castFn = this.getCastFn(event, true);
-        castFn();
+        Promise.resolve().then(function () {
+            return _this.service.send({ type: 'ADD_EVENT', payload: { event: event } });
+        });
     };
     Replayer.prototype.setupDom = function () {
         this.wrapper = document.createElement('div');
@@ -179,29 +131,17 @@ var Replayer = (function () {
         this.mouse.classList.add('replayer-mouse');
         this.wrapper.appendChild(this.mouse);
         this.iframe = document.createElement('iframe');
-        this.iframe.setAttribute('sandbox', 'allow-same-origin');
-        this.iframe.setAttribute('scrolling', 'no');
-        this.iframe.setAttribute('style', 'pointer-events: none');
+        this.iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
         this.wrapper.appendChild(this.iframe);
     };
     Replayer.prototype.handleResize = function (dimension) {
         this.iframe.width = dimension.width + "px";
         this.iframe.height = dimension.height + "px";
     };
-    Replayer.prototype.getDelay = function (event) {
-        if (event.type === EventType.IncrementalSnapshot &&
-            event.data.source === IncrementalSource.MouseMove) {
-            var firstOffset = event.data.positions[0].timeOffset;
-            var firstTimestamp = event.timestamp + firstOffset;
-            event.delay = firstTimestamp - this.baselineTime;
-            return firstTimestamp - this.baselineTime;
-        }
-        event.delay = event.timestamp - this.baselineTime;
-        return event.timestamp - this.baselineTime;
-    };
     Replayer.prototype.getCastFn = function (event, isSync) {
         var _this = this;
         if (isSync === void 0) { isSync = false; }
+        var events = this.service.state.context.events;
         var castFn;
         switch (event.type) {
             case EventType.DomContentLoaded:
@@ -223,7 +163,7 @@ var Replayer = (function () {
                 break;
             case EventType.IncrementalSnapshot:
                 castFn = function () {
-                    var e_3, _a;
+                    var e_1, _a;
                     _this.applyIncremental(event, isSync);
                     if (event === _this.nextUserInteractionEvent) {
                         _this.nextUserInteractionEvent = null;
@@ -231,8 +171,8 @@ var Replayer = (function () {
                     }
                     if (_this.config.skipInactive && !_this.nextUserInteractionEvent) {
                         try {
-                            for (var _b = __values(_this.events), _c = _b.next(); !_c.done; _c = _b.next()) {
-                                var _event = _c.value;
+                            for (var events_1 = __values(events), events_1_1 = events_1.next(); !events_1_1.done; events_1_1 = events_1.next()) {
+                                var _event = events_1_1.value;
                                 if (_event.timestamp <= event.timestamp) {
                                     continue;
                                 }
@@ -245,12 +185,12 @@ var Replayer = (function () {
                                 }
                             }
                         }
-                        catch (e_3_1) { e_3 = { error: e_3_1 }; }
+                        catch (e_1_1) { e_1 = { error: e_1_1 }; }
                         finally {
                             try {
-                                if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+                                if (events_1_1 && !events_1_1.done && (_a = events_1.return)) _a.call(events_1);
                             }
-                            finally { if (e_3) throw e_3.error; }
+                            finally { if (e_1) throw e_1.error; }
                         }
                         if (_this.nextUserInteractionEvent) {
                             _this.noramlSpeed = _this.config.speed;
@@ -269,9 +209,10 @@ var Replayer = (function () {
             if (castFn) {
                 castFn();
             }
-            _this.lastPlayedEvent = event;
-            if (event === _this.events[_this.events.length - 1]) {
+            _this.service.send({ type: 'CAST_EVENT', payload: { event: event } });
+            if (event === events[events.length - 1]) {
                 _this.restoreSpeed();
+                _this.service.send('END');
                 _this.emitter.emit(ReplayerEvents.Finish);
             }
         };
@@ -299,25 +240,16 @@ var Replayer = (function () {
         if (head) {
             var unloadSheets_1 = new Set();
             var timer_1;
+            var beforeLoadState_1 = this.service.state;
             head
                 .querySelectorAll('link[rel="stylesheet"]')
                 .forEach(function (css) {
                 if (!css.sheet) {
-                    if (unloadSheets_1.size === 0) {
-                        _this.timer.clear();
-                        _this.emitter.emit(ReplayerEvents.LoadStylesheetStart);
-                        timer_1 = window.setTimeout(function () {
-                            if (_this.service.state.matches('playing')) {
-                                _this.resume(_this.getCurrentTime());
-                            }
-                            timer_1 = -1;
-                        }, _this.config.loadTimeout);
-                    }
                     unloadSheets_1.add(css);
                     css.addEventListener('load', function () {
                         unloadSheets_1.delete(css);
                         if (unloadSheets_1.size === 0 && timer_1 !== -1) {
-                            if (_this.service.state.matches('playing')) {
+                            if (beforeLoadState_1.matches('playing')) {
                                 _this.resume(_this.getCurrentTime());
                             }
                             _this.emitter.emit(ReplayerEvents.LoadStylesheetEnd);
@@ -328,10 +260,21 @@ var Replayer = (function () {
                     });
                 }
             });
+            if (unloadSheets_1.size > 0) {
+                this.service.send({ type: 'PAUSE' });
+                this.emitter.emit(ReplayerEvents.LoadStylesheetStart);
+                timer_1 = window.setTimeout(function () {
+                    if (beforeLoadState_1.matches('playing')) {
+                        _this.resume(_this.getCurrentTime());
+                    }
+                    timer_1 = -1;
+                }, this.config.loadTimeout);
+            }
         }
     };
     Replayer.prototype.applyIncremental = function (e, isSync) {
         var _this = this;
+        var baselineTime = this.service.state.context.baselineTime;
         var d = e.data;
         switch (d.source) {
             case IncrementalSource.Mutation: {
@@ -439,7 +382,7 @@ var Replayer = (function () {
                             doAction: function () {
                                 _this.moveAndHover(d, p.x, p.y, p.id);
                             },
-                            delay: p.timeOffset + e.timestamp - _this.baselineTime,
+                            delay: p.timeOffset + e.timestamp - baselineTime,
                         };
                         _this.timer.addAction(action);
                     });

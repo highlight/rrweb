@@ -1,4 +1,5 @@
 import { __spread } from '../../node_modules/tslib/tslib.es6.js';
+import { EventType, IncrementalSource } from '../types.js';
 
 var Timer = (function () {
     function Timer(config, actions) {
@@ -65,5 +66,16 @@ var Timer = (function () {
     };
     return Timer;
 }());
+function getDelay(event, baselineTime) {
+    if (event.type === EventType.IncrementalSnapshot &&
+        event.data.source === IncrementalSource.MouseMove) {
+        var firstOffset = event.data.positions[0].timeOffset;
+        var firstTimestamp = event.timestamp + firstOffset;
+        event.delay = firstTimestamp - baselineTime;
+        return firstTimestamp - baselineTime;
+    }
+    event.delay = event.timestamp - baselineTime;
+    return event.timestamp - baselineTime;
+}
 
-export default Timer;
+export { Timer, getDelay };
