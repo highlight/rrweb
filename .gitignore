@@ -1,11 +1,10 @@
 .vscode
-node_modules
+/node_modules
 package-lock.json
 yarn.lock
-build
-dist
+/build
+/dist
 # es
-!es/rrweb/node_modules
 lib
 
 temp
