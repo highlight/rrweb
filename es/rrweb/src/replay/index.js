@@ -123,6 +123,14 @@ var Replayer = (function () {
             return _this.service.send({ type: 'ADD_EVENT', payload: { event: event } });
         });
     };
+    Replayer.prototype.enableInteract = function () {
+        this.iframe.setAttribute('scrolling', 'auto');
+        this.iframe.style.pointerEvents = 'auto';
+    };
+    Replayer.prototype.disableInteract = function () {
+        this.iframe.setAttribute('scrolling', 'no');
+        this.iframe.style.pointerEvents = 'none';
+    };
     Replayer.prototype.setupDom = function () {
         this.wrapper = document.createElement('div');
         this.wrapper.classList.add('replayer-wrapper');
@@ -132,6 +140,7 @@ var Replayer = (function () {
         this.wrapper.appendChild(this.mouse);
         this.iframe = document.createElement('iframe');
         this.iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
+        this.disableInteract();
         this.wrapper.appendChild(this.iframe);
     };
     Replayer.prototype.handleResize = function (dimension) {
