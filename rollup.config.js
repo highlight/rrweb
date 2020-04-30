@@ -48,16 +48,13 @@ const baseConfigs = [
 let configs = [];
 
 for (const c of baseConfigs) {
-  const plugins = [
-    resolve(),
-    commonjs({ namedExports }),
-    typescript(),
+  const basePlugins = [resolve(), commonjs({ namedExports }), typescript()];
+  const plugins = basePlugins.concat(
     postcss({
       extract: false,
       inject: false,
     }),
-  ];
-  const minifyPlugins = plugins.concat(terser());
+  );
   // browser
   configs.push({
     input: c.input,
@@ -73,7 +70,14 @@ for (const c of baseConfigs) {
   // browser + minify
   configs.push({
     input: c.input,
-    plugins: minifyPlugins,
+    plugins: basePlugins.concat(
+      postcss({
+        extract: true,
+        minimize: true,
+        sourceMap: true,
+      }),
+      terser(),
+    ),
     output: [
       {
         name: c.name,
