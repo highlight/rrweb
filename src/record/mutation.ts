@@ -3,6 +3,7 @@ import {
   serializeNodeWithId,
   transformAttribute,
   MaskInputOptions,
+  NodeType,
 } from 'rrweb-snapshot';
 import {
   mutationRecord,
@@ -22,9 +23,17 @@ type DoubleLinkedListNode = {
 };
 type NodeInLinkedList = Node & {
   __ln: DoubleLinkedListNode;
+  __list: DoubleLinkedList;
 };
 
-function isNodeInLinkedList(n: Node | NodeInLinkedList): n is NodeInLinkedList {
+function isNodeInLinkedList(
+  n: Node | NodeInLinkedList,
+  list: DoubleLinkedList,
+): n is NodeInLinkedList {
+  if ('__list' in n && n.__list !== list) {
+    console.log('???', n, n.__list, list);
+    return false;
+  }
   return '__ln' in n;
 }
 class DoubleLinkedList {
@@ -50,7 +59,8 @@ class DoubleLinkedList {
       next: null,
     };
     (n as NodeInLinkedList).__ln = node;
-    if (n.previousSibling && isNodeInLinkedList(n.previousSibling)) {
+    (n as NodeInLinkedList).__list = this;
+    if (n.previousSibling && isNodeInLinkedList(n.previousSibling, this)) {
       const current = n.previousSibling.__ln.next;
       node.next = current;
       node.previous = n.previousSibling.__ln;
@@ -58,7 +68,7 @@ class DoubleLinkedList {
       if (current) {
         current.previous = node;
       }
-    } else if (n.nextSibling && isNodeInLinkedList(n.nextSibling)) {
+    } else if (n.nextSibling && isNodeInLinkedList(n.nextSibling, this)) {
       const current = n.nextSibling.__ln.previous;
       node.previous = current;
       node.next = n.nextSibling.__ln;
@@ -74,6 +84,10 @@ class DoubleLinkedList {
       this.head = node;
     }
     this.length++;
+    if (!this.get(this.length - 1)) {
+      console.log('!!!', n, this);
+      throw new Error('stop');
+    }
   }
 
   public removeNode(n: NodeInLinkedList) {
@@ -144,6 +158,9 @@ export default class MutationBuffer {
   private inlineStylesheet: boolean;
   private maskInputOptions: MaskInputOptions;
   private recordCanvas: boolean;
+  private doc: Document;
+
+  private doIframe: any;
 
   public init(
     cb: mutationCallBack,
@@ -151,12 +168,16 @@ export default class MutationBuffer {
     inlineStylesheet: boolean,
     maskInputOptions: MaskInputOptions,
     recordCanvas: boolean,
+    doc: Document,
+    doIframe: any,
   ) {
     this.blockClass = blockClass;
     this.inlineStylesheet = inlineStylesheet;
     this.maskInputOptions = maskInputOptions;
     this.recordCanvas = recordCanvas;
     this.emissionCallback = cb;
+    this.doc = doc;
+    this.doIframe = doIframe;
   }
 
   public freeze() {
@@ -211,7 +232,7 @@ export default class MutationBuffer {
         nextId,
         node: serializeNodeWithId(
           n,
-          document,
+          this.doc,
           mirror.map,
           this.blockClass,
           null,
@@ -220,6 +241,17 @@ export default class MutationBuffer {
           this.maskInputOptions,
           undefined,
           this.recordCanvas,
+          undefined,
+          (n) => {
+            if (
+              n.__sn.type === NodeType.Element &&
+              n.__sn.tagName === 'iframe'
+            ) {
+              ((n as unknown) as HTMLIFrameElement).onload = () => {
+                this.doIframe((n as unknown) as HTMLIFrameElement);
+              };
+            }
+          },
         )!,
       });
     };
@@ -358,7 +390,7 @@ export default class MutationBuffer {
         }
         // overwrite attribute if the mutations was triggered in same time
         item.attributes[m.attributeName!] = transformAttribute(
-          document,
+          this.doc,
           m.attributeName!,
           value!,
         );

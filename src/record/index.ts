@@ -1,9 +1,4 @@
-import {
-  snapshot,
-  MaskInputOptions,
-  NodeType,
-  visitSnapshot,
-} from 'rrweb-snapshot';
+import { snapshot, MaskInputOptions, NodeType } from 'rrweb-snapshot';
 import { initObservers, mutationBuffer } from './observer';
 import {
   mirror,
@@ -201,6 +196,7 @@ function record<T = eventWithTime>(
         );
       }),
     );
+    let iframeMap: any;
     const observe = (doc: Document, dimension: documentDimension) => {
       return initObservers(
         {
@@ -312,14 +308,20 @@ function record<T = eventWithTime>(
           recordCanvas,
           collectFonts,
           doc,
-          dimension
+          dimension,
         },
         hooks,
+        (i: HTMLIFrameElement) => {
+          iframeMap = getIframeDimensions();
+          const d = iframeMap.get(i);
+          console.assert(d, 'iframe not found in the dimension map');
+          return observe(i.contentDocument!, d || initDimension);
+        },
       );
     };
     const init = () => {
       takeFullSnapshot();
-      const iframeMap = getIframeDimensions();
+      iframeMap = getIframeDimensions();
       handlers.push(
         observe(document, initDimension),
         ...iframes.map((iframe) => {

@@ -4,6 +4,8 @@ import {
   CallbackArray,
   INode,
   NodeType,
+  serializedNodeWithId,
+  idNodeMap,
 } from 'rrweb-snapshot';
 import * as mittProxy from 'mitt';
 import { polyfill as smoothscrollPolyfill } from './smoothscroll';
@@ -58,6 +60,19 @@ const defaultMouseTailConfig = {
   lineWidth: 3,
   strokeStyle: 'red',
 } as const;
+
+function buildIframe(
+  iframe: HTMLIFrameElement,
+  childNodes: serializedNodeWithId[],
+  map: idNodeMap,
+  cbs: CallbackArray,
+  HACK_CSS: boolean,
+) {
+  const targetDoc = iframe.contentDocument!;
+  for (const childN of childNodes) {
+    buildNodeWithSN(childN, targetDoc, map, cbs, false, HACK_CSS);
+  }
+}
 
 export class Replayer {
   public wrapper: HTMLDivElement;
@@ -955,12 +970,30 @@ export class Replayer {
         return queue.push(mutation);
       }
 
-      const target = buildNodeWithSN(
+      if (mutation.node.rootId && !mirror.getNode(mutation.node.rootId)) {
+        return;
+      }
+
+      const cbs: CallbackArray = [];
+      const targetDoc = mutation.node.rootId
+        ? mirror.getNode(mutation.node.rootId)
+        : this.iframe.contentDocument;
+      const [target, nestedNodes] = buildNodeWithSN(
         mutation.node,
-        this.iframe.contentDocument,
+        targetDoc as Document,
         mirror.map,
+        cbs,
         true,
-      ) as Node;
+      ) as [Node, serializedNodeWithId[]];
+      cbs.push(() =>
+        buildIframe(
+          (target as unknown) as HTMLIFrameElement,
+          nestedNodes,
+          mirror.map,
+          cbs,
+          true,
+        ),
+      );
 
       // legacy data, we should not have -1 siblings any more
       if (mutation.previousId === -1 || mutation.nextId === -1) {
@@ -991,6 +1024,8 @@ export class Replayer {
           mutation,
         );
       }
+
+      cbs.forEach((f) => f());
     };
 
     d.adds.forEach((mutation) => {

@@ -2749,13 +2749,9 @@ rollup@^2.3.3:
   optionalDependencies:
     fsevents "~2.1.2"
 
-rrweb-snapshot@../snapshot:
+"rrweb-snapshot@git://github.com/rrweb-io/rrweb-snapshot.git#iframe":
   version "0.8.4"
-
-rrweb-snapshot@^0.8.4:
-  version "0.8.4"
-  resolved "https://registry.yarnpkg.com/rrweb-snapshot/-/rrweb-snapshot-0.8.4.tgz#3f8bf1270975f9dfad60321a29067d2ea39e3c39"
-  integrity sha512-6zY4lEUpA6qEd/ArAo1crWefxsmiXMuK/fTToGmsW+ehR8/pglxTsqpMPEkgQO9uBUIWIUE9I3CyIQkigmt4ug==
+  resolved "git://github.com/rrweb-io/rrweb-snapshot.git#c9f35390c17384146ef03a0da725340726918617"
 
 run-async@^2.2.0:
   version "2.4.1"

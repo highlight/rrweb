@@ -48,6 +48,7 @@ function initMutationObserver(
   inlineStylesheet: boolean,
   maskInputOptions: MaskInputOptions,
   recordCanvas: boolean,
+  doIframe: any,
 ): MutationObserver {
   // see mutation.ts for details
   mutationBuffer.init(
@@ -56,11 +57,14 @@ function initMutationObserver(
     inlineStylesheet,
     maskInputOptions,
     recordCanvas,
+    doc,
+    doIframe,
   );
   const observer = new MutationObserver(
     mutationBuffer.processMutations.bind(mutationBuffer),
   );
-  observer.observe(document, {
+  console.log('ob', doc);
+  observer.observe(doc, {
     attributes: true,
     attributeOldValue: true,
     characterData: true,
@@ -74,6 +78,8 @@ function initMutationObserver(
 function initMoveObserver(
   cb: mousemoveCallBack,
   sampling: SamplingStrategy,
+  doc: Document,
+  dimension: documentDimension,
 ): listenerHandler {
   if (sampling.mousemove === false) {
     return () => {};
@@ -119,8 +125,8 @@ function initMoveObserver(
     },
   );
   const handlers = [
-    on('mousemove', updatePosition),
-    on('touchmove', updatePosition),
+    on('mousemove', updatePosition, doc),
+    on('touchmove', updatePosition, doc),
   ];
   return () => {
     handlers.forEach((h) => h());
@@ -295,7 +301,7 @@ function initInputObserver(
   const events = sampling.input === 'last' ? ['change'] : ['input', 'change'];
   const handlers: Array<
     listenerHandler | hookResetter
-  > = events.map((eventName) => on(eventName, eventHandler));
+  > = events.map((eventName) => on(eventName, eventHandler, doc));
   const propertyDescriptor = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     'value',
@@ -573,29 +579,41 @@ function mergeHooks(o: observerParam, hooks: hooksParam) {
 export function initObservers(
   o: observerParam,
   hooks: hooksParam = {},
+  doIframe: any,
 ): listenerHandler {
   mergeHooks(o, hooks);
   const mutationObserver = initMutationObserver(
     o.mutationCb,
+    o.doc,
     o.blockClass,
     o.inlineStylesheet,
     o.maskInputOptions,
     o.recordCanvas,
+    doIframe,
   );
-  const mousemoveHandler = initMoveObserver(o.mousemoveCb, o.sampling);
+  const mousemoveHandler = initMoveObserver(
+    o.mousemoveCb,
+    o.sampling,
+    o.doc,
+    o.dimension,
+  );
   const mouseInteractionHandler = initMouseInteractionObserver(
     o.mouseInteractionCb,
+    o.doc,
+    o.dimension,
     o.blockClass,
     o.sampling,
   );
   const scrollHandler = initScrollObserver(
     o.scrollCb,
+    o.doc,
     o.blockClass,
     o.sampling,
   );
   const viewportResizeHandler = initViewportResizeObserver(o.viewportResizeCb);
   const inputHandler = initInputObserver(
     o.inputCb,
+    o.doc,
     o.blockClass,
     o.ignoreClass,
     o.maskInputOptions,

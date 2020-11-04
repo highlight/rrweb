@@ -202,6 +202,8 @@ export type observerParam = {
   sampling: SamplingStrategy;
   recordCanvas: boolean;
   collectFonts: boolean;
+  doc: Document;
+  dimension: documentDimension;
 };
 
 export type hooksParam = {
@@ -225,8 +227,6 @@ export type mutationRecord = {
   addedNodes: NodeList;
   removedNodes: NodeList;
   attributeName: string | null;
-  doc: Document;
-  dimension: documentDimension;
 };
 
 export type textCursor = {
