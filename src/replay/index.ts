@@ -241,6 +241,20 @@ export class Replayer {
         },
       });
     }
+    if (typeof config.mouseTail !== 'undefined') {
+      if (config.mouseTail === false) {
+        this.mouseTail && (this.mouseTail.style.display = 'none');
+      } else {
+        if (!this.mouseTail) {
+          this.mouseTail = document.createElement('canvas');
+          this.mouseTail.width = Number.parseFloat(this.iframe.width);
+          this.mouseTail.height = Number.parseFloat(this.iframe.height);
+          this.mouseTail.classList.add('replayer-mouse-tail');
+          this.wrapper.insertBefore(this.mouseTail, this.iframe);
+        }
+        this.mouseTail.style.display = 'inherit';
+      }
+    }
   }
 
   public getMetaData(): playerMetaData {
@@ -337,7 +351,7 @@ export class Replayer {
     if (this.config.mouseTail !== false) {
       this.mouseTail = document.createElement('canvas');
       this.mouseTail.classList.add('replayer-mouse-tail');
-      this.mouseTail.style.display = 'none';
+      this.mouseTail.style.display = 'inherit';
       this.wrapper.appendChild(this.mouseTail);
     }
 
@@ -362,11 +376,11 @@ export class Replayer {
   }
 
   private handleResize(dimension: viewportResizeDimension) {
+    this.iframe.style.display = 'inherit';
     for (const el of [this.mouseTail, this.iframe]) {
       if (!el) {
         continue;
       }
-      el.style.display = 'inherit';
       el.setAttribute('width', String(dimension.width));
       el.setAttribute('height', String(dimension.height));
     }
