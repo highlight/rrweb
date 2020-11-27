@@ -409,6 +409,7 @@ export type playerConfig = {
   insertStyleRules: string[];
   triggerFocus: boolean;
   UNSAFE_replayCanvas: boolean;
+  pauseAnimation?: boolean;
   mouseTail:
     | boolean
     | {
