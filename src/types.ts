@@ -469,8 +469,6 @@ export enum ReplayerEvents {
   Flush = 'flush',
   StateChange = 'state-change',
 }
-<<<<<<< HEAD
-=======
 
 export type MaskInputFn = (text: string) => string;
 
@@ -479,4 +477,3 @@ export type ElementState = {
   // [scrollLeft,scrollTop]
   scroll?: [number, number];
 };
->>>>>>> 96e4bfd... fix: elements would lose some states like scroll position because of "virtual parent" optimization (#427)
