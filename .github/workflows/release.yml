@@ -20,7 +20,6 @@ jobs:
             - name: List
               run: ls -l
             - name: Publish
-              if: github.ref == 'refs/heads/master'
               run: yarn publish
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
