@@ -10,9 +10,6 @@
     "bundle": "rollup --config",
     "typings": "tsc -d --declarationDir typings"
   },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/highlight-run/rrweb.git"
