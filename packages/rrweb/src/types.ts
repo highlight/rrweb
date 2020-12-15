@@ -7,12 +7,12 @@ import type {
   MaskInputFn,
   MaskTextFn,
   DataURLOptions,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type { PackFn, UnpackFn } from './packer/base';
 import type { IframeManager } from './record/iframe-manager';
 import type { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
-import type { RRNode } from 'rrdom';
+import type { RRNode } from '@highlight-run/rrdom';
 import type { CanvasManager } from './record/observers/canvas/canvas-manager';
 import type { StylesheetManager } from './record/stylesheet-manager';
 import type {
@@ -68,6 +68,11 @@ export type recordOptions<T> = {
   // departed, please use sampling options
   mousemoveWait?: number;
   keepIframeSrcFn?: KeepIframeSrcFn;
+  /**
+   * Enabling this will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
+   * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
+   */
+  enableStrictPrivacy?: boolean;
 };
 
 export type observerParam = {
@@ -106,6 +111,7 @@ export type observerParam = {
   stylesheetManager: StylesheetManager;
   shadowDomManager: ShadowDomManager;
   canvasManager: CanvasManager;
+  enableStrictPrivacy: boolean;
   ignoreCSSAttributes: Set<string>;
   plugins: Array<{
     observer: (
@@ -140,6 +146,7 @@ export type MutationBufferParam = Pick<
   | 'stylesheetManager'
   | 'shadowDomManager'
   | 'canvasManager'
+  | 'enableStrictPrivacy'
 >;
 
 export type ReplayPlugin = {
@@ -179,6 +186,8 @@ export type playerConfig = {
   unpackFn?: UnpackFn;
   useVirtualDom: boolean;
   plugins?: ReplayPlugin[];
+  inactiveThreshold: number;
+  inactiveSkipTime: number;
 };
 
 export type missingNode = {

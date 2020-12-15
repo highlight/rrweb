@@ -27,6 +27,14 @@ rrweb refers to 'record and replay the web', which is a tool for recording and r
 
 [**🍳 Recipes 🍳**](./docs/recipes/index.md)
 
+## Version History
+
+### 2.0.0
+
+This version updates the highlight rrweb fork on rrweb 1.1.3 April 2022 Release.
+Because this is a major update, it may not be suitable for customers looking for stable recording and replay functionality.
+However, the major update brings lots of rrweb features that have been in development. See the rrweb release notes for more details.
+
 ## Project Structure
 
 rrweb is mainly composed of 3 parts:

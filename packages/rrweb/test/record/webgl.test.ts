@@ -15,7 +15,7 @@ import {
   stripBase64,
   waitForRAF,
 } from '../utils';
-import type { ICanvas } from 'rrweb-snapshot';
+import type { ICanvas } from '@highlight-run/rrweb-snapshot';
 
 interface ISuite {
   code: string;

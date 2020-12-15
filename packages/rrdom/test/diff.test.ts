@@ -8,9 +8,9 @@ import {
   serializedNodeWithId,
   createMirror,
   Mirror,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type { IRRNode } from '../src/document';
-import { Replayer } from 'rrweb';
+import { Replayer } from '@highlight-run/rrweb';
 import type {
   eventWithTime,
   canvasMutationData,

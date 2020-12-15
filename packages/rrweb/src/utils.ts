@@ -9,9 +9,9 @@ import type {
   DeprecatedMirror,
   textMutation,
 } from '@rrweb/types';
-import type { IMirror, Mirror } from 'rrweb-snapshot';
-import { isShadowRoot, IGNORED_NODE, classMatchesRegex } from 'rrweb-snapshot';
-import type { RRNode, RRIFrameElement } from 'rrdom';
+import type { IMirror, Mirror } from '@highlight-run/rrweb-snapshot';
+import { isShadowRoot, IGNORED_NODE, classMatchesRegex } from '@highlight-run/rrweb-snapshot';
+import type { RRNode, RRIFrameElement } from '@highlight-run/rrdom';
 
 export function on(
   type: string,
@@ -182,6 +182,23 @@ export function getWindowWidth(): number {
     (document.body && document.body.clientWidth)
   );
 }
+
+/**
+ * Start of Highlight Code
+ */
+export const isCanvasNode = (node: Node | null): boolean => {
+  try {
+    if (node instanceof HTMLElement) {
+      return node.tagName === 'CANVAS';
+    }
+  } catch {
+    return false;
+  }
+  return false;
+};
+/**
+ * End of Highlight Code
+ */
 
 /**
  * Checks if the given element set to be blocked by rrweb
