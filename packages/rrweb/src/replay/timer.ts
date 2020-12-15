@@ -43,6 +43,20 @@ export class Timer {
     }
   }
 
+  /* Begin Highlight Code */
+  /**
+   * Add all actions before the timer starts
+   */
+  public addActions(actions: actionWithDelay[]) {
+    this.actions = this.actions.concat(actions);
+  }
+
+  public replaceActions(actions: actionWithDelay[]) {
+    this.actions.length = 0;
+    this.actions.splice(0, 0, ...actions);
+  }
+  /* End Highlight Code */
+
   public start() {
     this.timeOffset = 0;
     this.lastTimestamp = performance.now();

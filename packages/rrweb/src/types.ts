@@ -74,6 +74,11 @@ export type recordOptions<T> = {
   mousemoveWait?: number;
   keepIframeSrcFn?: KeepIframeSrcFn;
   errorHandler?: ErrorHandler;
+  /**
+   * Enabling this will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
+   * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
+   */
+  enableStrictPrivacy?: boolean;
 };
 
 export type observerParam = {
@@ -105,6 +110,7 @@ export type observerParam = {
   recordDOM: boolean;
   recordCanvas: boolean;
   inlineImages: boolean;
+  enableStrictPrivacy: boolean;
   userTriggeredOnInput: boolean;
   collectFonts: boolean;
   slimDOMOptions: SlimDOMOptions;
@@ -142,6 +148,7 @@ export type MutationBufferParam = Pick<
   | 'keepIframeSrcFn'
   | 'recordCanvas'
   | 'inlineImages'
+  | 'enableStrictPrivacy'
   | 'slimDOMOptions'
   | 'dataURLOptions'
   | 'doc'
@@ -196,6 +203,8 @@ export type playerConfig = {
     warn: (...args: Parameters<typeof console.warn>) => void;
   };
   plugins?: ReplayPlugin[];
+  inactiveThreshold: number;
+  inactiveSkipTime: number;
 };
 
 export type missingNode = {

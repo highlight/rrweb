@@ -1,4 +1,7 @@
-import type { Mirror, serializedNodeWithId } from 'rrweb-snapshot';
+import type {
+  Mirror,
+  serializedNodeWithId,
+} from 'rrweb-snapshot';
 import { genId, NodeType } from 'rrweb-snapshot';
 import type { CrossOriginIframeMessageEvent } from '../types';
 import CrossOriginIframeMirror from './cross-origin-iframe-mirror';
@@ -106,7 +109,7 @@ export class IframeManager {
     const iframeSourceWindow = message.source;
     if (!iframeSourceWindow) return;
 
-    const iframeEl = this.crossOriginIframeMap.get(message.source);
+    const iframeEl = this.crossOriginIframeMap.get(iframeSourceWindow);
     if (!iframeEl) return;
 
     const transformedEvent = this.transformCrossOriginEvent(
