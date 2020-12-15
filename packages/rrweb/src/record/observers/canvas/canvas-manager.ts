@@ -1,4 +1,4 @@
-import type { ICanvas, Mirror, DataURLOptions } from 'rrweb-snapshot';
+import type { ICanvas, Mirror, DataURLOptions } from '@highlight-run/rrweb-snapshot';
 import type {
   blockClass,
   canvasManagerMutationCallback,
@@ -64,6 +64,9 @@ export class CanvasManager {
     mirror: Mirror;
     sampling?: 'all' | number;
     dataURLOptions: DataURLOptions;
+    resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high';
+    resizeFactor?: number;
+    maxSnapshotDimension?: number;
   }) {
     const {
       sampling = 'all',
@@ -81,7 +84,7 @@ export class CanvasManager {
     if (recordCanvas && typeof sampling === 'number')
       this.initCanvasFPSObserver(sampling, win, blockClass, blockSelector, {
         dataURLOptions,
-      });
+      }, options.resizeQuality, options.resizeFactor, options.maxSnapshotDimension);
   }
 
   private processMutation: canvasManagerMutationCallback = (
@@ -109,11 +112,14 @@ export class CanvasManager {
     options: {
       dataURLOptions: DataURLOptions;
     },
+    resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high',
+    resizeFactor?: number,
+    maxSnapshotDimension?: number,
   ) {
     const canvasContextReset = initCanvasContextObserver(
       win,
       blockClass,
-      blockSelector,
+      blockSelector
     );
     const snapshotInProgressMap: Map<number, boolean> = new Map();
     const worker = new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
@@ -123,14 +129,14 @@ export class CanvasManager {
 
       if (!('base64' in e.data)) return;
 
-      const { base64, type, width, height } = e.data;
+      const { base64, type, canvasWidth, canvasHeight } = e.data;
       this.mutationCb({
         id,
         type: CanvasContext['2D'],
         commands: [
           {
             property: 'clearRect', // wipe canvas
-            args: [0, 0, width, height],
+            args: [0, 0, canvasWidth, canvasHeight],
           },
           {
             property: 'drawImage', // draws (semi-transparent) image
@@ -147,6 +153,8 @@ export class CanvasManager {
               } as CanvasArg,
               0,
               0,
+              canvasWidth,
+              canvasHeight,
             ],
           },
         ],
@@ -202,13 +210,32 @@ export class CanvasManager {
               context?.clear(context.COLOR_BUFFER_BIT);
             }
           }
-          const bitmap = await createImageBitmap(canvas);
+          // canvas is not yet ready... this retry on the next sampling iteration.
+          // we don't want to crash the worker if the canvas is not yet rendered.
+          if (canvas.width === 0 || canvas.height === 0) {
+            return;
+          }
+          let scale = resizeFactor || 1;
+          if (maxSnapshotDimension) {
+            const maxDim = Math.max(canvas.width, canvas.height);
+            scale = Math.min(scale, maxSnapshotDimension / maxDim);
+          }
+          const width = canvas.width * scale;
+          const height = canvas.height * scale;
+
+          const bitmap = await createImageBitmap(canvas, {
+            resizeQuality: resizeQuality || 'low',
+            resizeWidth: width,
+            resizeHeight: height,
+          });
           worker.postMessage(
             {
               id,
               bitmap,
-              width: canvas.width,
-              height: canvas.height,
+              width,
+              height,
+              canvasWidth: canvas.width,
+              canvasHeight: canvas.height,
               dataURLOptions: options.dataURLOptions,
             },
             [bitmap],
