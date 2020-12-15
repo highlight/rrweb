@@ -10,7 +10,7 @@ import {
   IncrementalSource,
   styleSheetRuleData,
   selectionData,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import {
   assertSnapshot,
   getServerURL,
@@ -827,7 +827,6 @@ describe('record', function (this: ISuite) {
           sheet5.replaceSync!('h2 { color: purple; }');
           iframe!.contentDocument!.adoptedStyleSheets = [sheet5, sheet3];
         }, 10);
-
         setTimeout(() => {
           resolve(null);
         }, 20);

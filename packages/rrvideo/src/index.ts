@@ -3,8 +3,8 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import puppeteer from 'puppeteer';
 import type { Page, Browser } from 'puppeteer';
-import type { eventWithTime } from '@rrweb/types';
-import type { RRwebPlayerOptions } from 'rrweb-player';
+import type { eventWithTime } from '@highlight-run/rrweb-types';
+import type { RRwebPlayerOptions } from '@highlight-run/rrweb-player';
 
 const rrwebScriptPath = path.resolve(
   require.resolve('rrweb-player'),

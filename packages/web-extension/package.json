@@ -1,5 +1,5 @@
 {
-  "name": "@rrweb/web-extension",
+  "name": "@highlight-run/rrweb-web-extension",
   "private": true,
   "version": "2.0.0-alpha.7",
   "description": "The web extension of rrweb which helps to run rrweb on any website out of box",
@@ -13,10 +13,11 @@
     "pack:chrome": "cross-env TARGET_BROWSER=chrome ZIP=true vite build",
     "pack:firefox": "cross-env TARGET_BROWSER=firefox ZIP=true vite build",
     "check-types": "tsc -noEmit",
-    "prepublish": "npm run pack:chrome && npm run pack:firefox"
+    "build": "npm run pack:chrome && npm run pack:firefox",
+    "prepublish": "npm run build"
   },
   "devDependencies": {
-    "@rrweb/types": "^2.0.0-alpha.7",
+    "@highlight-run/rrweb-types": "workspace:*",
     "@types/react-dom": "^18.0.6",
     "@types/webextension-polyfill": "^0.9.1",
     "@vitejs/plugin-react": "^2.1.0",
@@ -31,6 +32,8 @@
     "@chakra-ui/react": "^2.3.4",
     "@emotion/react": "^11.10.4",
     "@emotion/styled": "^11.10.4",
+    "@highlight-run/rrweb": "workspace:*",
+    "@highlight-run/rrweb-player": "workspace:*",
     "@tanstack/react-table": "^8.5.22",
     "framer-motion": "^7.3.6",
     "idb": "^7.1.1",
@@ -39,8 +42,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^4.4.0",
-    "react-router-dom": "^6.4.1",
-    "rrweb": "^2.0.0-alpha.7",
-    "rrweb-player": "^2.0.0-alpha.7"
+    "react-router-dom": "^6.4.1"
   }
 }
