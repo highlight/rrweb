@@ -21,6 +21,7 @@ import {
   isElement,
   isShadowRoot,
   maskInputValue,
+  obfuscateText,
   isNativeShadowDom,
   stringifyStylesheet,
   getInputType,
@@ -393,6 +394,7 @@ function serializeNode(
     needsMask: boolean;
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
+    maskTextClass: string | RegExp;
     maskTextFn: MaskTextFn | undefined;
     maskInputFn: MaskInputFn | undefined;
     dataURLOptions?: DataURLOptions;
@@ -403,6 +405,9 @@ function serializeNode(
      * `newlyAddedElement: true` skips scrollTop and scrollLeft check
      */
     newlyAddedElement?: boolean;
+    /** Highlight Options Start */
+    enableStrictPrivacy: boolean;
+    /** Highlight Options End */
   },
 ): serializedNode | false {
   const {
@@ -413,6 +418,7 @@ function serializeNode(
     needsMask,
     inlineStylesheet,
     maskInputOptions = {},
+    maskTextClass,
     maskTextFn,
     maskInputFn,
     dataURLOptions = {},
@@ -420,6 +426,7 @@ function serializeNode(
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement = false,
+    enableStrictPrivacy,
   } = options;
   // Only record root id when document object is not the base document
   const rootId = getRootId(doc, mirror);
@@ -453,11 +460,13 @@ function serializeNode(
         inlineStylesheet,
         maskInputOptions,
         maskInputFn,
+        maskTextClass,
         dataURLOptions,
         inlineImages,
         recordCanvas,
         keepIframeSrcFn,
         newlyAddedElement,
+        enableStrictPrivacy,
         rootId,
       });
     case n.TEXT_NODE:
@@ -465,6 +474,7 @@ function serializeNode(
         doc,
         needsMask,
         maskTextFn,
+        enableStrictPrivacy,
         rootId,
       });
     case n.CDATA_SECTION_NODE:
@@ -496,10 +506,16 @@ function serializeTextNode(
     doc: Document;
     needsMask: boolean;
     maskTextFn: MaskTextFn | undefined;
+    enableStrictPrivacy: boolean;
     rootId: number | undefined;
   },
 ): serializedNode {
-  const { needsMask, maskTextFn, rootId } = options;
+  const {
+    needsMask,
+    maskTextFn,
+    enableStrictPrivacy,
+    rootId,
+  } = options;
   // The parent node may not be a html element which has a tagName attribute.
   // So just let it be undefined which is ok in this use case.
   const parent = dom.parentNode(n);
@@ -507,6 +523,8 @@ function serializeTextNode(
   let text = dom.textContent(n);
   const isStyle = parentTagName === 'STYLE' ? true : undefined;
   const isScript = parentTagName === 'SCRIPT' ? true : undefined;
+  /** Determines if this node has been handled already. */
+  let textContentHandled = false;
   if (isStyle && text) {
     try {
       // try to read style sheet
@@ -525,15 +543,38 @@ function serializeTextNode(
       );
     }
     text = absolutifyURLs(text, getHref(options.doc));
+    textContentHandled = true;
   }
   if (isScript) {
     text = 'SCRIPT_PLACEHOLDER';
+    textContentHandled = true;
+  } else if (parentTagName === 'NOSCRIPT') {
+    text = '';
+    textContentHandled = true;
   }
   if (!isStyle && !isScript && text && needsMask) {
     text = maskTextFn
       ? maskTextFn(text, dom.parentElement(n))
       : text.replace(/[\S]/g, '*');
   }
+
+  /* Start of Highlight */
+  // Randomizes the text content to a string of the same length.
+  if (enableStrictPrivacy && !textContentHandled && parentTagName) {
+    const IGNORE_TAG_NAMES = new Set([
+      'HEAD',
+      'TITLE',
+      'STYLE',
+      'SCRIPT',
+      'HTML',
+      'BODY',
+      'NOSCRIPT',
+    ]);
+    if (!IGNORE_TAG_NAMES.has(parentTagName) && text) {
+      text = obfuscateText(text);
+    }
+  }
+  /* End of Highlight */
 
   return {
     type: NodeType.Text,
@@ -552,6 +593,7 @@ function serializeElementNode(
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
     maskInputFn: MaskInputFn | undefined;
+    maskTextClass: string | RegExp;
     dataURLOptions?: DataURLOptions;
     inlineImages: boolean;
     recordCanvas: boolean;
@@ -560,6 +602,7 @@ function serializeElementNode(
      * `newlyAddedElement: true` skips scrollTop and scrollLeft check
      */
     newlyAddedElement?: boolean;
+    enableStrictPrivacy: boolean;
     rootId: number | undefined;
   },
 ): serializedNode | false {
@@ -570,14 +613,17 @@ function serializeElementNode(
     inlineStylesheet,
     maskInputOptions = {},
     maskInputFn,
+    maskTextClass,
     dataURLOptions = {},
     inlineImages,
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement = false,
+    enableStrictPrivacy,
     rootId,
   } = options;
-  const needBlock = _isBlockedElement(n, blockClass, blockSelector);
+  let needBlock = _isBlockedElement(n, blockClass, blockSelector);
+  const needMask = _isBlockedElement(n, maskTextClass, null);
   const tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
@@ -697,7 +743,13 @@ function serializeElementNode(
     }
   }
   // save image offline
-  if (tagName === 'img' && inlineImages) {
+  if (
+    tagName === 'img' &&
+    inlineImages &&
+    !needBlock &&
+    !needMask &&
+    !enableStrictPrivacy
+  ) {
     if (!canvasService) {
       canvasService = doc.createElement('canvas');
       canvasCtx = canvasService.getContext('2d');
@@ -765,13 +817,16 @@ function serializeElementNode(
     }
   }
   // block element
-  if (needBlock) {
+  if (needBlock || needMask || (tagName === 'img' && enableStrictPrivacy)) {
     const { width, height } = n.getBoundingClientRect();
     attributes = {
       class: attributes.class,
       rr_width: `${width}px`,
       rr_height: `${height}px`,
     };
+    if (enableStrictPrivacy) {
+      needBlock = true;
+    }
   }
   // iframe
   if (tagName === 'iframe' && !keepIframeSrcFn(attributes.src as string)) {
@@ -797,6 +852,7 @@ function serializeElementNode(
     childNodes: [],
     isSVG: isSVGElement(n as Element) || undefined,
     needBlock,
+    needMask,
     rootId,
     isCustom: isCustomElement,
   };
@@ -932,6 +988,7 @@ export function serializeNodeWithId(
       node: serializedElementNodeWithId,
     ) => unknown;
     iframeLoadTimeout?: number;
+    enableStrictPrivacy: boolean;
     onStylesheetLoad?: (
       linkNode: HTMLLinkElement,
       node: serializedElementNodeWithId,
@@ -962,6 +1019,7 @@ export function serializeNodeWithId(
     stylesheetLoadTimeout = 5000,
     keepIframeSrcFn = () => false,
     newlyAddedElement = false,
+    enableStrictPrivacy,
   } = options;
   let { needsMask } = options;
   let { preserveWhiteSpace = true } = options;
@@ -985,6 +1043,7 @@ export function serializeNodeWithId(
     needsMask,
     inlineStylesheet,
     maskInputOptions,
+    maskTextClass,
     maskTextFn,
     maskInputFn,
     dataURLOptions,
@@ -992,6 +1051,7 @@ export function serializeNodeWithId(
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement,
+    enableStrictPrivacy,
   });
   if (!_serializedNode) {
     // TODO: dev only
@@ -1027,10 +1087,26 @@ export function serializeNodeWithId(
     onSerialize(n);
   }
   let recordChild = !skipChild;
+  let strictPrivacy = enableStrictPrivacy;
   if (serializedNode.type === NodeType.Element) {
     recordChild = recordChild && !serializedNode.needBlock;
-    // this property was not needed in replay side
+    strictPrivacy =
+      enableStrictPrivacy ||
+      !!serializedNode.needBlock ||
+      !!serializedNode.needMask;
+
+    /** Highlight Code Begin */
+    // Remove the image's src if enableStrictPrivacy.
+    if (strictPrivacy && serializedNode.tagName === 'img') {
+      const clone = n.cloneNode();
+      (clone as unknown as HTMLImageElement).src = '';
+      mirror.add(clone, serializedNode);
+    }
+    /** Highlight Code End */
+
+    // these properties was not needed in replay side
     delete serializedNode.needBlock;
+    delete serializedNode.needMask;
     const shadowRootEl = dom.shadowRoot(n);
     if (shadowRootEl && isNativeShadowDom(shadowRootEl))
       serializedNode.isShadowHost = true;
@@ -1072,6 +1148,7 @@ export function serializeNodeWithId(
       onStylesheetLoad,
       stylesheetLoadTimeout,
       keepIframeSrcFn,
+      enableStrictPrivacy: strictPrivacy,
     };
 
     if (
@@ -1140,6 +1217,7 @@ export function serializeNodeWithId(
             onStylesheetLoad,
             stylesheetLoadTimeout,
             keepIframeSrcFn,
+            enableStrictPrivacy,
           });
 
           if (serializedIframeNode) {
@@ -1192,6 +1270,7 @@ export function serializeNodeWithId(
             onStylesheetLoad,
             stylesheetLoadTimeout,
             keepIframeSrcFn,
+            enableStrictPrivacy,
           });
 
           if (serializedLinkNode) {
@@ -1238,13 +1317,14 @@ function snapshot(
     ) => unknown;
     stylesheetLoadTimeout?: number;
     keepIframeSrcFn?: KeepIframeSrcFn;
+    enableStrictPrivacy: boolean;
   },
 ): serializedNodeWithId | null {
   const {
     mirror = new Mirror(),
-    blockClass = 'rr-block',
+    blockClass = 'highlight-block',
     blockSelector = null,
-    maskTextClass = 'rr-mask',
+    maskTextClass = 'highlight-mask',
     maskTextSelector = null,
     inlineStylesheet = true,
     inlineImages = false,
@@ -1261,6 +1341,7 @@ function snapshot(
     onStylesheetLoad,
     stylesheetLoadTimeout,
     keepIframeSrcFn = () => false,
+    enableStrictPrivacy = false,
   } = options || {};
   const maskInputOptions: MaskInputOptions =
     maskAllInputs === true
@@ -1329,6 +1410,7 @@ function snapshot(
     stylesheetLoadTimeout,
     keepIframeSrcFn,
     newlyAddedElement: false,
+    enableStrictPrivacy,
   });
 }
 

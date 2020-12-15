@@ -33,6 +33,7 @@ import { IframeManager } from './iframe-manager';
 import { ShadowDomManager } from './shadow-dom-manager';
 import { CanvasManager } from './observers/canvas/canvas-manager';
 import { StylesheetManager } from './stylesheet-manager';
+import { obfuscateText } from 'rrweb-snapshot';
 import ProcessedNodeManager from './processed-node-manager';
 import {
   callbackWrapper,
@@ -69,18 +70,18 @@ function record<T = eventWithTime>(
     emit,
     checkoutEveryNms,
     checkoutEveryNth,
-    blockClass = 'rr-block',
+    blockClass = 'highlight-block',
     blockSelector = null,
-    ignoreClass = 'rr-ignore',
+    ignoreClass = 'highlight-ignore',
     ignoreSelector = null,
-    maskTextClass = 'rr-mask',
+    maskTextClass = 'highlight-mask',
     maskTextSelector = null,
     inlineStylesheet = true,
     maskAllInputs,
     maskInputOptions: _maskInputOptions,
     slimDOMOptions: _slimDOMOptions,
     maskInputFn,
-    maskTextFn,
+    maskTextFn = obfuscateText,
     hooks,
     packFn,
     sampling = {},
@@ -97,6 +98,7 @@ function record<T = eventWithTime>(
     inlineImages = false,
     plugins,
     keepIframeSrcFn = () => false,
+    enableStrictPrivacy = false,
     ignoreCSSAttributes = new Set([]),
     errorHandler,
   } = options;
@@ -323,8 +325,11 @@ function record<T = eventWithTime>(
     blockClass,
     blockSelector,
     mirror,
-    sampling: sampling.canvas,
+    sampling: sampling?.canvas?.fps,
     dataURLOptions,
+    resizeQuality: sampling?.canvas?.resizeQuality,
+    resizeFactor: sampling?.canvas?.resizeFactor,
+    maxSnapshotDimension: sampling?.canvas?.maxSnapshotDimension,
   });
 
   const shadowDomManager = new ShadowDomManager({
@@ -342,6 +347,7 @@ function record<T = eventWithTime>(
       maskInputFn,
       recordCanvas,
       inlineImages,
+      enableStrictPrivacy,
       sampling,
       slimDOMOptions,
       iframeManager,
@@ -389,6 +395,7 @@ function record<T = eventWithTime>(
       dataURLOptions,
       recordCanvas,
       inlineImages,
+      enableStrictPrivacy,
       onSerialize: (n) => {
         if (isSerializedIframe(n, mirror)) {
           iframeManager.addIframe(n as HTMLIFrameElement);
@@ -553,6 +560,7 @@ function record<T = eventWithTime>(
           processedNodeManager,
           canvasManager,
           ignoreCSSAttributes,
+          enableStrictPrivacy,
           plugins:
             plugins
               ?.filter((p) => p.observer)
@@ -630,7 +638,9 @@ function record<T = eventWithTime>(
 
 record.addCustomEvent = <T>(tag: string, payload: T) => {
   if (!recording) {
-    throw new Error('please add custom event after start recording');
+    /* Highlight Code - disable this warning */
+    // throw new Error('please add custom event after start recording');
+    return;
   }
   wrappedEmit({
     type: EventType.Custom,
