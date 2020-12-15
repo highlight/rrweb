@@ -7,12 +7,12 @@ import type {
   MaskInputFn,
   MaskTextFn,
   DataURLOptions,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type { PackFn, UnpackFn } from './packer/base';
 import type { IframeManager } from './record/iframe-manager';
 import type { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
-import type { RRNode } from 'rrdom';
+import type { RRNode } from '@highlight-run/rrdom';
 import type { CanvasManager } from './record/observers/canvas/canvas-manager';
 import type { StylesheetManager } from './record/stylesheet-manager';
 
@@ -25,6 +25,13 @@ export enum EventType {
   Custom,
   Plugin,
 }
+
+export type SessionInterval = {
+  startTime: number;
+  endTime: number;
+  duration: number;
+  active: boolean;
+};
 
 export type domContentLoadedEvent = {
   type: EventType.DomContentLoaded;
@@ -191,6 +198,32 @@ export type blockClass = string | RegExp;
 
 export type maskTextClass = string | RegExp;
 
+export type CanvasSamplingStrategy = Partial<{
+  /**
+   * 'all' will record every single canvas call
+   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
+   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
+   */
+  fps: 'all' | number;
+  /**
+   * A scaling to apply to canvas shapshotting. Adjusts the resolution at which
+   * canvases are recorded by this multiple.
+   */
+  resizeFactor: number;
+  /**
+   * The quality of canvas snapshots
+   */
+  resizeQuality: 'pixelated' | 'low' | 'medium' | 'high';
+  /**
+   * The maximum dimension to take canvas snapshots at.
+   * This setting takes precedence over resizeFactor if the resulting image size
+   * from the resizeFactor calculation is larger than this value.
+   * Eg: set to 600 to ensure that the canvas is saved with images no larger than 600px
+   * in either dimension (while preserving the original canvas aspect ratio).
+   */
+  maxSnapshotDimension: number;
+}>;
+
 export type SamplingStrategy = Partial<{
   /**
    * false means not to record mouse/touch move events
@@ -219,12 +252,8 @@ export type SamplingStrategy = Partial<{
    * 'last' will only record the last input value while input a sequence of chars
    */
   input: 'all' | 'last';
-  /**
-   * 'all' will record every single canvas call
-   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
-   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
-   */
-  canvas: 'all' | number;
+
+  canvas: CanvasSamplingStrategy;
 }>;
 
 export type RecordPlugin<TOptions = unknown> = {
@@ -267,6 +296,11 @@ export type recordOptions<T> = {
   // departed, please use sampling options
   mousemoveWait?: number;
   keepIframeSrcFn?: KeepIframeSrcFn;
+  /**
+   * Enabling this will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
+   * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
+   */
+  enableStrictPrivacy?: boolean;
 };
 
 export type observerParam = {
@@ -305,6 +339,7 @@ export type observerParam = {
   stylesheetManager: StylesheetManager;
   shadowDomManager: ShadowDomManager;
   canvasManager: CanvasManager;
+  enableStrictPrivacy: boolean;
   ignoreCSSAttributes: Set<string>;
   plugins: Array<{
     observer: (
@@ -339,6 +374,7 @@ export type MutationBufferParam = Pick<
   | 'stylesheetManager'
   | 'shadowDomManager'
   | 'canvasManager'
+  | 'enableStrictPrivacy'
 >;
 
 export type hooksParam = {
@@ -592,6 +628,8 @@ export type ImageBitmapDataURLWorkerParams = {
   width: number;
   height: number;
   dataURLOptions: DataURLOptions;
+  canvasWidth: number;
+  canvasHeight: number;
 };
 
 export type ImageBitmapDataURLWorkerResponse =
@@ -604,6 +642,8 @@ export type ImageBitmapDataURLWorkerResponse =
       base64: string;
       width: number;
       height: number;
+      canvasWidth: number;
+      canvasHeight: number;
     };
 
 export type fontParam = {
@@ -732,6 +772,8 @@ export type playerConfig = {
   unpackFn?: UnpackFn;
   useVirtualDom: boolean;
   plugins?: ReplayPlugin[];
+  inactiveThreshold: number;
+  inactiveSkipTime: number;
 };
 
 export type playerMetaData = {
