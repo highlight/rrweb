@@ -6,11 +6,12 @@ import {
   isShadowRoot,
   needMaskingText,
   maskInputValue,
+  obfuscateText,
   Mirror,
   isNativeShadowDom,
   getInputType,
   toLowerCase,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type { observerParam, MutationBufferParam } from '../types';
 import type {
   mutationRecord,
@@ -19,7 +20,7 @@ import type {
   removedNodeMutation,
   addedNodeMutation,
   Optional,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import {
   isBlocked,
   isAncestorRemoved,
@@ -181,6 +182,7 @@ export default class MutationBuffer {
   private keepIframeSrcFn: observerParam['keepIframeSrcFn'];
   private recordCanvas: observerParam['recordCanvas'];
   private inlineImages: observerParam['inlineImages'];
+  private enableStrictPrivacy: observerParam['enableStrictPrivacy'];
   private slimDOMOptions: observerParam['slimDOMOptions'];
   private dataURLOptions: observerParam['dataURLOptions'];
   private doc: observerParam['doc'];
@@ -207,6 +209,7 @@ export default class MutationBuffer {
         'keepIframeSrcFn',
         'recordCanvas',
         'inlineImages',
+        'enableStrictPrivacy',
         'slimDOMOptions',
         'dataURLOptions',
         'doc',
@@ -316,6 +319,7 @@ export default class MutationBuffer {
         dataURLOptions: this.dataURLOptions,
         recordCanvas: this.recordCanvas,
         inlineImages: this.inlineImages,
+        enableStrictPrivacy: this.enableStrictPrivacy,
         onSerialize: (currentN) => {
           if (isSerializedIframe(currentN, this.mirror)) {
             this.iframeManager.addIframe(currentN as HTMLIFrameElement);
@@ -440,6 +444,12 @@ export default class MutationBuffer {
     const payload = {
       texts: this.texts
         .map((text) => {
+          /* Begin Highlight Code */
+          let value = text.value;
+          if (this.enableStrictPrivacy && value) {
+              value = obfuscateText(value);
+          }
+          /* End Highlight Code */
           const n = text.node;
           if ((n.parentNode as Element).tagName === 'TEXTAREA') {
             // the node is being ignored as it isn't in the mirror, so shift mutation to attributes on parent textarea
@@ -447,7 +457,7 @@ export default class MutationBuffer {
           }
           return {
             id: this.mirror.getId(n),
-            value: text.value,
+            value,
           };
         })
         // no need to include them on added elements, as they have just been serialized with up to date attribubtes
@@ -615,6 +625,16 @@ export default class MutationBuffer {
         }
 
         if (!ignoreAttribute(target.tagName, attributeName, value)) {
+          /* Begin Highlight Code */
+          const tagName = (m.target as HTMLElement).tagName;
+          if (tagName === 'INPUT') {
+              const node = m.target as HTMLInputElement;
+              if (node.type === 'password') {
+                  item.attributes['value'] = '*'.repeat(node.value.length);
+                  break;
+              }
+          }
+          /* End Highlight Code */
           // overwrite attribute if the mutations was triggered in same time
           item.attributes[attributeName] = transformAttribute(
             this.doc,

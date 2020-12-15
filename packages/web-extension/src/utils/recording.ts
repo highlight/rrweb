@@ -1,5 +1,5 @@
 import Browser from 'webextension-polyfill';
-import type { eventWithTime } from '@rrweb/types';
+import type { eventWithTime } from '@highlight-run/rrweb-types';
 
 import {
   LocalData,

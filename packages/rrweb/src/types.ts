@@ -5,12 +5,12 @@ import type {
   MaskInputFn,
   MaskTextFn,
   DataURLOptions,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type { PackFn, UnpackFn } from './packer/base';
 import type { IframeManager } from './record/iframe-manager';
 import type { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
-import type { RRNode } from 'rrdom';
+import type { RRNode } from '@highlight-run/rrdom';
 import type { CanvasManager } from './record/observers/canvas/canvas-manager';
 import type { StylesheetManager } from './record/stylesheet-manager';
 import type {
@@ -37,7 +37,7 @@ import type {
   styleDeclarationCallback,
   styleSheetRuleCallback,
   viewportResizeCallback,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import type ProcessedNodeManager from './record/processed-node-manager';
 
 export type recordOptions<T> = {
@@ -73,6 +73,11 @@ export type recordOptions<T> = {
   mousemoveWait?: number;
   keepIframeSrcFn?: KeepIframeSrcFn;
   errorHandler?: ErrorHandler;
+  /**
+   * Enabling this will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
+   * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
+   */
+  enableStrictPrivacy?: boolean;
 };
 
 export type observerParam = {
@@ -104,6 +109,7 @@ export type observerParam = {
   recordDOM: boolean;
   recordCanvas: boolean;
   inlineImages: boolean;
+  enableStrictPrivacy: boolean;
   userTriggeredOnInput: boolean;
   collectFonts: boolean;
   slimDOMOptions: SlimDOMOptions;
@@ -141,6 +147,7 @@ export type MutationBufferParam = Pick<
   | 'keepIframeSrcFn'
   | 'recordCanvas'
   | 'inlineImages'
+  | 'enableStrictPrivacy'
   | 'slimDOMOptions'
   | 'dataURLOptions'
   | 'doc'
@@ -193,6 +200,8 @@ export type playerConfig = {
     warn: (...args: Parameters<typeof console.warn>) => void;
   };
   plugins?: ReplayPlugin[];
+  inactiveThreshold: number;
+  inactiveSkipTime: number;
 };
 
 export type missingNode = {

@@ -3,7 +3,7 @@ import {
   eventWithTime,
   EventType,
   IncrementalSource,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 
 export class Timer {
   public timeOffset = 0;
@@ -42,6 +42,20 @@ export class Timer {
       this.raf = requestAnimationFrame(this.rafCheck.bind(this));
     }
   }
+
+  /* Begin Highlight Code */
+  /**
+   * Add all actions before the timer starts
+   */
+  public addActions(actions: actionWithDelay[]) {
+    this.actions = this.actions.concat(actions);
+  }
+
+  public replaceActions(actions: actionWithDelay[]) {
+    this.actions.length = 0;
+    this.actions.splice(0, 0, ...actions);
+  }
+  /* End Highlight Code */
 
   public start() {
     this.timeOffset = 0;

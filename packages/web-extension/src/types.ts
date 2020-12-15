@@ -1,4 +1,4 @@
-import type { eventWithTime } from '@rrweb/types';
+import type { eventWithTime } from '@highlight-run/rrweb-types';
 
 export enum SyncDataKey {
   settings = 'settings',

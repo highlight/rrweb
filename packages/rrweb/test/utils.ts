@@ -1,4 +1,4 @@
-import { NodeType } from 'rrweb-snapshot';
+import { NodeType } from '@highlight-run/rrweb-snapshot';
 import {
   EventType,
   IncrementalSource,
@@ -8,7 +8,7 @@ import {
   mouseInteractionData,
   event,
   pluginEvent,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import type { recordOptions } from '../src/types';
 import * as puppeteer from 'puppeteer';
 import { format } from 'prettier';

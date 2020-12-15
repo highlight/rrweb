@@ -3,15 +3,15 @@ import type {
   mutationCallBack,
   scrollCallback,
   SamplingStrategy,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import {
   initMutationObserver,
   initScrollObserver,
   initAdoptedStyleSheetObserver,
 } from './observer';
 import { patch, inDom } from '../utils';
-import type { Mirror } from 'rrweb-snapshot';
-import { isNativeShadowDom } from 'rrweb-snapshot';
+import type { Mirror } from '@highlight-run/rrweb-snapshot';
+import { isNativeShadowDom } from '@highlight-run/rrweb-snapshot';
 
 type BypassOptions = Omit<
   MutationBufferParam,

@@ -1,5 +1,5 @@
 import { openDB } from 'idb';
-import { eventWithTime } from '@rrweb/types';
+import { eventWithTime } from '@highlight-run/rrweb-types';
 import { Session } from '~/types';
 
 /**

@@ -1,8 +1,8 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { chromium } from 'playwright';
-import { EventType, eventWithTime } from '@rrweb/types';
-import type { RRwebPlayerOptions } from 'rrweb-player';
+import { EventType, eventWithTime } from '@highlight-run/rrweb-types';
+import type { RRwebPlayerOptions } from '@highlight-run/rrweb-player';
 
 const rrwebScriptPath = path.resolve(
   require.resolve('rrweb-player'),

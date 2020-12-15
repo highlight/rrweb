@@ -1,4 +1,4 @@
-import type { Mirror } from 'rrweb-snapshot';
+import type { Mirror } from '@highlight-run/rrweb-snapshot';
 import {
   blockClass,
   CanvasContext,
@@ -6,7 +6,7 @@ import {
   canvasMutationWithType,
   IWindow,
   listenerHandler,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import { hookSetter, isBlocked, patch } from '../../../utils';
 import { saveWebGLVar, serializeArgs } from './serialize-args';
 
