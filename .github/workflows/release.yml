@@ -11,6 +11,8 @@ jobs:
               with:
                   node-version: 12
                   registry-url: https://registry.npmjs.org
+            - name: Install
+              run: npm install
             - name: Bundle
               run: npm run bundle
             - name: Typings
