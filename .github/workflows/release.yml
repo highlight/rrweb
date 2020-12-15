@@ -17,3 +17,5 @@ jobs:
               run: npm run bundle
             - name: Typings
               run: npm run typings
+            - name: List
+              run: ls -l
