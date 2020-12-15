@@ -41,17 +41,18 @@
     "url": "https://github.com/rrweb-io/rrweb/issues"
   },
   "devDependencies": {
-    "@rrweb/types": "^2.0.0-alpha.18",
+    "@rrweb/types": "workspace:*",
     "@types/puppeteer": "^5.4.4",
     "@typescript-eslint/eslint-plugin": "^5.23.0",
     "@typescript-eslint/parser": "^5.23.0",
     "eslint": "^8.15.0",
     "puppeteer": "^17.1.3",
+    "turbo": "^2.0.5",
     "typescript": "^5.4.5",
     "vite": "^5.3.1",
     "vite-plugin-dts": "^3.9.1"
   },
   "dependencies": {
-    "rrweb-snapshot": "^2.0.0-alpha.18"
+    "rrweb-snapshot": "workspace:*"
   }
 }

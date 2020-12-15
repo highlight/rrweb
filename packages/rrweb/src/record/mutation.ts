@@ -6,6 +6,7 @@ import {
   isShadowRoot,
   needMaskingText,
   maskInputValue,
+  obfuscateText,
   Mirror,
   isNativeShadowDom,
   getInputType,
@@ -183,6 +184,7 @@ export default class MutationBuffer {
   private keepIframeSrcFn: observerParam['keepIframeSrcFn'];
   private recordCanvas: observerParam['recordCanvas'];
   private inlineImages: observerParam['inlineImages'];
+  private enableStrictPrivacy: observerParam['enableStrictPrivacy'];
   private slimDOMOptions: observerParam['slimDOMOptions'];
   private dataURLOptions: observerParam['dataURLOptions'];
   private doc: observerParam['doc'];
@@ -209,6 +211,7 @@ export default class MutationBuffer {
         'keepIframeSrcFn',
         'recordCanvas',
         'inlineImages',
+        'enableStrictPrivacy',
         'slimDOMOptions',
         'dataURLOptions',
         'doc',
@@ -329,6 +332,7 @@ export default class MutationBuffer {
         dataURLOptions: this.dataURLOptions,
         recordCanvas: this.recordCanvas,
         inlineImages: this.inlineImages,
+        enableStrictPrivacy: this.enableStrictPrivacy,
         onSerialize: (currentN) => {
           if (isSerializedIframe(currentN, this.mirror)) {
             this.iframeManager.addIframe(currentN as HTMLIFrameElement);
@@ -457,10 +461,16 @@ export default class MutationBuffer {
             // the node is being ignored as it isn't in the mirror, so shift mutation to attributes on parent textarea
             this.genTextAreaValueMutation(parent as HTMLTextAreaElement);
           }
+          /* Begin Highlight Code */
+          let value = text.value;
+          if (this.enableStrictPrivacy && value) {
+              value = obfuscateText(value);
+          }
           return {
             id: this.mirror.getId(n),
-            value: text.value,
+            value,
           };
+          /* End Highlight Code */
         })
         // no need to include them on added elements, as they have just been serialized with up to date attribubtes
         .filter((text) => !addedIds.has(text.id))
@@ -636,6 +646,16 @@ export default class MutationBuffer {
         }
 
         if (!ignoreAttribute(target.tagName, attributeName, value)) {
+          /* Begin Highlight Code */
+          const tagName = (m.target as HTMLElement).tagName;
+          if (tagName === 'INPUT') {
+            const node = m.target as HTMLInputElement;
+            if (node.type === 'password') {
+                item.attributes['value'] = '*'.repeat(node.value.length);
+                break;
+            }
+          }
+          /* End Highlight Code */
           // overwrite attribute if the mutations was triggered in same time
           item.attributes[attributeName] = transformAttribute(
             this.doc,

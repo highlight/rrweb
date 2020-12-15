@@ -1,5 +1,9 @@
 import type { ICanvas } from 'rrweb-snapshot';
-import type { blockClass, IWindow, listenerHandler } from '@rrweb/types';
+import type {
+  blockClass,
+  IWindow,
+  listenerHandler,
+} from '@rrweb/types';
 import { isBlocked } from '../../../utils';
 import { patch } from '@rrweb/utils';
 

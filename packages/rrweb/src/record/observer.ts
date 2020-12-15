@@ -15,6 +15,7 @@ import {
   getWindowWidth,
   isBlocked,
   legacy_isTouchEvent,
+  isCanvasNode,
   StyleSheetMirror,
   nowTimestamp,
 } from '../utils';
@@ -212,9 +213,15 @@ function initMouseInteractionObserver({
   const getHandler = (eventKey: keyof typeof MouseInteractions) => {
     return (event: MouseEvent | TouchEvent | PointerEvent) => {
       const target = getEventTarget(event) as Node;
-      if (isBlocked(target, blockClass, blockSelector, true)) {
+      /* Start of Highlight Code */
+      if (
+        isBlocked(target, blockClass, blockSelector, true) ||
+        // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
+        isCanvasNode(target)
+      ) {
         return;
       }
+      /* End of Highlight Code */
       let pointerType: PointerTypes | null = null;
       let thisEventKey = eventKey;
       if ('pointerType' in event) {

@@ -75,18 +75,19 @@
     "simple-peer-light": "^9.10.0",
     "ts-node": "^10.9.1",
     "tslib": "^2.3.1",
+    "turbo": "^2.0.5",
     "typescript": "^5.4.5",
     "vite": "^5.3.1",
     "vite-plugin-dts": "^3.9.1"
   },
   "dependencies": {
-    "@rrweb/types": "^2.0.0-alpha.18",
-    "@rrweb/utils": "^2.0.0-alpha.18",
+    "@rrweb/types": "workspace:*",
+    "@rrweb/utils": "workspace:*",
     "@types/css-font-loading-module": "0.0.7",
     "@xstate/fsm": "^1.4.0",
     "base64-arraybuffer": "^1.0.1",
     "mitt": "^3.0.0",
-    "rrdom": "^2.0.0-alpha.18",
-    "rrweb-snapshot": "^2.0.0-alpha.18"
+    "rrdom": "workspace:*",
+    "rrweb-snapshot": "workspace:*"
   }
 }
