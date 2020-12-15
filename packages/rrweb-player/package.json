@@ -4,8 +4,10 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^22.0.0",
     "@rollup/plugin-node-resolve": "^13.2.1",
-    "@rrweb/types": "^2.0.0-alpha.12",
+    "@rrweb/types": "workspace:*",
+    "@types/eslint": "^8",
     "@types/offscreencanvas": "^2019.6.4",
+    "eslint": "^8.57.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-svelte3": "^4.0.0",
     "postcss-easy-import": "^3.0.0",
@@ -20,11 +22,12 @@
     "svelte": "^3.59.2",
     "svelte-check": "^3.0.1",
     "svelte-preprocess": "^5.0.0",
-    "tslib": "^2.0.0"
+    "tslib": "^2.0.0",
+    "typescript": "^4.9.5"
   },
   "dependencies": {
     "@tsconfig/svelte": "^1.0.0",
-    "rrweb": "^2.0.0-alpha.12"
+    "rrweb": "workspace:*"
   },
   "scripts": {
     "build": "rollup -c",

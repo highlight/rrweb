@@ -112,7 +112,7 @@ describe('absolute url to stylesheet', () => {
 
 describe('isBlockedElement()', () => {
   const subject = (html: string, opt: any = {}) =>
-    _isBlockedElement(render(html), 'rr-block', opt.blockSelector);
+    _isBlockedElement(render(html), 'highlight-block', opt.blockSelector);
 
   const render = (html: string): HTMLElement =>
     JSDOM.fragment(html).querySelector('div')!;
@@ -122,16 +122,18 @@ describe('isBlockedElement()', () => {
   });
 
   it('blocks prohibited className', () => {
-    expect(subject('<div class="foo rr-block bar" />')).toEqual(true);
+    expect(subject('<div class="foo highlight-block bar" />')).toEqual(true);
   });
 
   it('does not block random data selector', () => {
-    expect(subject('<div data-rr-block />')).toEqual(false);
+    expect(subject('<div data-highlight-block />')).toEqual(false);
   });
 
   it('blocks blocked selector', () => {
     expect(
-      subject('<div data-rr-block />', { blockSelector: '[data-rr-block]' }),
+      subject('<div data-highlight-block />', {
+        blockSelector: '[data-highlight-block]',
+      }),
     ).toEqual(true);
   });
 });
