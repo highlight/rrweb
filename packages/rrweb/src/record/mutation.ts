@@ -5,9 +5,10 @@ import {
   isShadowRoot,
   needMaskingText,
   maskInputValue,
+  obfuscateText,
   Mirror,
   isNativeShadowDom,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type { observerParam, MutationBufferParam } from '../types';
 import type {
   mutationRecord,
@@ -17,7 +18,7 @@ import type {
   addedNodeMutation,
   styleAttributeValue,
   Optional,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import {
   isBlocked,
   isAncestorRemoved,
@@ -175,6 +176,7 @@ export default class MutationBuffer {
   private stylesheetManager: observerParam['stylesheetManager'];
   private shadowDomManager: observerParam['shadowDomManager'];
   private canvasManager: observerParam['canvasManager'];
+  private enableStrictPrivacy: observerParam['enableStrictPrivacy'];
 
   public init(options: MutationBufferParam) {
     ([
@@ -198,6 +200,7 @@ export default class MutationBuffer {
       'stylesheetManager',
       'shadowDomManager',
       'canvasManager',
+      'enableStrictPrivacy',
     ] as const).forEach((key) => {
       // just a type trick, the runtime result is correct
       this[key] = options[key] as never;
@@ -310,6 +313,7 @@ export default class MutationBuffer {
         dataURLOptions: this.dataURLOptions,
         recordCanvas: this.recordCanvas,
         inlineImages: this.inlineImages,
+        enableStrictPrivacy: this.enableStrictPrivacy,
         onSerialize: (currentN) => {
           if (isSerializedIframe(currentN, this.mirror)) {
             this.iframeManager.addIframe(currentN as HTMLIFrameElement);
@@ -430,10 +434,18 @@ export default class MutationBuffer {
 
     const payload = {
       texts: this.texts
-        .map((text) => ({
-          id: this.mirror.getId(text.node),
-          value: text.value,
-        }))
+        .map((text) => {
+          /* Begin Highlight Code */
+          let value = text.value;
+          if (this.enableStrictPrivacy && value) {
+            value = obfuscateText(value);
+          }
+          return {
+            id: this.mirror.getId(text.node),
+            value,
+          };
+          /* End Highlight Code */
+        })
         // text mutation's id was not in the mirror map means the target node has been removed
         .filter((text) => this.mirror.has(text.id)),
       attributes: this.attributes
@@ -570,6 +582,16 @@ export default class MutationBuffer {
             }
           }
         } else {
+          /* Begin Highlight Code */
+          const tagName = (m.target as HTMLElement).tagName;
+          if (tagName === 'INPUT') {
+            const node = m.target as HTMLInputElement;
+            if (node.type === 'password') {
+              item.attributes['value'] = '*'.repeat(node.value.length);
+              break;
+            }
+          }
+          /* End Highlight Code */
           // overwrite attribute if the mutations was triggered in same time
           item.attributes[m.attributeName!] = transformAttribute(
             this.doc,

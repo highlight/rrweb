@@ -1,6 +1,7 @@
-import type { ICrossOriginIframeMirror } from '@rrweb/types';
+import type { ICrossOriginIframeMirror } from '@highlight-run/rrweb-types';
 export default class CrossOriginIframeMirror
-  implements ICrossOriginIframeMirror {
+  implements ICrossOriginIframeMirror
+{
   private iframeIdToRemoteIdMap: WeakMap<
     HTMLIFrameElement,
     Map<number, number>

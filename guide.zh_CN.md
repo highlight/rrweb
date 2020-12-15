@@ -136,11 +136,11 @@ setInterval(save, 10 * 1000);
 | emit                     | 必填               | 获取当前录制的数据                                                                                                                                                                    |
 | checkoutEveryNth         | -                  | 每 N 次事件重新制作一次全量快照<br />详见[“重新制作快照”](#重新制作快照)章节                                                                                                          |
 | checkoutEveryNms         | -                  | 每 N 毫秒重新制作一次全量快照<br />详见[“重新制作快照”](#重新制作快照)章节                                                                                                            |
-| blockClass               | 'rr-block'         | 字符串或正则表达式，可用于自定义屏蔽元素的类名，详见[“隐私”](#隐私)章节                                                                                                               |
+| blockClass               | 'highlight-block'         | 字符串或正则表达式，可用于自定义屏蔽元素的类名，详见[“隐私”](#隐私)章节                                                                                                               |
 | blockSelector            | null               | 所有 element.matches(blockSelector)为 true 的元素都不会被录制，回放时取而代之的是一个同等宽高的占位元素                                                                               |
-| ignoreClass              | 'rr-ignore'        | 字符串或正则表达式，可用于自定义忽略元素的类名，详见[“隐私”](#隐私)章节                                                                                                               |
+| ignoreClass              | 'highlight-ignore'        | 字符串或正则表达式，可用于自定义忽略元素的类名，详见[“隐私”](#隐私)章节                                                                                                               |
 | ignoreCSSAttributes      | null               | 应该被忽略的 CSS 属性数组                                                                                                                                                             |
-| maskTextClass            | 'rr-mask'          | 字符串或正则表达式，可用于自定义忽略元素 text 内容的类名，详见[“隐私”](#隐私)章节                                                                                                     |
+| maskTextClass            | 'highlight-mask'          | 字符串或正则表达式，可用于自定义忽略元素 text 内容的类名，详见[“隐私”](#隐私)章节                                                                                                     |
 | maskTextSelector         | null               | 所有 element.matches(maskTextSelector)为 true 的元素及其子元素的 text 内容将会被屏蔽                                                                                                  |
 | maskAllInputs            | false              | 将所有输入内容记录为 \*                                                                                                                                                               |
 | maskInputOptions         | { password: true } | 选择将特定类型的输入框内容记录为 \*<br />类型详见[列表](https://github.com/rrweb-io/rrweb/blob/588164aa12f1d94576f89ae0210b98f6e971c895/packages/rrweb-snapshot/src/types.ts#L77-L95) |
@@ -163,9 +163,9 @@ setInterval(save, 10 * 1000);
 
 页面中可能存在一些隐私相关的内容不希望被录制，rrweb 为此做了以下支持：
 
-- 在 HTML 元素中添加类名 `.rr-block` 将会避免该元素及其子元素被录制，回放时取而代之的是一个同等宽高的占位元素。
-- 在 HTML 元素中添加类名 `.rr-ignore` 将会避免录制该元素的输入事件。
-- 所有带有`.rr-mask`类名的元素及其子元素的 text 内容将会被屏蔽。
+- 在 HTML 元素中添加类名 `.highlight-block` 将会避免该元素及其子元素被录制，回放时取而代之的是一个同等宽高的占位元素。
+- 在 HTML 元素中添加类名 `.highlight-ignore` 将会避免录制该元素的输入事件。
+- 所有带有`.highlight-mask`类名的元素及其子元素的 text 内容将会被屏蔽。
 - `input[type="password"]` 类型的密码输入框默认不会录制输入事件。
 - 配置中还有更为丰富的隐私保护选项。
 
@@ -296,7 +296,7 @@ replayer.destroy();
 | skipInactive        | false         | 是否快速跳过无用户操作的阶段                                                                                                                                                                         |
 | showWarning         | true          | 是否在回放过程中打印警告信息                                                                                                                                                                         |
 | showDebug           | false         | 是否在回放过程中打印 debug 信息                                                                                                                                                                      |
-| blockClass          | 'rr-block'    | 需要在回放时展示为隐藏区域的元素类名                                                                                                                                                                 |
+| blockClass          | 'highlight-block'    | 需要在回放时展示为隐藏区域的元素类名                                                                                                                                                                 |
 | liveMode            | false         | 是否开启直播模式                                                                                                                                                                                     |
 | insertStyleRules    | []            | 可以传入多个 CSS rule string，用于自定义回放时 iframe 内的样式                                                                                                                                       |
 | triggerFocus        | true          | 回放时是否回放 focus 交互                                                                                                                                                                            |

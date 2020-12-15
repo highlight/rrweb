@@ -1,5 +1,5 @@
-import { EventType, IncrementalSource } from '@rrweb/types';
-import type { eventWithTime } from '@rrweb/types';
+import { EventType, IncrementalSource } from '@highlight-run/rrweb-types';
+import type { eventWithTime } from '@highlight-run/rrweb-types';
 
 const now = Date.now();
 const events: eventWithTime[] = [

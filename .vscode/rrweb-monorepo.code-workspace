@@ -25,7 +25,7 @@
       "path": "../packages/rrweb-snapshot"
     },
     {
-      "name": "@rrweb/types",
+      "name": "@highlight-run/rrweb-types",
       "path": "../packages/types"
     }
   ],
@@ -33,7 +33,7 @@
     "jest.disabledWorkspaceFolders": [
       " rrweb monorepo",
       "rrweb-player (package)",
-      "@rrweb/types"
+      "@highlight-run/rrweb-types"
     ]
   }
 }
