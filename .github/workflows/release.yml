@@ -9,7 +9,7 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v1
               with:
-                  node-version: 12
+                  node-version: 13.x
                   registry-url: https://registry.npmjs.org
             - name: Install
               run: npm install
