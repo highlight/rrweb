@@ -119,13 +119,13 @@ const baseConfigs = [
 let configs = [];
 
 function getPlugins(options = {}) {
-  const { minify = false, sourceMap = false } = options;
+  const { minify = true, sourceMap = true } = options;
   return [
     resolve({ browser: true }),
     webWorkerLoader({
       targetPlatform: 'browser',
       inline: true,
-      preserveSource: true,
+      preserveSource: false,
       sourceMap,
     }),
     esbuild({
@@ -135,7 +135,7 @@ function getPlugins(options = {}) {
       extract: true,
       inject: false,
       minimize: minify,
-      sourceMap,
+      sourceMap: true,
     }),
   ];
 }
@@ -148,7 +148,7 @@ for (const c of baseConfigs) {
     webWorkerLoader({
       targetPlatform: 'browser',
       inline: true,
-      preserveSource: true,
+      preserveSource: false,
     }),
 
     typescript(),
@@ -157,6 +157,8 @@ for (const c of baseConfigs) {
     postcss({
       extract: false,
       inject: false,
+      minimize: true,
+      sourceMap: true,
     }),
   );
   // browser
@@ -168,6 +170,7 @@ for (const c of baseConfigs) {
         name: c.name,
         format: 'iife',
         file: c.pathFn(pkg.unpkg),
+        sourcemap: true,
       },
     ],
   });
@@ -192,6 +195,7 @@ for (const c of baseConfigs) {
       {
         format: 'cjs',
         file: c.pathFn('lib/rrweb.cjs'),
+        sourcemap: true,
       },
     ],
   });
@@ -206,6 +210,7 @@ for (const c of baseConfigs) {
           format: 'esm',
           dir: 'es/rrweb',
           plugins: [renameNodeModules('ext')],
+          sourcemap: true,
         },
       ],
     });
@@ -239,19 +244,39 @@ if (process.env.BROWSER_ONLY) {
       name: 'rrwebCanvasWebRTCReplay',
       pathFn: toPluginPath('canvas-webrtc', 'replay'),
     },
+    {
+      input: './src/plugins/sequential-id/record/index.ts',
+      name: 'rrwebSequentialIdRecord',
+      pathFn: toPluginPath('sequential-id', 'record'),
+    },
   ];
 
   configs = [];
 
+  // browser record + replay, unminified (for profiling and performance testing)
+  configs.push({
+    input: './src/index.ts',
+    plugins: getPlugins(),
+    output: [
+      {
+        name: 'rrweb',
+        format: 'iife',
+        file: pkg.unpkg,
+        sourcemap: true,
+      },
+    ],
+  });
+
   for (const c of browserOnlyBaseConfigs) {
     configs.push({
       input: c.input,
-      plugins: getPlugins(),
+      plugins: getPlugins({ sourceMap: true, minify: true }),
       output: [
         {
           name: c.name,
           format: 'iife',
           file: c.pathFn(pkg.unpkg),
+          sourcemap: true,
         },
       ],
     });
