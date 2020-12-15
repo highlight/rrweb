@@ -8,7 +8,7 @@ export {
   IncrementalSource,
   MouseInteractions,
   ReplayerEvents,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 
 export type { recordOptions } from './types';
 

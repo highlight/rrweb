@@ -3,7 +3,7 @@ import type {
   Mirror,
   INode,
   DataURLOptions,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 
 export enum EventType {
   DomContentLoaded,
@@ -176,9 +176,42 @@ export type canvasEventWithTime = eventWithTime & {
   data: canvasMutationData;
 };
 
+export type SessionInterval = {
+  startTime: number;
+  endTime: number;
+  duration: number;
+  active: boolean;
+};
+
 export type blockClass = string | RegExp;
 
 export type maskTextClass = string | RegExp;
+
+export type CanvasSamplingStrategy = Partial<{
+  /**
+   * 'all' will record every single canvas call
+   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
+   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
+   */
+  fps: 'all' | number;
+  /**
+   * A scaling to apply to canvas shapshotting. Adjusts the resolution at which
+   * canvases are recorded by this multiple.
+   */
+  resizeFactor: number;
+  /**
+   * The quality of canvas snapshots
+   */
+  resizeQuality: 'pixelated' | 'low' | 'medium' | 'high';
+  /**
+   * The maximum dimension to take canvas snapshots at.
+   * This setting takes precedence over resizeFactor if the resulting image size
+   * from the resizeFactor calculation is larger than this value.
+   * Eg: set to 600 to ensure that the canvas is saved with images no larger than 600px
+   * in either dimension (while preserving the original canvas aspect ratio).
+   */
+  maxSnapshotDimension: number;
+}>;
 
 export type SamplingStrategy = Partial<{
   /**
@@ -213,7 +246,7 @@ export type SamplingStrategy = Partial<{
    * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
    *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
    */
-  canvas: 'all' | number;
+  canvas: CanvasSamplingStrategy;
 }>;
 
 export interface ICrossOriginIframeMirror {
@@ -500,6 +533,8 @@ export type ImageBitmapDataURLWorkerParams = {
   width: number;
   height: number;
   dataURLOptions: DataURLOptions;
+  canvasWidth: number;
+  canvasHeight: number;
 };
 
 export type ImageBitmapDataURLWorkerResponse =
@@ -512,6 +547,8 @@ export type ImageBitmapDataURLWorkerResponse =
       base64: string;
       width: number;
       height: number;
+      canvasWidth: number;
+      canvasHeight: number;
     };
 
 export type fontParam = {

@@ -63,9 +63,22 @@ function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
+declare global {
+  interface Window {
+    HIG_CONFIGURATION?: {
+      enableOnHoverClass?: boolean;
+    };
+  }
+}
+
 const HOVER_SELECTOR = /([^\\]):hover/;
 const HOVER_SELECTOR_GLOBAL = new RegExp(HOVER_SELECTOR.source, 'g');
 export function addHoverClass(cssText: string, cache: BuildCache): string {
+  /* Begin Highlight Code */
+  if (!window?.HIG_CONFIGURATION?.enableOnHoverClass) {
+    return cssText;
+  }
+  /* End Highlight Code */
   const cachedStyle = cache?.stylesWithHoverClass.get(cssText);
   if (cachedStyle) return cachedStyle;
 
@@ -181,6 +194,51 @@ function buildNode(
         const isRemoteOrDynamicCss = tagName === 'style' && name === '_cssText';
         if (isRemoteOrDynamicCss && hackCss && typeof value === 'string') {
           value = addHoverClass(value, cache);
+
+          /** Start of Highlight Code */
+          /**
+           * Find all remote fonts in the style tag.
+           * We need to find and replace the URLs with a proxy URL so we can bypass CORS.
+           */
+          if (typeof value === 'string') {
+            const regex =
+              /url\(\"https:\/\/\S*(.eot|.woff2|.ttf|.woff)\S*\"\)/gm;
+            let m;
+            const fontUrls: { originalUrl: string; proxyUrl: string }[] = [];
+
+            const PROXY_URL =
+              'https://replay-cors-proxy.highlightrun.workers.dev' as const;
+            while ((m = regex.exec(value)) !== null) {
+              // This is necessary to avoid infinite loops with zero-width matches
+              if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+              }
+
+              // The result can be accessed through the `m`-variable.
+              m.forEach((match, groupIndex) => {
+                if (groupIndex === 0) {
+                  // Trim the start and end
+                  // example: url("https://app.boardgent.com/fonts/MaterialIcons-Regular.53354891.woff2")
+                  // gets trimmed to https://app.boardgent.com/fonts/MaterialIcons-Regular.53354891.woff2
+                  const url = match.slice(5, match.length - 2);
+
+                  fontUrls.push({
+                    originalUrl: url,
+                    proxyUrl: url.replace(url, `${PROXY_URL}?url=${url}`),
+                  });
+                }
+              });
+            }
+
+            // Replace all references to the old URL to our proxy URL in the stylesheet.
+            fontUrls.forEach((urlPair) => {
+              value = (value as string).replace(
+                urlPair.originalUrl,
+                urlPair.proxyUrl,
+              );
+            });
+          }
+          /** End of Highlight Code */
         }
         if ((isTextarea || isRemoteOrDynamicCss) && typeof value === 'string') {
           const child = doc.createTextNode(value);

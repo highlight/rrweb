@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
+    "types": [
+      "@highlight-run/rrdom",
+      "@types/dom-mediacapture-transform",
+      "@types/offscreencanvas"
+    ],
     "module": "ESNext",
     "moduleResolution": "Node",
     "target": "ES6",

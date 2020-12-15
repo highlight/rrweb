@@ -28,13 +28,16 @@
       "name": "web-extension (package)",
       "path": "../packages/web-extension"
     },
-    { "name": "@rrweb/types", "path": "../packages/types" }
+    {
+      "name": "@highlight-run/rrweb-types",
+      "path": "../packages/types"
+    }
   ],
   "settings": {
     "jest.disabledWorkspaceFolders": [
       " rrweb monorepo",
       "rrweb-player (package)",
-      "@rrweb/types"
+      "@highlight-run/rrweb-types"
     ]
   }
 }

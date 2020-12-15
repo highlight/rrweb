@@ -246,3 +246,21 @@ export function isNodeMetaEqual(a: serializedNode, b: serializedNode): boolean {
     );
   return false;
 }
+
+/** Start of Highlight Code
+ * Returns a string of the same length that has been obfuscated.
+ */
+export function obfuscateText(text: string): string {
+  // We remove non-printing characters.
+  // For example: '&zwnj;' is a character that isn't shown visibly or takes up layout space on the screen. However if you take the length of the string, it's counted as 1.
+  // For example: "&zwnj;1"'s length is 2 but visually it's only taking up 1 character width.
+  // If we don't filter does out, our string obfuscation could have more characters than what was originally presented.
+  text = text.replace(/[^ -~]+/g, '');
+  text =
+    text
+      ?.split(' ')
+      .map((word) => Math.random().toString(20).substr(2, word.length))
+      .join(' ') || '';
+  return text;
+}
+/* End of Highlight Code */

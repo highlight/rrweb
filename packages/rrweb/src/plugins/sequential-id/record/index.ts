@@ -1,4 +1,4 @@
-import type { RecordPlugin } from '@rrweb/types';
+import type { RecordPlugin } from '@highlight-run/rrweb-types';
 
 export type SequentialIdOptions = {
   key: string;

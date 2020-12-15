@@ -1,5 +1,5 @@
 import { encode } from 'base64-arraybuffer';
-import type { IWindow, CanvasArg } from '@rrweb/types';
+import type { IWindow, CanvasArg } from '@highlight-run/rrweb-types';
 
 // TODO: unify with `replay/webgl.ts`
 type CanvasVarMap = Map<string, unknown[]>;
@@ -125,7 +125,7 @@ export function serializeArg(
     };
   }
 
-  return value as CanvasArg;
+  return value as never as CanvasArg;
 }
 
 export const serializeArgs = (

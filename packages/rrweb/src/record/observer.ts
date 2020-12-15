@@ -1,4 +1,8 @@
-import { MaskInputOptions, maskInputValue, Mirror } from 'rrweb-snapshot';
+import {
+  MaskInputOptions,
+  maskInputValue,
+  Mirror,
+} from '@highlight-run/rrweb-snapshot';
 import type { FontFaceSet } from 'css-font-loading-module';
 import {
   throttle,
@@ -10,6 +14,7 @@ import {
   isBlocked,
   isTouchEvent,
   patch,
+  isCanvasNode,
   StyleSheetMirror,
 } from '../utils';
 import type { observerParam, MutationBufferParam } from '../types';
@@ -38,7 +43,7 @@ import {
   IWindow,
   SelectionRange,
   selectionCallback,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import MutationBuffer from './mutation';
 import ProcessedNodeManager from './processed-node-manager';
 
@@ -225,9 +230,15 @@ function initMouseInteractionObserver({
   const getHandler = (eventKey: keyof typeof MouseInteractions) => {
     return (event: MouseEvent | TouchEvent) => {
       const target = getEventTarget(event) as Node;
-      if (isBlocked(target, blockClass, blockSelector, true)) {
+      /* Start of Highlight Code */
+      if (
+        isBlocked(target, blockClass, blockSelector, true) ||
+        // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
+        isCanvasNode(target)
+      ) {
         return;
       }
+      /* End of Highlight Code */
       const e = isTouchEvent(event) ? event.changedTouches[0] : event;
       if (!e) {
         return;

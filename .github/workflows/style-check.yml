@@ -9,16 +9,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.head_ref }}
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          cache: 'yarn'
-      - name: Install Dependencies
-        run: yarn
+          node-version: 16.15.0
+          registry-url: https://registry.npmjs.org
+      - name: Install
+        run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
       - name: Build Packages
         run: NODE_OPTIONS='--max-old-space-size=4096' yarn build:all
       - name: Eslint Check
@@ -56,16 +53,13 @@ jobs:
     name: Format Check
     steps:
       - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.head_ref }}
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          cache: 'yarn'
-      - name: Install Dependencies
-        run: yarn
+          node-version: 16.15.0
+          registry-url: https://registry.npmjs.org
+      - name: Install
+        run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
       - name: Prettier Check
         run: yarn prettier --check '**/*.{ts,md}'
 
@@ -76,16 +70,13 @@ jobs:
     name: Format Code
     steps:
       - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.head_ref }}
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          cache: 'yarn'
-      - name: Install Dependencies
-        run: yarn
+          node-version: 16.15.0
+          registry-url: https://registry.npmjs.org
+      - name: Install
+        run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
       - name: Prettify Code
         run: yarn prettier --write '**/*.{ts,md}'
       - name: Commit Changes

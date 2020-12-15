@@ -5,6 +5,10 @@ node_modules
 package-lock.json
 tsconfig.tsbuildinfo
 
+# since this repo is referenced from the highlight monorepo which has its own yarn.lock file,
+# don't include yarn.lock files from rrweb to avoid interfering with the monorepo
+yarn.lock
+
 temp
 
 *.log
@@ -21,3 +25,14 @@ dist
 # `.yarn/install-state.gz` is an optimization file that you shouldn't ever have to commit. 
 # It simply stores the exact state of your project so that the next commands can boot without having to resolve your workspaces all over again.
 .yarn/install-state.gz
+
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+tsconfig.tsbuildinfo
+
