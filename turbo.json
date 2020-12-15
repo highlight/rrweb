@@ -10,7 +10,7 @@
   "globalPassThroughEnv": ["PUPPETEER_HEADLESS", "DISABLE_WORKER_INLINING"],
   "tasks": {
     "prepublish": {
-      "dependsOn": ["^prepublish", "//#references:update"],
+      "dependsOn": ["^prepublish"],
       "outputs": [
         "lib/**",
         "es/**",
@@ -38,13 +38,7 @@
     "lint": {},
     "check-types": {
       "dependsOn": ["^prepublish"]
-    },
-    "//#references:update": {
-      "inputs": ["packages/*/package.json", "packages/plugins/*/package.json"],
-      "outputs": [
-        "packages/*/tsconfig.json",
-        "packages/plugins/*/tsconfig.json"
-      ]
     }
-  }
+  },
+  "extends": ["//"]
 }

@@ -45,15 +45,16 @@
   },
   "homepage": "https://github.com/rrweb-io/rrweb#readme",
   "devDependencies": {
-    "rrweb": "^2.0.0-alpha.18",
+    "puppeteer": "^20.9.0",
+    "rrweb": "workspace:*",
+    "turbo": "^2.0.5",
     "typescript": "^5.4.5",
     "vite": "^5.3.1",
     "vite-plugin-dts": "^3.9.1",
-    "vitest": "^1.4.0",
-    "puppeteer": "^20.9.0"
+    "vitest": "^1.4.0"
   },
   "peerDependencies": {
-    "rrweb": "^2.0.0-alpha.18",
-    "@rrweb/utils": "^2.0.0-alpha.18"
+    "@rrweb/utils": "workspace:*",
+    "rrweb": "workspace:*"
   }
 }

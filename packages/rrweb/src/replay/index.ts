@@ -65,6 +65,7 @@ import type {
   canvasMutationCommand,
   canvasMutationParam,
   canvasEventWithTime,
+  SessionInterval,
   selectionData,
   styleSheetRuleData,
   styleDeclarationData,
@@ -92,6 +93,8 @@ import { MediaManager } from './media';
 import { applyDialogToTopLevel, removeDialogFromTopLevel } from './dialog';
 
 const SKIP_TIME_INTERVAL = 5 * 1000;
+const SKIP_TIME_MIN = 1 * 1000;
+const SKIP_DURATION_LIMIT = 60 * 60 * 1000;
 
 // https://github.com/rollup/rollup/issues/1267#issuecomment-296395734
 const mitt = mittProxy.default || mittProxy;
@@ -137,6 +140,8 @@ export class Replayer {
   private emitter: Emitter = mitt();
 
   private nextUserInteractionEvent: eventWithTime | null;
+  private activityIntervals: Array<SessionInterval> = [];
+  private inactiveEndTimestamp: number | null;
 
   private legacy_missingNodeRetryMap: missingNodeMap = {};
 
@@ -193,7 +198,7 @@ export class Replayer {
       inactivePeriodThreshold: 10 * 1000,
       showWarning: true,
       showDebug: false,
-      blockClass: 'rr-block',
+      blockClass: 'highlight-block',
       liveMode: false,
       insertStyleRules: [],
       triggerFocus: true,
@@ -202,6 +207,8 @@ export class Replayer {
       mouseTail: defaultMouseTailConfig,
       useVirtualDom: true, // Virtual-dom optimization is enabled by default.
       logger: console,
+      inactiveThreshold: 0.02,
+      inactiveSkipTime: SKIP_TIME_INTERVAL,
     };
     this.config = Object.assign({}, defaultConfig, config);
 
@@ -471,6 +478,102 @@ export class Replayer {
     }
   }
 
+  /* Start Highlight Code */
+  public getActivityIntervals(): Array<SessionInterval> {
+    if (this.activityIntervals.length == 0) {
+      // Preprocessing to get all active/inactive segments in a session
+      const allIntervals: Array<SessionInterval> = [];
+      const metadata = this.getMetaData();
+      const userInteractionEvents = [
+        { timestamp: metadata.startTime },
+        ...this.service.state.context.events.filter((ev) =>
+          this.isUserInteraction(ev),
+        ),
+        { timestamp: metadata.endTime },
+      ];
+      for (let i = 1; i < userInteractionEvents.length; i++) {
+        const currentInterval = userInteractionEvents[i - 1];
+        const _event = userInteractionEvents[i];
+        if (
+          _event.timestamp - currentInterval.timestamp >
+          this.config.inactivePeriodThreshold
+        ) {
+          allIntervals.push({
+            startTime: currentInterval.timestamp,
+            endTime: _event.timestamp,
+            duration: _event.timestamp - currentInterval.timestamp,
+            active: false,
+          });
+        } else {
+          allIntervals.push({
+            startTime: currentInterval.timestamp,
+            endTime: _event.timestamp,
+            duration: _event.timestamp - currentInterval.timestamp,
+            active: true,
+          });
+        }
+      }
+      // Merges continuous active/inactive ranges
+      const mergedIntervals: Array<SessionInterval> = [];
+      let currentInterval = allIntervals[0];
+      for (let i = 1; i < allIntervals.length; i++) {
+        if (allIntervals[i].active != allIntervals[i - 1].active) {
+          mergedIntervals.push({
+            startTime: currentInterval.startTime,
+            endTime: allIntervals[i - 1].endTime,
+            duration: allIntervals[i - 1].endTime - currentInterval.startTime,
+            active: allIntervals[i - 1].active,
+          });
+          currentInterval = allIntervals[i];
+        }
+      }
+      if (currentInterval && allIntervals.length > 0) {
+        mergedIntervals.push({
+          startTime: currentInterval.startTime,
+          endTime: allIntervals[allIntervals.length - 1].endTime,
+          duration:
+            allIntervals[allIntervals.length - 1].endTime -
+            currentInterval.startTime,
+          active: allIntervals[allIntervals.length - 1].active,
+        });
+      }
+      // Merges inactive segments that are less than a threshold into surrounding active sessions
+      // TODO: Change this from a 3n pass to n
+      currentInterval = mergedIntervals[0];
+      for (let i = 1; i < mergedIntervals.length; i++) {
+        if (
+          (!mergedIntervals[i].active &&
+            mergedIntervals[i].duration >
+              this.config.inactiveThreshold * metadata.totalTime) ||
+          (!mergedIntervals[i - 1].active &&
+            mergedIntervals[i - 1].duration >
+              this.config.inactiveThreshold * metadata.totalTime)
+        ) {
+          this.activityIntervals.push({
+            startTime: currentInterval.startTime,
+            endTime: mergedIntervals[i - 1].endTime,
+            duration:
+              mergedIntervals[i - 1].endTime - currentInterval.startTime,
+            active: mergedIntervals[i - 1].active,
+          });
+          currentInterval = mergedIntervals[i];
+        }
+      }
+      if (currentInterval && mergedIntervals.length > 0) {
+        this.activityIntervals.push({
+          startTime: currentInterval.startTime,
+          endTime: mergedIntervals[mergedIntervals.length - 1].endTime,
+          duration:
+            mergedIntervals[mergedIntervals.length - 1].endTime -
+            currentInterval.startTime,
+          active: mergedIntervals[mergedIntervals.length - 1].active,
+        });
+      }
+    }
+    return this.activityIntervals;
+  }
+  /* End Highlight Code */
+
   public getMetaData(): playerMetaData {
     const firstEvent = this.service.state.context.events[0];
     const lastEvent =
@@ -574,6 +677,16 @@ export class Replayer {
     void Promise.resolve().then(() =>
       this.service.send({ type: 'ADD_EVENT', payload: { event } }),
     );
+  }
+
+  public replaceEvents(events: eventWithTime[]) {
+    for (const event of events) {
+      if (indicatesTouchDevice(event)) {
+        this.mouse.classList.add('touch-device');
+        break;
+      }
+    }
+    this.service.send({ type: 'REPLACE_EVENTS', payload: { events } });
   }
 
   public enableInteract() {
@@ -709,6 +822,7 @@ export class Replayer {
             // do not check skip in sync
             return;
           }
+          this.handleInactivity(event.timestamp);
           if (event === this.nextUserInteractionEvent) {
             this.nextUserInteractionEvent = null;
             this.backToNormal();
@@ -790,6 +904,42 @@ export class Replayer {
     };
     return wrappedCastFn;
   };
+
+  /* Start of Highlight Code */
+  private handleInactivity(timestamp: number, resetNext?: boolean) {
+    if (timestamp === this.inactiveEndTimestamp || resetNext) {
+      this.inactiveEndTimestamp = null;
+      this.backToNormal();
+    }
+    if (this.config.skipInactive && !this.inactiveEndTimestamp) {
+      for (const interval of this.getActivityIntervals()) {
+        if (
+          timestamp >= interval.startTime &&
+          timestamp < interval.endTime &&
+          !interval.active
+        ) {
+          this.inactiveEndTimestamp = interval.endTime;
+          break;
+        }
+      }
+      if (this.inactiveEndTimestamp) {
+        const skipTime = this.inactiveEndTimestamp - timestamp;
+        const payload = {
+          speed:
+            (skipTime / SKIP_DURATION_LIMIT) * this.config.inactiveSkipTime <
+            SKIP_TIME_MIN
+              ? skipTime / SKIP_TIME_MIN
+              : Math.round(
+                  Math.max(skipTime, SKIP_DURATION_LIMIT) /
+                    this.config.inactiveSkipTime,
+                ),
+        };
+        this.speedService.send({ type: 'FAST_FORWARD', payload });
+        this.emitter.emit(ReplayerEvents.SkipStart, payload);
+      }
+    }
+  }
+  /* End of Highlight Code */
 
   private rebuildFullSnapshot(
     event: fullSnapshotEvent & { timestamp: number },

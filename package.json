@@ -58,10 +58,6 @@
     "lint:report": "ESLINT_USE_FLAT_CONFIG=false yarn eslint --output-file eslint_report.json --format json packages/*/src --ext .ts,.tsx,.js,.jsx",
     "release": "yarn build:all && changeset publish"
   },
-  "resolutions": {
-    "**/cssom": "https://registry.npmjs.org/rrweb-cssom/-/rrweb-cssom-0.6.0.tgz",
-    "**/@types/dom-webcodecs": "0.1.5"
-  },
   "browserslist": [
     "defaults",
     "not op_mini all"
