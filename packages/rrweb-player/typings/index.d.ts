@@ -1,6 +1,6 @@
 import { playerConfig } from 'rrweb/typings/types';
 import { eventWithTime } from '@rrweb/types';
-import { Replayer } from 'rrweb';
+import { Replayer } from 'rrweb/typings';
 import { Mirror } from 'rrweb-snapshot';
 import { SvelteComponent } from 'svelte';
 

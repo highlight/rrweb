@@ -9,10 +9,11 @@
     "test": "yarn bundle && yarn retest",
     "test:watch": "jest --watch",
     "test:update": "jest --updateSnapshot",
+    "build": "rollup --config && ES_ONLY=true rollup --config",
     "bundle": "rollup --config",
     "bundle:es-only": "cross-env ES_ONLY=true rollup --config",
     "dev": "yarn bundle:es-only --watch",
-    "typings": "tsc -d --declarationDir typings",
+    "typegen": "tsc -d --declarationDir typings",
     "prepublish": "yarn typings && yarn bundle",
     "lint": "yarn eslint src"
   },
@@ -58,6 +59,7 @@
     "rollup-plugin-typescript2": "^0.31.2",
     "ts-jest": "^27.0.5",
     "ts-node": "^7.0.1",
-    "tslib": "^1.9.3"
+    "tslib": "^1.9.3",
+    "typescript": "^4.9.5"
   }
 }

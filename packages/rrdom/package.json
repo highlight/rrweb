@@ -20,11 +20,9 @@
   },
   "scripts": {
     "dev": "rollup -c -w",
-    "bundle": "rollup --config",
-    "bundle:es-only": "cross-env ES_ONLY=true rollup --config",
     "check-types": "tsc -noEmit",
     "test": "jest",
-    "prepublish": "npm run bundle",
+    "typegen": "rollup --config && ES_ONLY=true rollup --config",
     "lint": "yarn eslint src/**/*.ts"
   },
   "bugs": {
@@ -32,7 +30,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^20.0.0",
-    "@rrweb/types": "^2.0.0-alpha.11",
+    "@rrweb/types": "workspace:*",
     "@types/jest": "^27.4.1",
     "@types/puppeteer": "^5.4.4",
     "@typescript-eslint/eslint-plugin": "^5.23.0",
@@ -44,9 +42,10 @@
     "rollup-plugin-terser": "^7.0.2",
     "rollup-plugin-typescript2": "^0.31.2",
     "rollup-plugin-web-worker-loader": "^1.6.1",
-    "ts-jest": "^27.1.3"
+    "ts-jest": "^27.1.3",
+    "typescript": "^4.9.5"
   },
   "dependencies": {
-    "rrweb-snapshot": "^2.0.0-alpha.11"
+    "rrweb-snapshot": "workspace:*"
   }
 }

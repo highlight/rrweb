@@ -305,7 +305,7 @@ export function buildFromDom(
       // if the parentRRNode isn't a RRIFrameElement
       parentRRNode?.nodeName !== 'IFRAME' &&
       // if node isn't a shadow root
-      node.nodeType !== NodeType.DOCUMENT_FRAGMENT_NODE
+      (node.nodeType as NodeType) !== NodeType.DOCUMENT_FRAGMENT_NODE
     ) {
       parentRRNode?.appendChild(rrNode);
       rrNode.parentNode = parentRRNode;
@@ -316,13 +316,13 @@ export function buildFromDom(
       const iframeDoc = (node as HTMLIFrameElement).contentDocument;
       iframeDoc && walk(iframeDoc, rrNode);
     } else if (
-      node.nodeType === NodeType.DOCUMENT_NODE ||
-      node.nodeType === NodeType.ELEMENT_NODE ||
-      node.nodeType === NodeType.DOCUMENT_FRAGMENT_NODE
+      (node.nodeType as NodeType) === NodeType.DOCUMENT_NODE ||
+      (node.nodeType as NodeType) === NodeType.ELEMENT_NODE ||
+      (node.nodeType as NodeType) === NodeType.DOCUMENT_FRAGMENT_NODE
     ) {
       // if the node is a shadow dom
       if (
-        node.nodeType === NodeType.ELEMENT_NODE &&
+        (node.nodeType as NodeType) === NodeType.ELEMENT_NODE &&
         (node as HTMLElement).shadowRoot
       )
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
