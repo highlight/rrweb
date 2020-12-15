@@ -1,0 +1,17 @@
+name: Release Rrweb
+on: push
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2
+            - name: Setup Node.js
+              uses: actions/setup-node@v1
+              with:
+                  node-version: 12
+                  registry-url: https://registry.npmjs.org
+            - name: Bundle
+              run: npm run bundle
+            - name: Typings
+              run: npm run typings
