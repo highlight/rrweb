@@ -1,12 +1,12 @@
 import {
   NodeType as RRNodeType,
   createMirror as createNodeMirror,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type {
   Mirror as NodeMirror,
   IMirror,
   serializedNodeWithId,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type {
   canvasMutationData,
   canvasEventWithTime,
@@ -14,7 +14,7 @@ import type {
   scrollData,
   styleSheetRuleData,
   styleDeclarationData,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import {
   BaseRRNode as RRNode,
   BaseRRCDATASectionImpl,
@@ -193,9 +193,8 @@ interface RRElementTagNameMap {
   video: RRMediaElement;
 }
 
-type RRElementType<
-  K extends keyof HTMLElementTagNameMap
-> = K extends keyof RRElementTagNameMap ? RRElementTagNameMap[K] : RRElement;
+type RRElementType<K extends keyof HTMLElementTagNameMap> =
+  K extends keyof RRElementTagNameMap ? RRElementTagNameMap[K] : RRElement;
 
 function getValidTagName(element: HTMLElement): string {
   // https://github.com/rrweb-io/rrweb-snapshot/issues/56

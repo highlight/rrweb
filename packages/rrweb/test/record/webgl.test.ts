@@ -8,14 +8,14 @@ import {
   EventType,
   IncrementalSource,
   CanvasContext,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import {
   assertSnapshot,
   launchPuppeteer,
   stripBase64,
   waitForRAF,
 } from '../utils';
-import type { ICanvas } from 'rrweb-snapshot';
+import type { ICanvas } from '@highlight-run/rrweb-snapshot';
 
 interface ISuite {
   code: string;
@@ -64,13 +64,13 @@ const setup = function (
     ctx.page.on('console', (msg) => console.log('PAGE LOG:', msg.text()));
 
     await ctx.page.evaluate((canvasSample) => {
-      const { record } = ((window as unknown) as IWindow).rrweb;
+      const { record } = (window as unknown as IWindow).rrweb;
       record({
         recordCanvas: true,
         sampling: {
           canvas: canvasSample,
         },
-        emit: ((window as unknown) as IWindow).emit,
+        emit: (window as unknown as IWindow).emit,
       });
     }, canvasSample);
   });

@@ -1,17 +1,21 @@
-import type { Mirror, serializedNodeWithId } from 'rrweb-snapshot';
-import { genId } from 'rrweb-snapshot';
+import type {
+  Mirror,
+  serializedNodeWithId,
+} from '@highlight-run/rrweb-snapshot';
+import { genId } from '@highlight-run/rrweb-snapshot';
 import type { CrossOriginIframeMessageEvent } from '../types';
 import CrossOriginIframeMirror from './cross-origin-iframe-mirror';
-import { EventType, IncrementalSource } from '@rrweb/types';
-import type { eventWithTime, mutationCallBack } from '@rrweb/types';
+import { EventType, IncrementalSource } from '@highlight-run/rrweb-types';
+import type {
+  eventWithTime,
+  mutationCallBack,
+} from '@highlight-run/rrweb-types';
 import type { StylesheetManager } from './stylesheet-manager';
 
 export class IframeManager {
   private iframes: WeakMap<HTMLIFrameElement, true> = new WeakMap();
-  private crossOriginIframeMap: WeakMap<
-    MessageEventSource,
-    HTMLIFrameElement
-  > = new WeakMap();
+  private crossOriginIframeMap: WeakMap<MessageEventSource, HTMLIFrameElement> =
+    new WeakMap();
   public crossOriginIframeMirror = new CrossOriginIframeMirror(genId);
   public crossOriginIframeStyleMirror: CrossOriginIframeMirror;
   private mirror: Mirror;
@@ -87,7 +91,7 @@ export class IframeManager {
       const iframeSourceWindow = message.source;
       if (!iframeSourceWindow) return;
 
-      const iframeEl = this.crossOriginIframeMap.get(message.source);
+      const iframeEl = this.crossOriginIframeMap.get(iframeSourceWindow);
       if (!iframeEl) return;
 
       const transformedEvent = this.transformCrossOriginEvent(
@@ -95,11 +99,12 @@ export class IframeManager {
         (message as CrossOriginIframeMessageEvent).data.event,
       );
 
-      if (transformedEvent)
+      if (transformedEvent) {
         this.wrappedEmit(
           transformedEvent,
           (message as CrossOriginIframeMessageEvent).data.isCheckout,
         );
+      }
     }
   }
 
