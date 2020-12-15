@@ -140,11 +140,11 @@ The parameter of `rrweb.record` accepts the following options.
 | emit                     | required           | the callback function to get emitted events                                                                                                                                                   |
 | checkoutEveryNth         | -                  | take a full snapshot after every N events<br />refer to the [checkout](#checkout) chapter                                                                                                     |
 | checkoutEveryNms         | -                  | take a full snapshot after every N ms<br />refer to the [checkout](#checkout) chapter                                                                                                         |
-| blockClass               | 'rr-block'         | Use a string or RegExp to configure which elements should be blocked, refer to the [privacy](#privacy) chapter                                                                                |
+| blockClass               | 'highlight-block'         | Use a string or RegExp to configure which elements should be blocked, refer to the [privacy](#privacy) chapter                                                                                |
 | blockSelector            | null               | Use a string to configure which selector should be blocked, refer to the [privacy](#privacy) chapter                                                                                          |
-| ignoreClass              | 'rr-ignore'        | Use a string or RegExp to configure which elements should be ignored, refer to the [privacy](#privacy) chapter                                                                                |
+| ignoreClass              | 'highlight-ignore'        | Use a string or RegExp to configure which elements should be ignored, refer to the [privacy](#privacy) chapter                                                                                |
 | ignoreCSSAttributes      | null               | array of CSS attributes that should be ignored                                                                                                                                                |
-| maskTextClass            | 'rr-mask'          | Use a string or RegExp to configure which elements should be masked, refer to the [privacy](#privacy) chapter                                                                                 |
+| maskTextClass            | 'highlight-mask'          | Use a string or RegExp to configure which elements should be masked, refer to the [privacy](#privacy) chapter                                                                                 |
 | maskTextSelector         | null               | Use a string to configure which selector should be masked, refer to the [privacy](#privacy) chapter                                                                                           |
 | maskAllInputs            | false              | mask all input content as \*                                                                                                                                                                  |
 | maskInputOptions         | { password: true } | mask some kinds of input \*<br />refer to the [list](https://github.com/rrweb-io/rrweb/blob/588164aa12f1d94576f89ae0210b98f6e971c895/packages/rrweb-snapshot/src/types.ts#L77-L95)            |
@@ -167,9 +167,9 @@ The parameter of `rrweb.record` accepts the following options.
 
 You may find some contents on the webpage which are not willing to be recorded, then you can use the following approaches:
 
-- An element with the class name `.rr-block` will not be recorded. Instead, it will replay as a placeholder with the same dimension.
-- An element with the class name `.rr-ignore` will not record its input events.
-- All text of elements with the class name `.rr-mask` and their children will be masked.
+- An element with the class name `.highlight-block` will not be recorded. Instead, it will replay as a placeholder with the same dimension.
+- An element with the class name `.highlight-ignore` will not record its input events.
+- All text of elements with the class name `.highlight-mask` and their children will be masked.
 - `input[type="password"]` will be masked by default.
 - Mask options to mask the content in input elements.
 
@@ -300,7 +300,7 @@ The replayer accepts options as its constructor's second parameter, and it has t
 | skipInactive        | false         | whether to skip inactive time                                                                                                                                                                                                  |
 | showWarning         | true          | whether to print warning messages during replay                                                                                                                                                                                |
 | showDebug           | false         | whether to print debug messages during replay                                                                                                                                                                                  |
-| blockClass          | 'rr-block'    | element with the class name will display as a blocked area                                                                                                                                                                     |
+| blockClass          | 'highlight-block'    | element with the class name will display as a blocked area                                                                                                                                                                     |
 | liveMode            | false         | whether to enable live mode                                                                                                                                                                                                    |
 | insertStyleRules    | []            | accepts multiple CSS rule string, which will be injected into the replay iframe                                                                                                                                                |
 | triggerFocus        | true          | whether to trigger focus during replay                                                                                                                                                                                         |

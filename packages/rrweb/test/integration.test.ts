@@ -17,7 +17,7 @@ import {
   EventType,
   RecordPlugin,
 } from '../src/types';
-import { visitSnapshot, NodeType } from 'rrweb-snapshot';
+import { visitSnapshot, NodeType } from '@highlight-run/rrweb-snapshot';
 
 describe('record integration tests', function (this: ISuite) {
   jest.setTimeout(10_000);
@@ -205,7 +205,7 @@ describe('record integration tests', function (this: ISuite) {
     await page.goto('about:blank');
     await page.setContent(getHtml.call(this, 'ignore.html'));
 
-    await page.type('.rr-ignore', 'secret');
+    await page.type('.highlight-ignore', 'secret');
 
     const snapshots = (await page.evaluate(
       'window.snapshots',
@@ -320,12 +320,12 @@ describe('record integration tests', function (this: ISuite) {
 
     await page.evaluate(() => {
       const el = document.createElement('button');
-      el.className = 'rr-block';
+      el.className = 'highlight-block';
       el.style.width = '100px';
       el.style.height = '100px';
       el.innerText = 'Should not be recorded';
 
-      const nextElement = document.querySelector('.rr-block')!;
+      const nextElement = document.querySelector('.highlight-block')!;
       nextElement.parentNode!.insertBefore(el, nextElement);
     });
 
@@ -506,7 +506,8 @@ describe('record integration tests', function (this: ISuite) {
     await page.goto('about:blank');
     await page.setContent(
       getHtml('log.html', {
-        plugins: ('[rrwebConsoleRecord.getRecordConsolePlugin()]' as unknown) as RecordPlugin<unknown>[],
+        plugins:
+          '[rrwebConsoleRecord.getRecordConsolePlugin()]' as unknown as RecordPlugin<unknown>[],
       }),
     );
 
@@ -681,8 +682,8 @@ describe('record integration tests', function (this: ISuite) {
 
     await page.evaluate(() => {
       // get contentDocument of iframe five
-      const contentDocument1 = document.querySelector('iframe')!
-        .contentDocument!;
+      const contentDocument1 =
+        document.querySelector('iframe')!.contentDocument!;
       // create shadow dom #1
       contentDocument1.body.attachShadow({ mode: 'open' });
       contentDocument1.body.shadowRoot!.appendChild(
@@ -863,7 +864,7 @@ describe('record integration tests', function (this: ISuite) {
       const ul = document.querySelector('ul') as HTMLUListElement;
       const p = document.querySelector('p') as HTMLParagraphElement;
       [li, p].forEach((element) => {
-        element.className = 'rr-mask';
+        element.className = 'highlight-mask';
       });
       ul.appendChild(li);
       li.innerText = 'new list item';

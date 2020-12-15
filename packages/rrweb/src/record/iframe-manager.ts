@@ -1,5 +1,5 @@
-import type { Mirror, serializedNodeWithId } from 'rrweb-snapshot';
-import { genId } from 'rrweb-snapshot';
+import type { Mirror, serializedNodeWithId } from '@highlight-run/rrweb-snapshot';
+import { genId } from '@highlight-run/rrweb-snapshot';
 import {
   CrossOriginIframeMessageEvent,
   EventType,
