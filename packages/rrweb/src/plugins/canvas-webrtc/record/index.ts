@@ -1,4 +1,4 @@
-import type { Mirror } from 'rrweb-snapshot';
+import type { Mirror } from '@highlight-run/rrweb-snapshot';
 import SimplePeer from 'simple-peer-light';
 import type { RecordPlugin } from '../../../types';
 import type { WebRTCDataChannel } from '../types';
