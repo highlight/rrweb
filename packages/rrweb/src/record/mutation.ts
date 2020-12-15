@@ -6,10 +6,11 @@ import {
   isShadowRoot,
   needMaskingText,
   maskInputValue,
+  obfuscateText,
   Mirror,
   isNativeShadowDom,
   getInputType,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type { observerParam, MutationBufferParam } from '../types';
 import type {
   mutationRecord,
@@ -19,7 +20,7 @@ import type {
   addedNodeMutation,
   styleAttributeValue,
   Optional,
-} from '@rrweb/types';
+} from '@highlight-run/rrweb-types';
 import {
   isBlocked,
   isAncestorRemoved,
@@ -171,6 +172,7 @@ export default class MutationBuffer {
   private keepIframeSrcFn: observerParam['keepIframeSrcFn'];
   private recordCanvas: observerParam['recordCanvas'];
   private inlineImages: observerParam['inlineImages'];
+  private enableStrictPrivacy: observerParam['enableStrictPrivacy'];
   private slimDOMOptions: observerParam['slimDOMOptions'];
   private dataURLOptions: observerParam['dataURLOptions'];
   private doc: observerParam['doc'];
@@ -196,6 +198,7 @@ export default class MutationBuffer {
         'keepIframeSrcFn',
         'recordCanvas',
         'inlineImages',
+        'enableStrictPrivacy',
         'slimDOMOptions',
         'dataURLOptions',
         'doc',
@@ -300,6 +303,7 @@ export default class MutationBuffer {
         dataURLOptions: this.dataURLOptions,
         recordCanvas: this.recordCanvas,
         inlineImages: this.inlineImages,
+        enableStrictPrivacy: this.enableStrictPrivacy,
         onSerialize: (currentN) => {
           if (isSerializedIframe(currentN, this.mirror)) {
             this.iframeManager.addIframe(currentN as HTMLIFrameElement);
@@ -420,10 +424,18 @@ export default class MutationBuffer {
 
     const payload = {
       texts: this.texts
-        .map((text) => ({
-          id: this.mirror.getId(text.node),
-          value: text.value,
-        }))
+        .map((text) => {
+          /* Begin Highlight Code */
+          let value = text.value;
+          if (this.enableStrictPrivacy && value) {
+            value = obfuscateText(value);
+          }
+          return {
+            id: this.mirror.getId(text.node),
+            value,
+          };
+          /* End Highlight Code */
+        })
         // text mutation's id was not in the mirror map means the target node has been removed
         .filter((text) => this.mirror.has(text.id)),
       attributes: this.attributes
@@ -575,6 +587,16 @@ export default class MutationBuffer {
             }
           }
         } else if (!ignoreAttribute(target.tagName, attributeName, value)) {
+          /* Begin Highlight Code */
+          const tagName = (m.target as HTMLElement).tagName;
+          if (tagName === 'INPUT') {
+            const node = m.target as HTMLInputElement;
+            if (node.type === 'password') {
+              item.attributes['value'] = '*'.repeat(node.value.length);
+              break;
+            }
+          }
+          /* End Highlight Code */
           // overwrite attribute if the mutations was triggered in same time
           item.attributes[attributeName] = transformAttribute(
             this.doc,

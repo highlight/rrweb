@@ -18,11 +18,11 @@
   "license": "MIT",
   "devDependencies": {
     "@types/minimist": "^1.2.1",
-    "@rrweb/types": "^2.0.0-alpha.7"
+    "@highlight-run/rrweb-types": "workspace:*"
   },
   "dependencies": {
     "minimist": "^1.2.5",
     "puppeteer": "^19.7.2",
-    "rrweb-player": "^2.0.0-alpha.7"
+    "@highlight-run/rrweb-player": "workspace:*"
   }
 }

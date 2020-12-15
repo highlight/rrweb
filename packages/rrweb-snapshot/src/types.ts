@@ -38,6 +38,7 @@ export type elementNode = {
   childNodes: serializedNodeWithId[];
   isSVG?: true;
   needBlock?: boolean;
+  needMask?: boolean;
 };
 
 export type textNode = {

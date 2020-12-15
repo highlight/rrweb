@@ -17,6 +17,7 @@
   "workspaces": [
     "packages/*"
   ],
+  "packageManager": "yarn@3.2.3",
   "devDependencies": {
     "@changesets/changelog-github": "^0.4.8",
     "@changesets/cli": "^2.26.0",
@@ -45,9 +46,6 @@
     "lint": "yarn run concurrently --success=all -r -m=1 'yarn run markdownlint docs' 'yarn eslint packages/*/src --ext .ts,.tsx,.js,.jsx,.svelte'",
     "lint:report": "yarn eslint --output-file eslint_report.json --format json packages/*/src --ext .ts,.tsx,.js,.jsx",
     "release": "yarn build:all && changeset publish"
-  },
-  "resolutions": {
-    "**/jsdom/cssom": "https://registry.npmjs.org/rrweb-cssom/-/rrweb-cssom-0.6.0.tgz"
   },
   "browserslist": [
     "defaults",

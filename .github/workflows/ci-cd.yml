@@ -21,7 +21,7 @@ jobs:
           node-version: lts/*
 
       - name: Install Dependencies
-        run: yarn
+        run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
 
       - name: Build Project
         run: NODE_OPTIONS='--max-old-space-size=4096' yarn build:all
