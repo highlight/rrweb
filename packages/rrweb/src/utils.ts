@@ -10,7 +10,11 @@ import type {
   textMutation,
 } from '@rrweb/types';
 import type { IMirror, Mirror, SlimDOMOptions } from 'rrweb-snapshot';
-import { isShadowRoot, IGNORED_NODE, classMatchesRegex } from 'rrweb-snapshot';
+import {
+  isShadowRoot,
+  IGNORED_NODE,
+  classMatchesRegex,
+} from 'rrweb-snapshot';
 import { RRNode, RRIFrameElement, BaseRRNode } from 'rrdom';
 import dom from '@rrweb/utils';
 
@@ -232,6 +236,23 @@ export function closestElementOfNode(node: Node | null): HTMLElement | null {
       : dom.parentElement(node);
   return el;
 }
+
+/**
+ * Start of Highlight Code
+ */
+export const isCanvasNode = (node: Node | null): boolean => {
+  try {
+    if (node instanceof HTMLElement) {
+      return node.tagName === 'CANVAS';
+    }
+  } catch {
+    return false;
+  }
+  return false;
+};
+/**
+ * End of Highlight Code
+ */
 
 /**
  * Checks if the given element set to be blocked by rrweb
