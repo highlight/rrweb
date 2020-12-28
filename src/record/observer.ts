@@ -84,7 +84,7 @@ function initMoveObserver(
   sampling: SamplingStrategy,
 ): listenerHandler {
   if (sampling.mousemove === false) {
-    return () => {};
+    return () => { };
   }
 
   const threshold =
@@ -141,11 +141,11 @@ function initMouseInteractionObserver(
   sampling: SamplingStrategy,
 ): listenerHandler {
   if (sampling.mouseInteraction === false) {
-    return () => {};
+    return () => { };
   }
   const disableMap: Record<string, boolean | undefined> =
     sampling.mouseInteraction === true ||
-    sampling.mouseInteraction === undefined
+      sampling.mouseInteraction === undefined
       ? {}
       : sampling.mouseInteraction;
 
@@ -259,7 +259,7 @@ function initInputObserver(
       isChecked = (target as HTMLInputElement).checked;
     } else if (
       maskInputOptions[
-        (target as Element).tagName.toLowerCase() as keyof MaskInputOptions
+      (target as Element).tagName.toLowerCase() as keyof MaskInputOptions
       ] ||
       maskInputOptions[type as keyof MaskInputOptions]
     ) {
@@ -395,7 +395,7 @@ function initCanvasMutationObserver(
     try {
       if (
         typeof CanvasRenderingContext2D.prototype[
-          prop as keyof CanvasRenderingContext2D
+        prop as keyof CanvasRenderingContext2D
         ] !== 'function'
       ) {
         continue;
@@ -475,7 +475,7 @@ function initFontObserver(cb: fontCallback): listenerHandler {
         typeof source === 'string'
           ? source
           : // tslint:disable-next-line: no-any
-            JSON.stringify(Array.from(new Uint8Array(source as any))),
+          JSON.stringify(Array.from(new Uint8Array(source as any))),
     });
     return fontFace;
   };
@@ -509,7 +509,7 @@ function initLogObserver(
   logOptions: LogRecordOptions,
 ): listenerHandler {
   const logger = logOptions.logger;
-  if (!logger) return () => {};
+  if (!logger) return () => { };
   let logCount = 0;
   const cancelHandlers: any[] = [];
   // add listener to thrown errors
@@ -546,7 +546,7 @@ function initLogObserver(
    * @param level the name of log function to be replaced
    */
   function replace(logger: Logger, level: LogLevel) {
-    if (!logger[level]) return () => {};
+    if (!logger[level]) return () => { };
     // replace the logger.{level}. return a restore function
     return patch(logger, level, (original) => {
       return (...args: any[]) => {
@@ -721,11 +721,11 @@ export function initObservers(
   const styleSheetObserver = initStyleSheetObserver(o.styleSheetRuleCb);
   const canvasMutationObserver = o.recordCanvas
     ? initCanvasMutationObserver(o.canvasMutationCb, o.blockClass)
-    : () => {};
-  const fontObserver = o.collectFonts ? initFontObserver(o.fontCb) : () => {};
+    : () => { };
+  const fontObserver = o.collectFonts ? initFontObserver(o.fontCb) : () => { };
   const logObserver = o.logOptions
     ? initLogObserver(o.logCb, o.logOptions)
-    : () => {};
+    : () => { };
 
   return () => {
     mutationObserver.disconnect();

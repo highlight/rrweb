@@ -8,6 +8,7 @@
     "repl": "npm run bundle:browser && cross-env TS_NODE_CACHE=false TS_NODE_FILES=true ts-node scripts/repl.ts",
     "bundle:browser": "cross-env BROWSER_ONLY=true rollup --config",
     "bundle": "rollup --config",
+    "bundle:watch": "rollup --config -w",
     "typings": "tsc -d --declarationDir typings"
   },
   "repository": {
