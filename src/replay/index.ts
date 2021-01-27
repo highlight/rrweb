@@ -236,6 +236,9 @@ export class Replayer {
         this.rebuildFullSnapshot(
           firstFullsnapshot as fullSnapshotEvent & { timestamp: number },
         );
+        this.iframe.contentWindow!.scrollTo(
+          (firstFullsnapshot as fullSnapshotEvent).data.initialOffset,
+        );
       }, 1);
     }
   }
@@ -508,7 +511,7 @@ export class Replayer {
           // defer finish event if the last event is a mouse move
           setTimeout(() => {
             finish();
-          }, Math.max(0, -event.data.positions[0].timeOffset));
+          }, Math.max(0, -event.data.positions[0].timeOffset + 50)); // Add 50 to make sure the timer would check the last mousemove event. Otherwise, the timer may be stopped by the service before checking the last event.
         } else {
           finish();
         }
@@ -1325,7 +1328,7 @@ export class Replayer {
     setTimeout(() => {
       this.tailPositions = this.tailPositions.filter((p) => p !== position);
       draw();
-    }, duration);
+    }, duration / this.speedService.state.context.timer.speed);
   }
 
   private hoverElements(el: Element) {

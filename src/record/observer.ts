@@ -44,6 +44,12 @@ import {
 import MutationBuffer from './mutation';
 import { stringify } from './stringify';
 
+type WindowWithAngularZone = Window & {
+  Zone?: {
+    __symbol__?: (key: string) => string;
+  };
+};
+
 export const mutationBuffer = new MutationBuffer();
 
 function initMutationObserver(
@@ -65,7 +71,22 @@ function initMutationObserver(
     recordCanvas,
     slimDOMOptions,
   );
-  const observer = new MutationObserver(
+  let mutationBufferCtor = window.MutationObserver;
+  const angularZoneSymbol = (window as WindowWithAngularZone)?.Zone?.__symbol__?.(
+    'MutationObserver',
+  );
+  if (
+    angularZoneSymbol &&
+    ((window as unknown) as Record<string, typeof MutationObserver>)[
+      angularZoneSymbol
+    ]
+  ) {
+    mutationBufferCtor = ((window as unknown) as Record<
+      string,
+      typeof MutationObserver
+    >)[angularZoneSymbol];
+  }
+  const observer = new mutationBufferCtor(
     mutationBuffer.processMutations.bind(mutationBuffer),
   );
   observer.observe(document, {
@@ -215,13 +236,19 @@ function initScrollObserver(
 function initViewportResizeObserver(
   cb: viewportResizeCallback,
 ): listenerHandler {
+  let last_h = -1;
+  let last_w = -1;
   const updateDimension = throttle(() => {
     const height = getWindowHeight();
     const width = getWindowWidth();
-    cb({
-      width: Number(width),
-      height: Number(height),
-    });
+    if (last_h !== height || last_w != width) {
+      cb({
+        width: Number(width),
+        height: Number(height),
+      });
+      last_h = height;
+      last_w = width;
+    }
   }, 200);
   return on('resize', updateDimension, window);
 }

@@ -210,7 +210,7 @@ export default class MutationBuffer {
       return nextId;
     };
     const pushAdd = (n: Node) => {
-      if (!n.parentNode) {
+      if (!n.parentNode || !document.contains(n)) {
         return;
       }
       const parentId = mirror.getId((n.parentNode as Node) as INode);
@@ -296,6 +296,9 @@ export default class MutationBuffer {
          * it may be a bug or corner case. We need to escape the
          * dead while loop at once.
          */
+        while (addList.head) {
+          addList.removeNode(addList.head.value);
+        }
         break;
       }
       candidate = node.previous;
@@ -434,6 +437,9 @@ export default class MutationBuffer {
 
   private genAdds = (n: Node | INode, target?: Node | INode) => {
     if (isBlocked(n, this.blockClass)) {
+      return;
+    }
+    if (target && isBlocked(target, this.blockClass)) {
       return;
     }
     if (isINode(n)) {
