@@ -1,24 +1,26 @@
 name: Release Rrweb
 on: push
 jobs:
-    release:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v2
-            - name: Setup Node.js
-              uses: actions/setup-node@v1
-              with:
-                  node-version: 13.x
-                  registry-url: https://registry.npmjs.org
-            - name: Install
-              run: npm install
-            - name: Bundle
-              run: npm run bundle
-            - name: Typings
-              run: npm run typings
-            - name: Publish
-              if: github.ref == 'refs/heads/master'
-              run: yarn publish --access public
-              env:
-                NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 13.x
+          registry-url: https://registry.npmjs.org
+      - name: Install
+        run: npm install
+      - name: Bundle
+        run: npm run bundle
+      - name: Typings
+        run: npm run typings
+      - name: Output
+        run: ls es/rrweb
+      - name: Publish
+        if: github.ref == 'refs/heads/master'
+        run: yarn publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
