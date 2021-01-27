@@ -1,4 +1,4 @@
-name: Release Rrweb
+name: Release/Test
 on: push
 jobs:
   test:
