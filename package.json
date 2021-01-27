@@ -1,5 +1,5 @@
 {
-  "name": "highlight-rrweb",
+  "name": "@highlight-run/rrweb",
   "version": "0.9.16",
   "description": "record and replay the web",
   "scripts": {
