@@ -1,6 +1,20 @@
 name: Release Rrweb
 on: push
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 13.x
+          registry-url: https://registry.npmjs.org
+      - name: Install
+        run: npm install
+      - name: Test
+        run: npm run test
   release:
     runs-on: ubuntu-latest
     steps:
