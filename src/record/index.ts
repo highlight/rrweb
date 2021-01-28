@@ -61,45 +61,45 @@ function record<T = eventWithTime>(
   const maskInputOptions: MaskInputOptions =
     maskAllInputs === true
       ? {
-        color: true,
-        date: true,
-        'datetime-local': true,
-        email: true,
-        month: true,
-        number: true,
-        range: true,
-        search: true,
-        tel: true,
-        text: true,
-        time: true,
-        url: true,
-        week: true,
-        textarea: true,
-        select: true,
-      }
+          color: true,
+          date: true,
+          'datetime-local': true,
+          email: true,
+          month: true,
+          number: true,
+          range: true,
+          search: true,
+          tel: true,
+          text: true,
+          time: true,
+          url: true,
+          week: true,
+          textarea: true,
+          select: true,
+        }
       : _maskInputOptions !== undefined
-        ? _maskInputOptions
-        : {};
+      ? _maskInputOptions
+      : {};
 
   const slimDOMOptions: SlimDOMOptions =
     _slimDOMOptions === true || _slimDOMOptions === 'all'
       ? {
-        script: true,
-        comment: true,
-        headFavicon: true,
-        headWhitespace: true,
-        headMetaSocial: true,
-        headMetaRobots: true,
-        headMetaHttpEquiv: true,
-        headMetaVerification: true,
-        // the following are off for slimDOMOptions === true,
-        // as they destroy some (hidden) info:
-        headMetaAuthorship: _slimDOMOptions === 'all',
-        headMetaDescKeywords: _slimDOMOptions === 'all',
-      }
+          script: true,
+          comment: true,
+          headFavicon: true,
+          headWhitespace: true,
+          headMetaSocial: true,
+          headMetaRobots: true,
+          headMetaHttpEquiv: true,
+          headMetaVerification: true,
+          // the following are off for slimDOMOptions === true,
+          // as they destroy some (hidden) info:
+          headMetaAuthorship: _slimDOMOptions === 'all',
+          headMetaDescKeywords: _slimDOMOptions === 'all',
+        }
       : _slimDOMOptions
-        ? _slimDOMOptions
-        : {};
+      ? _slimDOMOptions
+      : {};
   const defaultLogOptions: LogRecordOptions = {
     level: [
       'assert',
@@ -207,16 +207,16 @@ function record<T = eventWithTime>(
               window.pageXOffset !== undefined
                 ? window.pageXOffset
                 : document?.documentElement.scrollLeft ||
-                document?.body?.parentElement?.scrollLeft ||
-                document?.body.scrollLeft ||
-                0,
+                  document?.body?.parentElement?.scrollLeft ||
+                  document?.body.scrollLeft ||
+                  0,
             top:
               window.pageYOffset !== undefined
                 ? window.pageYOffset
                 : document?.documentElement.scrollTop ||
-                document?.body?.parentElement?.scrollTop ||
-                document?.body.scrollTop ||
-                0,
+                  document?.body?.parentElement?.scrollTop ||
+                  document?.body.scrollTop ||
+                  0,
           },
         },
       }),

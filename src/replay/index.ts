@@ -466,7 +466,7 @@ export class Replayer {
                 if (
                   _event.delay! - event.delay! >
                   SKIP_TIME_THRESHOLD *
-                  this.speedService.state.context.timer.speed
+                    this.speedService.state.context.timer.speed
                 ) {
                   this.nextUserInteractionEvent = _event;
                 }
@@ -495,7 +495,7 @@ export class Replayer {
       if (
         event ===
         this.service.state.context.events[
-        this.service.state.context.events.length - 1
+          this.service.state.context.events.length - 1
         ]
       ) {
         const finish = () => {
@@ -700,7 +700,7 @@ export class Replayer {
           });
           // add a dummy action to keep timer alive
           this.timer.addAction({
-            doAction() { },
+            doAction() {},
             delay: e.delay! - d.positions[0]?.timeOffset,
           });
         }
