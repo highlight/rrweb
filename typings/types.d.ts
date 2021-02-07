@@ -387,6 +387,11 @@ export declare type Emitter = {
     off(type: string, handler: Handler): void;
 };
 export declare type Arguments<T> = T extends (...payload: infer U) => unknown ? U : unknown;
+export declare type sessionInterval = {
+    startTime: number;
+    endTime: number;
+    active: boolean;
+  }
 export declare enum ReplayerEvents {
     Start = "start",
     Pause = "pause",
