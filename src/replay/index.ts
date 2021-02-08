@@ -244,7 +244,7 @@ export class Replayer {
       }, 1);
     }
     // Preprocessing to get all active/inactive segments in a session
-    const allPeriods = [];
+    const allPeriods: Array<sessionInterval> = [];
     const firstEvent = this.service.state.context.events[0];
     const userInteractionEvents = [firstEvent, ...this.service.state.context.events.filter((ev) => this.isUserInteraction(ev))]
     for (let i = 1; i < userInteractionEvents.length; i++) {
@@ -253,20 +253,20 @@ export class Replayer {
           if (
             _event.timestamp! - currEvent.timestamp! >
             SKIP_TIME_THRESHOLD) {
-            allPeriods.push([currEvent.timestamp!, _event.timestamp!, "inactive"])
+            allPeriods.push({startTime: currEvent.timestamp!, endTime: _event.timestamp!, active: false})
           } else {
-            allPeriods.push([currEvent.timestamp!, _event.timestamp!, "active"])
+            allPeriods.push({startTime: currEvent.timestamp!, endTime: _event.timestamp!, active: true})
           }
     }
     // Merges continuous active/inactive ranges
     let currEvent = allPeriods[0];
     for (let i = 1; i < allPeriods.length; i++) {
-      if (allPeriods[i][2] != allPeriods[i-1][2]) {
-        this.skipIntervals.push({startTime: Number(currEvent[0]), endTime: Number(allPeriods[i-1][1]), active: allPeriods[i-1][2] == "active"})
+      if (allPeriods[i].active != allPeriods[i-1].active) {
+        this.skipIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[i-1].endTime, active: allPeriods[i-1].active})
         currEvent = allPeriods[i];
       }
     }
-    this.skipIntervals.push({startTime: Number(currEvent[0]), endTime: Number(allPeriods[allPeriods.length-1][1]), active: allPeriods[allPeriods.length-1][2] == "active"})
+    this.skipIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, active: allPeriods[allPeriods.length-1].active})
   }
 
   public on(event: string, handler: Handler) {
