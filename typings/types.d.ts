@@ -10,6 +10,11 @@ export declare enum EventType {
     Meta = 4,
     Custom = 5
 }
+export declare type SessionInterval = {
+    startTime: number;
+    endTime: number;
+    active: boolean;
+};
 export declare type domContentLoadedEvent = {
     type: EventType.DomContentLoaded;
     data: {};
@@ -387,11 +392,6 @@ export declare type Emitter = {
     off(type: string, handler: Handler): void;
 };
 export declare type Arguments<T> = T extends (...payload: infer U) => unknown ? U : unknown;
-export declare type sessionInterval = {
-    startTime: number;
-    endTime: number;
-    active: boolean;
-  }
 export declare enum ReplayerEvents {
     Start = "start",
     Pause = "pause",

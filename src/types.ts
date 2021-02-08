@@ -17,7 +17,7 @@ export enum EventType {
   Custom,
 }
 
-export type sessionInterval = {
+export type SessionInterval = {
   startTime: number;
   endTime: number;
   active: boolean;

@@ -30,7 +30,7 @@ import {
   LogReplayConfig,
   logData,
   ReplayLogger,
-  sessionInterval,
+  SessionInterval,
 } from '../types';
 import {
   mirror,
@@ -111,7 +111,7 @@ export class Replayer {
   private elementStateMap!: Map<INode, ElementState>;
 
   private imageMap: Map<eventWithTime, HTMLImageElement> = new Map();
-  private skipIntervals: Array<sessionInterval> = [];
+  private activityIntervals: Array<SessionInterval> = [];
 
   constructor(
     events: Array<eventWithTime | string>,
@@ -244,7 +244,7 @@ export class Replayer {
       }, 1);
     }
     // Preprocessing to get all active/inactive segments in a session
-    const allPeriods: Array<sessionInterval> = [];
+    const allPeriods: Array<SessionInterval> = [];
     const firstEvent = this.service.state.context.events[0];
     const userInteractionEvents = [firstEvent, ...this.service.state.context.events.filter((ev) => this.isUserInteraction(ev))]
     for (let i = 1; i < userInteractionEvents.length; i++) {
@@ -262,11 +262,11 @@ export class Replayer {
     let currEvent = allPeriods[0];
     for (let i = 1; i < allPeriods.length; i++) {
       if (allPeriods[i].active != allPeriods[i-1].active) {
-        this.skipIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[i-1].endTime, active: allPeriods[i-1].active})
+        this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[i-1].endTime, active: allPeriods[i-1].active})
         currEvent = allPeriods[i];
       }
     }
-    this.skipIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, active: allPeriods[allPeriods.length-1].active})
+    this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, active: allPeriods[allPeriods.length-1].active})
   }
 
   public on(event: string, handler: Handler) {
@@ -308,8 +308,8 @@ export class Replayer {
     }
   }
 
-  public getActivityInterval(): Array<sessionInterval> {
-    return this.skipIntervals;
+  public getActivityIntervals(): Array<SessionInterval> {
+    return this.activityIntervals;
   }
 
   public getMetaData(): playerMetaData {

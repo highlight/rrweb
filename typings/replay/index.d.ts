@@ -1,6 +1,6 @@
 import { Timer } from './timer';
 import { createPlayerService, createSpeedService } from './machine';
-import { eventWithTime, playerConfig, playerMetaData, Handler, sessionInterval } from '../types';
+import { eventWithTime, playerConfig, playerMetaData, Handler, SessionInterval } from '../types';
 import './styles/style.css';
 export declare class Replayer {
     wrapper: HTMLDivElement;
@@ -19,10 +19,11 @@ export declare class Replayer {
     private fragmentParentMap;
     private elementStateMap;
     private imageMap;
+    private activityIntervals;
     constructor(events: Array<eventWithTime | string>, config?: Partial<playerConfig>);
     on(event: string, handler: Handler): this;
     setConfig(config: Partial<playerConfig>): void;
-    getActivityInterval(): Array<sessionInterval>;
+    getActivityIntervals(): Array<SessionInterval>;
     getMetaData(): playerMetaData;
     getCurrentTime(): number;
     getTimeOffset(): number;
