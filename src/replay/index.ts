@@ -30,6 +30,7 @@ import {
   LogReplayConfig,
   logData,
   ReplayLogger,
+  SessionInterval,
 } from '../types';
 import {
   mirror,
@@ -110,6 +111,7 @@ export class Replayer {
   private elementStateMap!: Map<INode, ElementState>;
 
   private imageMap: Map<eventWithTime, HTMLImageElement> = new Map();
+  private activityIntervals: Array<SessionInterval> = [];
 
   constructor(
     events: Array<eventWithTime | string>,
@@ -241,6 +243,30 @@ export class Replayer {
         );
       }, 1);
     }
+    // Preprocessing to get all active/inactive segments in a session
+    const allPeriods: Array<SessionInterval> = [];
+    const firstEvent = this.service.state.context.events[0];
+    const userInteractionEvents = [firstEvent, ...this.service.state.context.events.filter((ev) => this.isUserInteraction(ev))]
+    for (let i = 1; i < userInteractionEvents.length; i++) {
+        const currEvent = userInteractionEvents[i - 1]
+        const _event = userInteractionEvents[i]
+          if (
+            _event.timestamp! - currEvent.timestamp! >
+            SKIP_TIME_THRESHOLD) {
+            allPeriods.push({startTime: currEvent.timestamp!, endTime: _event.timestamp!, active: false})
+          } else {
+            allPeriods.push({startTime: currEvent.timestamp!, endTime: _event.timestamp!, active: true})
+          }
+    }
+    // Merges continuous active/inactive ranges
+    let currEvent = allPeriods[0];
+    for (let i = 1; i < allPeriods.length; i++) {
+      if (allPeriods[i].active != allPeriods[i-1].active) {
+        this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[i-1].endTime, active: allPeriods[i-1].active})
+        currEvent = allPeriods[i];
+      }
+    }
+    this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, active: allPeriods[allPeriods.length-1].active})
   }
 
   public on(event: string, handler: Handler) {
@@ -280,6 +306,10 @@ export class Replayer {
         this.mouseTail.style.display = 'inherit';
       }
     }
+  }
+
+  public getActivityIntervals(): Array<SessionInterval> {
+    return this.activityIntervals;
   }
 
   public getMetaData(): playerMetaData {

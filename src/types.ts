@@ -17,6 +17,12 @@ export enum EventType {
   Custom,
 }
 
+export type SessionInterval = {
+  startTime: number;
+  endTime: number;
+  active: boolean;
+}
+
 export type domContentLoadedEvent = {
   type: EventType.DomContentLoaded;
   data: {};
