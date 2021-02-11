@@ -5,7 +5,7 @@ import {
   MaskInputOptions,
   SlimDOMOptions,
   IGNORED_NODE,
-} from 'rrweb-snapshot';
+} from '../snapshot';
 import {
   mutationRecord,
   blockClass,
