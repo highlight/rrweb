@@ -1,4 +1,4 @@
-import { INode, MaskInputOptions, SlimDOMOptions } from 'rrweb-snapshot';
+import { INode, MaskInputOptions, SlimDOMOptions } from '../snapshot';
 import { FontFaceDescriptors, FontFaceSet } from 'css-font-loading-module';
 import {
   mirror,

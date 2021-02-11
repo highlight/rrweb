@@ -15,7 +15,7 @@ import {
   scrollData,
   inputData,
 } from './types';
-import { INode, IGNORED_NODE } from './snapshot/src';
+import { INode, IGNORED_NODE } from './snapshot';
 
 export function on(
   type: string,

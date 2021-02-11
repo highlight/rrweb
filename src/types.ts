@@ -4,7 +4,7 @@ import {
   INode,
   MaskInputOptions,
   SlimDOMOptions,
-} from './snapshot/src';
+} from './snapshot';
 import { PackFn, UnpackFn } from './packer/base';
 import { FontFaceDescriptors } from 'css-font-loading-module';
 

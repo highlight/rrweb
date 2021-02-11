@@ -1,4 +1,4 @@
-import { snapshot, MaskInputOptions, SlimDOMOptions } from '../snapshot/src';
+import { snapshot, MaskInputOptions, SlimDOMOptions } from '../snapshot';
 import { initObservers, mutationBuffer } from './observer';
 import {
   mirror,

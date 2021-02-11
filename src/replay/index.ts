@@ -1,4 +1,4 @@
-import { rebuild, buildNodeWithSN, INode, NodeType } from '../snapshot/src';
+import { rebuild, buildNodeWithSN, INode, NodeType } from '../snapshot';
 import * as mittProxy from 'mitt';
 import { polyfill as smoothscrollPolyfill } from './smoothscroll';
 import { Timer } from './timer';

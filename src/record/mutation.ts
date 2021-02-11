@@ -5,7 +5,7 @@ import {
   MaskInputOptions,
   SlimDOMOptions,
   IGNORED_NODE,
-} from '../snapshot/src';
+} from '../snapshot';
 import {
   mutationRecord,
   blockClass,

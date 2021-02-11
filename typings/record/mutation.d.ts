@@ -1,4 +1,4 @@
-import { MaskInputOptions, SlimDOMOptions } from '../snapshot/src';
+import { MaskInputOptions, SlimDOMOptions } from '../../src/snapshot';
 import { mutationRecord, blockClass, mutationCallBack } from '../types';
 export default class MutationBuffer {
     private frozen;

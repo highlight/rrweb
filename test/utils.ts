@@ -1,5 +1,5 @@
 import { SnapshotState, toMatchSnapshot } from 'jest-snapshot';
-import { NodeType } from '../src/snapshot/src';
+import { NodeType } from '../src/snapshot';
 import { assert } from 'chai';
 import {
   EventType,
