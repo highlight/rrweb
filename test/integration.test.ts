@@ -5,7 +5,7 @@ import { assertSnapshot, launchPuppeteer } from './utils';
 import { Suite } from 'mocha';
 import { expect } from 'chai';
 import { recordOptions, eventWithTime, EventType } from '../src/types';
-import { visitSnapshot, NodeType } from 'rrweb-snapshot';
+import { visitSnapshot, NodeType } from '../src/snapshot/src';
 
 interface ISuite extends Suite {
   code: string;

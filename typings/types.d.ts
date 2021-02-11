@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { serializedNodeWithId, idNodeMap, INode, MaskInputOptions, SlimDOMOptions } from 'rrweb-snapshot';
+import { serializedNodeWithId, idNodeMap, INode, MaskInputOptions, SlimDOMOptions } from './snapshot/src';
 import { PackFn, UnpackFn } from './packer/base';
 import { FontFaceDescriptors } from 'css-font-loading-module';
 export declare enum EventType {
@@ -138,6 +138,7 @@ export declare type recordOptions<T> = {
     collectFonts?: boolean;
     mousemoveWait?: number;
     recordLog?: boolean | LogRecordOptions;
+    debug?: boolean;
 };
 export declare type observerParam = {
     mutationCb: mutationCallBack;

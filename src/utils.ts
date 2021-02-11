@@ -15,7 +15,7 @@ import {
   scrollData,
   inputData,
 } from './types';
-import { INode, IGNORED_NODE } from 'rrweb-snapshot';
+import { INode, IGNORED_NODE } from './snapshot/src';
 
 export function on(
   type: string,

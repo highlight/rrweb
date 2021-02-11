@@ -1,4 +1,4 @@
-import { snapshot, MaskInputOptions, SlimDOMOptions } from 'rrweb-snapshot';
+import { snapshot, MaskInputOptions, SlimDOMOptions } from '../snapshot/src';
 import { initObservers, mutationBuffer } from './observer';
 import {
   mirror,
@@ -48,6 +48,7 @@ function record<T = eventWithTime>(
     recordCanvas = false,
     collectFonts = false,
     recordLog = false,
+    debug,
   } = options;
   // runtime checks for user options
   if (!emit) {
@@ -190,6 +191,7 @@ function record<T = eventWithTime>(
       maskAllInputs: maskInputOptions,
       slimDOM: slimDOMOptions,
       recordCanvas,
+      debug,
     });
 
     if (!node) {
@@ -241,7 +243,6 @@ function record<T = eventWithTime>(
     );
     const init = () => {
       takeFullSnapshot();
-
       handlers.push(
         initObservers(
           {

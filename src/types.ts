@@ -4,7 +4,7 @@ import {
   INode,
   MaskInputOptions,
   SlimDOMOptions,
-} from 'rrweb-snapshot';
+} from './snapshot/src';
 import { PackFn, UnpackFn } from './packer/base';
 import { FontFaceDescriptors } from 'css-font-loading-module';
 
@@ -205,6 +205,7 @@ export type recordOptions<T> = {
   // departed, please use sampling options
   mousemoveWait?: number;
   recordLog?: boolean | LogRecordOptions;
+  debug?: boolean;
 };
 
 export type observerParam = {
