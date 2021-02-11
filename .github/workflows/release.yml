@@ -17,8 +17,8 @@ jobs:
         run: npm run bundle
       - name: Typings
         run: npm run typings
-      - name: Output
-        run: ls es/rrweb
+      - name: Confirm new version
+        run: cd firstload && python3 compare.py
       - name: Publish
         if: github.ref == 'refs/heads/master'
         run: npm publish --access public
