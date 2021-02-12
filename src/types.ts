@@ -205,6 +205,7 @@ export type recordOptions<T> = {
   // departed, please use sampling options
   mousemoveWait?: number;
   recordLog?: boolean | LogRecordOptions;
+  debug?: boolean;
 };
 
 export type observerParam = {

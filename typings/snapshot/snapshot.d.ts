@@ -18,6 +18,7 @@ export declare function serializeNodeWithId(n: Node | INode, options: {
     onSerialize?: (n: INode) => unknown;
     onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
     iframeLoadTimeout?: number;
+    debug?: boolean;
 }): serializedNodeWithId | null;
 declare function snapshot(n: Document, options?: {
     blockClass?: string | RegExp;
@@ -30,6 +31,7 @@ declare function snapshot(n: Document, options?: {
     onSerialize?: (n: INode) => unknown;
     onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
     iframeLoadTimeout?: number;
+    debug?: boolean;
 }): [serializedNodeWithId | null, idNodeMap];
 export declare function visitSnapshot(node: serializedNodeWithId, onVisit: (node: serializedNodeWithId) => unknown): void;
 export declare function cleanupSnapshot(): void;

@@ -138,6 +138,7 @@ export declare type recordOptions<T> = {
     collectFonts?: boolean;
     mousemoveWait?: number;
     recordLog?: boolean | LogRecordOptions;
+    debug?: boolean;
 };
 export declare type observerParam = {
     mutationCb: mutationCallBack;
