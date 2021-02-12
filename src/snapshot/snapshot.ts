@@ -40,7 +40,7 @@ function getCssRulesString(s: CSSStyleSheet, debug?: boolean): string | null {
     const rules = s.rules || s.cssRules;
     return rules ? Array.from(rules).map(getCssRuleString).join('') : null;
   } catch (error) {
-    debug && console.info('Stylesheet (3): error retrieving stylesheet from object -> ', error)
+    debug && console.info('Stylesheet (3): error retrieving stylesheet from object -> ', {error})
     return null;
   }
 }
