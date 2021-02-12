@@ -266,7 +266,7 @@ export class Replayer {
         currEvent = allPeriods[i];
       }
     }
-    if (currEvent) {
+    if (currEvent && allPeriods.length > 0) {
       this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, active: allPeriods[allPeriods.length-1].active})
     }
   }
