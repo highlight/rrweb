@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { serializedNodeWithId, idNodeMap, INode, MaskInputOptions, SlimDOMOptions } from '../src/snapshot';
+import { serializedNodeWithId, idNodeMap, INode, MaskInputOptions, SlimDOMOptions } from './snapshot';
 import { PackFn, UnpackFn } from './packer/base';
 import { FontFaceDescriptors } from 'css-font-loading-module';
 export declare enum EventType {
