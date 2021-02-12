@@ -296,12 +296,15 @@ function serializeNode(
         const stylesheet = Array.from(doc.styleSheets).find((s) => {
           return s.href === (n as HTMLLinkElement).href;
         });
+
+        // Try to get css rules string form the local stylesheet object.
         const cssText = getCssRulesString(
           stylesheet as CSSStyleSheet, 
-          debug, {
-          href: (n as HTMLLinkElement).href,
-          sheet: stylesheet,
-        }
+          debug, 
+          {
+            href: (n as HTMLLinkElement).href,
+            sheet: stylesheet,
+          }
         );
         if (cssText) {
           delete attributes.rel;
