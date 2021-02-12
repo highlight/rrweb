@@ -266,7 +266,9 @@ export class Replayer {
         currEvent = allPeriods[i];
       }
     }
-    this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, active: allPeriods[allPeriods.length-1].active})
+    if (currEvent) {
+      this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, active: allPeriods[allPeriods.length-1].active})
+    }
   }
 
   public on(event: string, handler: Handler) {
