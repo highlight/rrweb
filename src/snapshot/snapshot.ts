@@ -35,11 +35,12 @@ function getValidTagName(element: HTMLElement): string {
   return processedTagName;
 }
 
-function getCssRulesString(s: CSSStyleSheet): string | null {
+function getCssRulesString(s: CSSStyleSheet, debug?: boolean): string | null {
   try {
     const rules = s.rules || s.cssRules;
     return rules ? Array.from(rules).map(getCssRuleString).join('') : null;
   } catch (error) {
+    debug && console.info('Stylesheet (3): error retrieving stylesheet from object -> ', error)
     return null;
   }
 }
@@ -245,6 +246,7 @@ function serializeNode(
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
     recordCanvas: boolean;
+    debug?: boolean;
   },
 ): serializedNode | false {
   const {
@@ -254,6 +256,7 @@ function serializeNode(
     inlineStylesheet,
     maskInputOptions = {},
     recordCanvas,
+    debug
   } = options;
   // Only record root id when document object is not the base document
   let rootId: number | undefined;
@@ -289,10 +292,13 @@ function serializeNode(
       }
       // remote css
       if (tagName === 'link' && inlineStylesheet) {
+        debug && console.info('Stylesheet (1): found stylsheet w/ href -> ', (n as HTMLLinkElement).href)
         const stylesheet = Array.from(doc.styleSheets).find((s) => {
           return s.href === (n as HTMLLinkElement).href;
         });
-        const cssText = getCssRulesString(stylesheet as CSSStyleSheet);
+        debug && console.info('Stylesheet (2): stylesheet object -> ', stylesheet)
+        const cssText = getCssRulesString(stylesheet as CSSStyleSheet, debug);
+        debug && console.info('Stylesheet (4): returned css text -> ', cssText)
         if (cssText) {
           delete attributes.rel;
           delete attributes.href;
@@ -532,6 +538,7 @@ export function serializeNodeWithId(
     onSerialize?: (n: INode) => unknown;
     onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
     iframeLoadTimeout?: number;
+    debug?: boolean;
   },
 ): serializedNodeWithId | null {
   const {
@@ -547,6 +554,7 @@ export function serializeNodeWithId(
     onSerialize,
     onIframeLoad,
     iframeLoadTimeout = 5000,
+    debug,
   } = options;
   let { preserveWhiteSpace = true } = options;
   const _serializedNode = serializeNode(n, {
@@ -556,6 +564,7 @@ export function serializeNodeWithId(
     inlineStylesheet,
     maskInputOptions,
     recordCanvas,
+    debug
   });
   if (!_serializedNode) {
     // TODO: dev only
@@ -621,6 +630,7 @@ export function serializeNodeWithId(
         onSerialize,
         onIframeLoad,
         iframeLoadTimeout,
+        debug
       });
       if (serializedChildNode) {
         serializedNode.childNodes.push(serializedChildNode);
@@ -750,6 +760,7 @@ function snapshot(
       onSerialize,
       onIframeLoad,
       iframeLoadTimeout,
+      debug
     }),
     idNodeMap,
   ];
