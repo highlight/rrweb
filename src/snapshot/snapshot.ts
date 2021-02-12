@@ -35,12 +35,13 @@ function getValidTagName(element: HTMLElement): string {
   return processedTagName;
 }
 
-function getCssRulesString(s: CSSStyleSheet, debug?: boolean): string | null {
+function getCssRulesString(s: CSSStyleSheet, debug?: boolean, printObj?: any): string | null {
   try {
     const rules = s.rules || s.cssRules;
+    debug && console.info('Stylesheet (+): -> ', {...printObj})
     return rules ? Array.from(rules).map(getCssRuleString).join('') : null;
   } catch (error) {
-    debug && console.info('Stylesheet (3): error retrieving stylesheet from object -> ', {error})
+    debug && console.info('Stylesheet (-): -> ', {...printObj, error})
     return null;
   }
 }
@@ -292,13 +293,16 @@ function serializeNode(
       }
       // remote css
       if (tagName === 'link' && inlineStylesheet) {
-        debug && console.info('Stylesheet (1): found stylsheet w/ href -> ', (n as HTMLLinkElement).href)
         const stylesheet = Array.from(doc.styleSheets).find((s) => {
           return s.href === (n as HTMLLinkElement).href;
         });
-        debug && console.info('Stylesheet (2): stylesheet object -> ', stylesheet)
-        const cssText = getCssRulesString(stylesheet as CSSStyleSheet, debug);
-        debug && console.info('Stylesheet (4): returned css text -> ', cssText)
+        const cssText = getCssRulesString(
+          stylesheet as CSSStyleSheet, 
+          debug, {
+          href: (n as HTMLLinkElement).href,
+          sheet: stylesheet,
+        }
+        );
         if (cssText) {
           delete attributes.rel;
           delete attributes.href;
