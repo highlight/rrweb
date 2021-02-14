@@ -35,13 +35,23 @@ function getValidTagName(element: HTMLElement): string {
   return processedTagName;
 }
 
-function getCssRulesString(s: CSSStyleSheet, debug?: boolean, printObj?: any): string | null {
+function getCssRulesString(s: CSSStyleSheet, debug?: boolean): string | null {
   try {
     const rules = s.rules || s.cssRules;
-    debug && console.info('Stylesheet (+): -> ', {...printObj})
     return rules ? Array.from(rules).map(getCssRuleString).join('') : null;
   } catch (error) {
-    debug && console.info('Stylesheet (-): -> ', {...printObj, error})
+    debug && console.info('Stylesheet Parse Error (-): -> ', {stylesheet: s, error})
+    return null;
+  }
+}
+
+async function fetchCssRulesString(href: string, debug?: boolean): Promise<string | null> {
+  try {
+    const response = await fetch(href);
+    const responseText = response.text();
+    return responseText;
+  } catch (error) {
+    debug && console.info('Stylesheet Fetch Error (-): -> ', {href, error})
     return null;
   }
 }
@@ -297,21 +307,31 @@ function serializeNode(
           return s.href === (n as HTMLLinkElement).href;
         });
 
-        // Try to get css rules string form the local stylesheet object.
-        const cssText = getCssRulesString(
+        // Try to get css rules string from the local stylesheet object.
+        var cssText = getCssRulesString(
           stylesheet as CSSStyleSheet, 
           debug, 
-          {
-            href: (n as HTMLLinkElement).href,
-            sheet: stylesheet,
-          }
         );
+
+        debug && console.info("Stylesheet: ", {
+          href: (n as HTMLLinkElement).href,
+          sheet: stylesheet,
+          text: cssText,
+        })
+
         if (cssText) {
+          console.info(`Stylesheet: parsing ${(n as HTMLLinkElement).href} from local storage.`)
           delete attributes.rel;
           delete attributes.href;
           attributes._cssText = absoluteToStylesheet(
             cssText,
             stylesheet!.href!,
+          );
+        } else if ((n as HTMLLinkElement).href.includes(".css")) {
+          console.info(`Stylesheet: parsing ${(n as HTMLLinkElement).href} from remote.`)
+          fetchCssRulesString((n as HTMLLinkElement).href).then(cssText => {
+            console.log(absoluteToStylesheet(cssText, stylesheet!.href!))
+          }
           );
         }
       }
