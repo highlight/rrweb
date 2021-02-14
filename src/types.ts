@@ -20,6 +20,7 @@ export enum EventType {
 export type SessionInterval = {
   startTime: number;
   endTime: number;
+  duration: number;
   active: boolean;
 }
 
@@ -502,6 +503,7 @@ export type playerConfig = {
       };
   unpackFn?: UnpackFn;
   logConfig: LogReplayConfig;
+  inactiveThreshold: number;
 };
 
 export type LogReplayConfig = {
