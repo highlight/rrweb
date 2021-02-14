@@ -248,41 +248,84 @@ export class Replayer {
     // Preprocessing to get all active/inactive segments in a session
     const allPeriods: Array<SessionInterval> = [];
     const firstEvent = this.service.state.context.events[0];
-    const userInteractionEvents = [firstEvent, ...this.service.state.context.events.filter((ev) => this.isUserInteraction(ev))]
+    const userInteractionEvents = [
+      firstEvent,
+      ...this.service.state.context.events.filter((ev) =>
+        this.isUserInteraction(ev),
+      ),
+    ];
     for (let i = 1; i < userInteractionEvents.length; i++) {
-        const currEvent = userInteractionEvents[i - 1]
-        const _event = userInteractionEvents[i]
-          if (
-            _event.timestamp! - currEvent.timestamp! >
-            SKIP_TIME_THRESHOLD) {
-            allPeriods.push({startTime: currEvent.timestamp!, endTime: _event.timestamp!, duration: _event.timestamp! - currEvent.timestamp!, active: false})
-          } else {
-            allPeriods.push({startTime: currEvent.timestamp!, endTime: _event.timestamp!, duration: _event.timestamp! - currEvent.timestamp!, active: true})
-          }
+      const currEvent = userInteractionEvents[i - 1];
+      const _event = userInteractionEvents[i];
+      if (_event.timestamp! - currEvent.timestamp! > SKIP_TIME_THRESHOLD) {
+        allPeriods.push({
+          startTime: currEvent.timestamp!,
+          endTime: _event.timestamp!,
+          duration: _event.timestamp! - currEvent.timestamp!,
+          active: false,
+        });
+      } else {
+        allPeriods.push({
+          startTime: currEvent.timestamp!,
+          endTime: _event.timestamp!,
+          duration: _event.timestamp! - currEvent.timestamp!,
+          active: true,
+        });
+      }
     }
     // Merges continuous active/inactive ranges
     const mergedIntervals: Array<SessionInterval> = [];
     let currEvent = allPeriods[0];
     for (let i = 1; i < allPeriods.length; i++) {
-      if (allPeriods[i].active != allPeriods[i-1].active) {
-        mergedIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[i-1].endTime, duration: allPeriods[i-1].endTime - currEvent.startTime, active: allPeriods[i-1].active})
+      if (allPeriods[i].active != allPeriods[i - 1].active) {
+        mergedIntervals.push({
+          startTime: currEvent.startTime,
+          endTime: allPeriods[i - 1].endTime,
+          duration: allPeriods[i - 1].endTime - currEvent.startTime,
+          active: allPeriods[i - 1].active,
+        });
         currEvent = allPeriods[i];
       }
     }
     if (currEvent && allPeriods.length > 0) {
-      mergedIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, duration: allPeriods[allPeriods.length-1].endTime - currEvent.startTime, active: allPeriods[allPeriods.length-1].active})
+      mergedIntervals.push({
+        startTime: currEvent.startTime,
+        endTime: allPeriods[allPeriods.length - 1].endTime,
+        duration:
+          allPeriods[allPeriods.length - 1].endTime - currEvent.startTime,
+        active: allPeriods[allPeriods.length - 1].active,
+      });
     }
     // Merges inactive segments that are less than a threshold into surrounding active sessions (start: 18 segments)
     const metadata = this.getMetaData();
     currEvent = mergedIntervals[0];
     for (let i = 1; i < mergedIntervals.length; i++) {
-      if ((!mergedIntervals[i].active && mergedIntervals[i].duration > this.config.inactiveThreshold * metadata.totalTime) || (!mergedIntervals[i-1].active && mergedIntervals[i-1].duration > this.config.inactiveThreshold * metadata.totalTime)) {
-        this.activityIntervals.push({startTime: currEvent.startTime, endTime: mergedIntervals[i-1].endTime, duration: mergedIntervals[i-1].endTime - currEvent.startTime, active: mergedIntervals[i-1].active})
+      if (
+        (!mergedIntervals[i].active &&
+          mergedIntervals[i].duration >
+            this.config.inactiveThreshold * metadata.totalTime) ||
+        (!mergedIntervals[i - 1].active &&
+          mergedIntervals[i - 1].duration >
+            this.config.inactiveThreshold * metadata.totalTime)
+      ) {
+        this.activityIntervals.push({
+          startTime: currEvent.startTime,
+          endTime: mergedIntervals[i - 1].endTime,
+          duration: mergedIntervals[i - 1].endTime - currEvent.startTime,
+          active: mergedIntervals[i - 1].active,
+        });
         currEvent = mergedIntervals[i];
       }
     }
     if (currEvent && mergedIntervals.length > 0) {
-      this.activityIntervals.push({startTime: currEvent.startTime, endTime: mergedIntervals[mergedIntervals.length-1].endTime, duration: mergedIntervals[mergedIntervals.length-1].endTime - currEvent.startTime, active: mergedIntervals[mergedIntervals.length-1].active})
+      this.activityIntervals.push({
+        startTime: currEvent.startTime,
+        endTime: mergedIntervals[mergedIntervals.length - 1].endTime,
+        duration:
+          mergedIntervals[mergedIntervals.length - 1].endTime -
+          currEvent.startTime,
+        active: mergedIntervals[mergedIntervals.length - 1].active,
+      });
     }
   }
 
@@ -546,14 +589,17 @@ export class Replayer {
     }
     if (this.config.skipInactive && !this.nextTimestamp) {
       for (const interval of this.activityIntervals) {
-        if (timestamp >= interval.startTime! && timestamp < interval.endTime! && !(interval.active)) {
+        if (
+          timestamp >= interval.startTime! &&
+          timestamp < interval.endTime! &&
+          !interval.active
+        ) {
           this.nextTimestamp = interval.endTime;
           break;
         }
       }
       if (this.nextTimestamp) {
-        const skipTime =
-          this.nextTimestamp! - timestamp!;
+        const skipTime = this.nextTimestamp! - timestamp!;
         const payload = {
           speed: Math.min(Math.round(skipTime / SKIP_TIME_INTERVAL), 360),
         };

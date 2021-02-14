@@ -22,7 +22,7 @@ export type SessionInterval = {
   endTime: number;
   duration: number;
   active: boolean;
-}
+};
 
 export type domContentLoadedEvent = {
   type: EventType.DomContentLoaded;
