@@ -22,12 +22,6 @@
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "lib",
-    "es",
-    "typings"
-  ],
   "author": "yanzhen@smartx.com",
   "license": "MIT",
   "bugs": {
