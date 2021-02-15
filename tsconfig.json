@@ -8,6 +8,8 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "rootDir": "src",
+    "declaration": true,
+		"declarationDir": "dist",
     "outDir": "build",
     "lib": ["es6", "dom"],
     "downlevelIteration": true

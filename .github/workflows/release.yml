@@ -14,9 +14,7 @@ jobs:
       - name: Install
         run: npm install
       - name: Bundle
-        run: npm run bundle
-      - name: Typings
-        run: npm run typings
+        run: npm run bundle:highlight
       - name: Confirm new version
         run: python3 compare.py
       - name: Publish

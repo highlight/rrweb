@@ -11,7 +11,7 @@
     "bundle:dev": "rollup --config --watch",
     "typings": "tsc -d --declarationDir typings",
     "dev": "webpack --watch",
-    "bundle:highlight": "webpack"
+    "bundle:highlight": "webpack --mode=production"
   },
   "repository": {
     "type": "git",
@@ -20,11 +20,8 @@
   "keywords": [
     "rrweb"
   ],
-  "main": "lib/rrweb-all.js",
-  "module": "es/rrweb/src/entries/all.js",
-  "unpkg": "dist/rrweb.js",
-  "sideEffects": false,
-  "typings": "typings/entries/all.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "files": [
     "dist",
     "lib",
