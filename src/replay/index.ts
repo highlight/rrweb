@@ -101,7 +101,7 @@ export class Replayer {
 
   private emitter: Emitter = mitt();
 
-  private nextTimestamp: number | null;
+  private inactiveEndTimestamp: number | null;
   private nextUserInteractionEvent: eventWithTime | null;
 
   // tslint:disable-next-line: variable-name
@@ -584,23 +584,23 @@ export class Replayer {
   }
 
   private handleInactivity(timestamp: number, resetNext?: boolean) {
-    if (timestamp === this.nextTimestamp || resetNext) {
-      this.nextTimestamp = null;
+    if (timestamp === this.inactiveEndTimestamp || resetNext) {
+      this.inactiveEndTimestamp = null;
       this.backToNormal();
     }
-    if (this.config.skipInactive && !this.nextTimestamp) {
+    if (this.config.skipInactive && !this.inactiveEndTimestamp) {
       for (const interval of this.activityIntervals) {
         if (
           timestamp >= interval.startTime! &&
           timestamp < interval.endTime! &&
           !interval.active
         ) {
-          this.nextTimestamp = interval.endTime;
+          this.inactiveEndTimestamp = interval.endTime;
           break;
         }
       }
-      if (this.nextTimestamp) {
-        const skipTime = this.nextTimestamp! - timestamp!;
+      if (this.inactiveEndTimestamp) {
+        const skipTime = this.inactiveEndTimestamp! - timestamp!;
         const payload = {
           speed: Math.min(Math.round(skipTime / SKIP_TIME_INTERVAL), 360),
         };

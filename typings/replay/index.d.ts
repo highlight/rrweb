@@ -13,7 +13,7 @@ export declare class Replayer {
     private mouseTail;
     private tailPositions;
     private emitter;
-    private nextTimestamp;
+    private inactiveEndTimestamp;
     private nextUserInteractionEvent;
     private legacy_missingNodeRetryMap;
     private treeIndex;
