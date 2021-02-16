@@ -246,7 +246,7 @@ export class Replayer {
       }, 1);
     }
     // Preprocessing to get all active/inactive segments in a session
-    const allPeriods: Array<SessionInterval> = [];
+    const allIntervals: Array<SessionInterval> = [];
     const firstEvent = this.service.state.context.events[0];
     const userInteractionEvents = [
       firstEvent,
@@ -258,14 +258,14 @@ export class Replayer {
       const currEvent = userInteractionEvents[i - 1];
       const _event = userInteractionEvents[i];
       if (_event.timestamp! - currEvent.timestamp! > SKIP_TIME_THRESHOLD) {
-        allPeriods.push({
+        allIntervals.push({
           startTime: currEvent.timestamp!,
           endTime: _event.timestamp!,
           duration: _event.timestamp! - currEvent.timestamp!,
           active: false,
         });
       } else {
-        allPeriods.push({
+        allIntervals.push({
           startTime: currEvent.timestamp!,
           endTime: _event.timestamp!,
           duration: _event.timestamp! - currEvent.timestamp!,
@@ -275,28 +275,29 @@ export class Replayer {
     }
     // Merges continuous active/inactive ranges
     const mergedIntervals: Array<SessionInterval> = [];
-    let currEvent = allPeriods[0];
-    for (let i = 1; i < allPeriods.length; i++) {
-      if (allPeriods[i].active != allPeriods[i - 1].active) {
+    let currEvent = allIntervals[0];
+    for (let i = 1; i < allIntervals.length; i++) {
+      if (allIntervals[i].active != allIntervals[i - 1].active) {
         mergedIntervals.push({
           startTime: currEvent.startTime,
-          endTime: allPeriods[i - 1].endTime,
-          duration: allPeriods[i - 1].endTime - currEvent.startTime,
-          active: allPeriods[i - 1].active,
+          endTime: allIntervals[i - 1].endTime,
+          duration: allIntervals[i - 1].endTime - currEvent.startTime,
+          active: allIntervals[i - 1].active,
         });
-        currEvent = allPeriods[i];
+        currEvent = allIntervals[i];
       }
     }
-    if (currEvent && allPeriods.length > 0) {
+    if (currEvent && allIntervals.length > 0) {
       mergedIntervals.push({
         startTime: currEvent.startTime,
-        endTime: allPeriods[allPeriods.length - 1].endTime,
+        endTime: allIntervals[allIntervals.length - 1].endTime,
         duration:
-          allPeriods[allPeriods.length - 1].endTime - currEvent.startTime,
-        active: allPeriods[allPeriods.length - 1].active,
+          allIntervals[allIntervals.length - 1].endTime - currEvent.startTime,
+        active: allIntervals[allIntervals.length - 1].active,
       });
     }
-    // Merges inactive segments that are less than a threshold into surrounding active sessions (start: 18 segments)
+    // Merges inactive segments that are less than a threshold into surrounding active sessions
+    // TODO: Change this from a 3n pass to n
     const metadata = this.getMetaData();
     currEvent = mergedIntervals[0];
     for (let i = 1; i < mergedIntervals.length; i++) {
@@ -413,7 +414,7 @@ export class Replayer {
       ?.getElementsByTagName('html')[0]
       .classList.remove('rrweb-paused');
     this.emitter.emit(ReplayerEvents.Start);
-    this.isTimestampInactive(this.getMetaData().startTime + timeOffset, true);
+    this.handleInactivity(this.getMetaData().startTime + timeOffset, true);
   }
 
   public pause(timeOffset?: number) {
@@ -544,7 +545,7 @@ export class Replayer {
             // do not check skip in sync
             return;
           }
-          this.isTimestampInactive(event.timestamp);
+          this.handleInactivity(event.timestamp);
         };
         break;
       default:
@@ -582,7 +583,7 @@ export class Replayer {
     return wrappedCastFn;
   }
 
-  private isTimestampInactive(timestamp: number, resetNext?: boolean) {
+  private handleInactivity(timestamp: number, resetNext?: boolean) {
     if (timestamp === this.nextTimestamp || resetNext) {
       this.nextTimestamp = null;
       this.backToNormal();

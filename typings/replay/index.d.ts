@@ -38,7 +38,7 @@ export declare class Replayer {
     private setupDom;
     private handleResize;
     private getCastFn;
-    private isTimestampInactive;
+    private handleInactivity;
     private rebuildFullSnapshot;
     private waitForStylesheetLoad;
     private preloadAllImages;
