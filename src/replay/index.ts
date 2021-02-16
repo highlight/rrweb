@@ -255,51 +255,51 @@ export class Replayer {
       ),
     ];
     for (let i = 1; i < userInteractionEvents.length; i++) {
-      const currEvent = userInteractionEvents[i - 1];
+      const currentInterval = userInteractionEvents[i - 1];
       const _event = userInteractionEvents[i];
-      if (_event.timestamp! - currEvent.timestamp! > SKIP_TIME_THRESHOLD) {
+      if (_event.timestamp! - currentInterval.timestamp! > SKIP_TIME_THRESHOLD) {
         allIntervals.push({
-          startTime: currEvent.timestamp!,
+          startTime: currentInterval.timestamp!,
           endTime: _event.timestamp!,
-          duration: _event.timestamp! - currEvent.timestamp!,
+          duration: _event.timestamp! - currentInterval.timestamp!,
           active: false,
         });
       } else {
         allIntervals.push({
-          startTime: currEvent.timestamp!,
+          startTime: currentInterval.timestamp!,
           endTime: _event.timestamp!,
-          duration: _event.timestamp! - currEvent.timestamp!,
+          duration: _event.timestamp! - currentInterval.timestamp!,
           active: true,
         });
       }
     }
     // Merges continuous active/inactive ranges
     const mergedIntervals: Array<SessionInterval> = [];
-    let currEvent = allIntervals[0];
+    let currentInterval = allIntervals[0];
     for (let i = 1; i < allIntervals.length; i++) {
       if (allIntervals[i].active != allIntervals[i - 1].active) {
         mergedIntervals.push({
-          startTime: currEvent.startTime,
+          startTime: currentInterval.startTime,
           endTime: allIntervals[i - 1].endTime,
-          duration: allIntervals[i - 1].endTime - currEvent.startTime,
+          duration: allIntervals[i - 1].endTime - currentInterval.startTime,
           active: allIntervals[i - 1].active,
         });
-        currEvent = allIntervals[i];
+        currentInterval = allIntervals[i];
       }
     }
-    if (currEvent && allIntervals.length > 0) {
+    if (currentInterval && allIntervals.length > 0) {
       mergedIntervals.push({
-        startTime: currEvent.startTime,
+        startTime: currentInterval.startTime,
         endTime: allIntervals[allIntervals.length - 1].endTime,
         duration:
-          allIntervals[allIntervals.length - 1].endTime - currEvent.startTime,
+          allIntervals[allIntervals.length - 1].endTime - currentInterval.startTime,
         active: allIntervals[allIntervals.length - 1].active,
       });
     }
     // Merges inactive segments that are less than a threshold into surrounding active sessions
     // TODO: Change this from a 3n pass to n
     const metadata = this.getMetaData();
-    currEvent = mergedIntervals[0];
+    currentInterval = mergedIntervals[0];
     for (let i = 1; i < mergedIntervals.length; i++) {
       if (
         (!mergedIntervals[i].active &&
@@ -310,21 +310,21 @@ export class Replayer {
             this.config.inactiveThreshold * metadata.totalTime)
       ) {
         this.activityIntervals.push({
-          startTime: currEvent.startTime,
+          startTime: currentInterval.startTime,
           endTime: mergedIntervals[i - 1].endTime,
-          duration: mergedIntervals[i - 1].endTime - currEvent.startTime,
+          duration: mergedIntervals[i - 1].endTime - currentInterval.startTime,
           active: mergedIntervals[i - 1].active,
         });
-        currEvent = mergedIntervals[i];
+        currentInterval = mergedIntervals[i];
       }
     }
-    if (currEvent && mergedIntervals.length > 0) {
+    if (currentInterval && mergedIntervals.length > 0) {
       this.activityIntervals.push({
-        startTime: currEvent.startTime,
+        startTime: currentInterval.startTime,
         endTime: mergedIntervals[mergedIntervals.length - 1].endTime,
         duration:
           mergedIntervals[mergedIntervals.length - 1].endTime -
-          currEvent.startTime,
+          currentInterval.startTime,
         active: mergedIntervals[mergedIntervals.length - 1].active,
       });
     }
