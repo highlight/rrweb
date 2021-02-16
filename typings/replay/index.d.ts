@@ -13,6 +13,7 @@ export declare class Replayer {
     private mouseTail;
     private tailPositions;
     private emitter;
+    private inactiveEndTimestamp;
     private nextUserInteractionEvent;
     private legacy_missingNodeRetryMap;
     private treeIndex;
@@ -37,6 +38,7 @@ export declare class Replayer {
     private setupDom;
     private handleResize;
     private getCastFn;
+    private handleInactivity;
     private rebuildFullSnapshot;
     private waitForStylesheetLoad;
     private preloadAllImages;

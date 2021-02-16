@@ -13,6 +13,7 @@ export declare enum EventType {
 export declare type SessionInterval = {
     startTime: number;
     endTime: number;
+    duration: number;
     active: boolean;
 };
 export declare type domContentLoadedEvent = {
@@ -365,6 +366,7 @@ export declare type playerConfig = {
     };
     unpackFn?: UnpackFn;
     logConfig: LogReplayConfig;
+    inactiveThreshold: number;
 };
 export declare type LogReplayConfig = {
     level?: Array<LogLevel> | undefined;

@@ -101,6 +101,7 @@ export class Replayer {
 
   private emitter: Emitter = mitt();
 
+  private inactiveEndTimestamp: number | null;
   private nextUserInteractionEvent: eventWithTime | null;
 
   // tslint:disable-next-line: variable-name
@@ -135,6 +136,7 @@ export class Replayer {
       pauseAnimation: true,
       mouseTail: defaultMouseTailConfig,
       logConfig: defaultLogConfig,
+      inactiveThreshold: 0.02,
     };
     this.config = Object.assign({}, defaultConfig, config);
     if (!this.config.logConfig.replayLogger)
@@ -244,30 +246,87 @@ export class Replayer {
       }, 1);
     }
     // Preprocessing to get all active/inactive segments in a session
-    const allPeriods: Array<SessionInterval> = [];
+    const allIntervals: Array<SessionInterval> = [];
     const firstEvent = this.service.state.context.events[0];
-    const userInteractionEvents = [firstEvent, ...this.service.state.context.events.filter((ev) => this.isUserInteraction(ev))]
+    const userInteractionEvents = [
+      firstEvent,
+      ...this.service.state.context.events.filter((ev) =>
+        this.isUserInteraction(ev),
+      ),
+    ];
     for (let i = 1; i < userInteractionEvents.length; i++) {
-        const currEvent = userInteractionEvents[i - 1]
-        const _event = userInteractionEvents[i]
-          if (
-            _event.timestamp! - currEvent.timestamp! >
-            SKIP_TIME_THRESHOLD) {
-            allPeriods.push({startTime: currEvent.timestamp!, endTime: _event.timestamp!, active: false})
-          } else {
-            allPeriods.push({startTime: currEvent.timestamp!, endTime: _event.timestamp!, active: true})
-          }
-    }
-    // Merges continuous active/inactive ranges
-    let currEvent = allPeriods[0];
-    for (let i = 1; i < allPeriods.length; i++) {
-      if (allPeriods[i].active != allPeriods[i-1].active) {
-        this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[i-1].endTime, active: allPeriods[i-1].active})
-        currEvent = allPeriods[i];
+      const currentInterval = userInteractionEvents[i - 1];
+      const _event = userInteractionEvents[i];
+      if (_event.timestamp! - currentInterval.timestamp! > SKIP_TIME_THRESHOLD) {
+        allIntervals.push({
+          startTime: currentInterval.timestamp!,
+          endTime: _event.timestamp!,
+          duration: _event.timestamp! - currentInterval.timestamp!,
+          active: false,
+        });
+      } else {
+        allIntervals.push({
+          startTime: currentInterval.timestamp!,
+          endTime: _event.timestamp!,
+          duration: _event.timestamp! - currentInterval.timestamp!,
+          active: true,
+        });
       }
     }
-    if (currEvent && allPeriods.length > 0) {
-      this.activityIntervals.push({startTime: currEvent.startTime, endTime: allPeriods[allPeriods.length-1].endTime, active: allPeriods[allPeriods.length-1].active})
+    // Merges continuous active/inactive ranges
+    const mergedIntervals: Array<SessionInterval> = [];
+    let currentInterval = allIntervals[0];
+    for (let i = 1; i < allIntervals.length; i++) {
+      if (allIntervals[i].active != allIntervals[i - 1].active) {
+        mergedIntervals.push({
+          startTime: currentInterval.startTime,
+          endTime: allIntervals[i - 1].endTime,
+          duration: allIntervals[i - 1].endTime - currentInterval.startTime,
+          active: allIntervals[i - 1].active,
+        });
+        currentInterval = allIntervals[i];
+      }
+    }
+    if (currentInterval && allIntervals.length > 0) {
+      mergedIntervals.push({
+        startTime: currentInterval.startTime,
+        endTime: allIntervals[allIntervals.length - 1].endTime,
+        duration:
+          allIntervals[allIntervals.length - 1].endTime - currentInterval.startTime,
+        active: allIntervals[allIntervals.length - 1].active,
+      });
+    }
+    // Merges inactive segments that are less than a threshold into surrounding active sessions
+    // TODO: Change this from a 3n pass to n
+    const metadata = this.getMetaData();
+    currentInterval = mergedIntervals[0];
+    for (let i = 1; i < mergedIntervals.length; i++) {
+      if (
+        (!mergedIntervals[i].active &&
+          mergedIntervals[i].duration >
+            this.config.inactiveThreshold * metadata.totalTime) ||
+        (!mergedIntervals[i - 1].active &&
+          mergedIntervals[i - 1].duration >
+            this.config.inactiveThreshold * metadata.totalTime)
+      ) {
+        this.activityIntervals.push({
+          startTime: currentInterval.startTime,
+          endTime: mergedIntervals[i - 1].endTime,
+          duration: mergedIntervals[i - 1].endTime - currentInterval.startTime,
+          active: mergedIntervals[i - 1].active,
+        });
+        currentInterval = mergedIntervals[i];
+      }
+    }
+    if (currentInterval && mergedIntervals.length > 0) {
+      this.activityIntervals.push({
+        startTime: currentInterval.startTime,
+        endTime: mergedIntervals[mergedIntervals.length - 1].endTime,
+        duration:
+          mergedIntervals[mergedIntervals.length - 1].endTime -
+          currentInterval.startTime,
+        active: mergedIntervals[mergedIntervals.length - 1].active,
+      });
     }
   }
 
@@ -355,6 +414,7 @@ export class Replayer {
       ?.getElementsByTagName('html')[0]
       .classList.remove('rrweb-paused');
     this.emitter.emit(ReplayerEvents.Start);
+    this.handleInactivity(this.getMetaData().startTime + timeOffset, true);
   }
 
   public pause(timeOffset?: number) {
@@ -485,36 +545,7 @@ export class Replayer {
             // do not check skip in sync
             return;
           }
-          if (event === this.nextUserInteractionEvent) {
-            this.nextUserInteractionEvent = null;
-            this.backToNormal();
-          }
-          if (this.config.skipInactive && !this.nextUserInteractionEvent) {
-            for (const _event of this.service.state.context.events) {
-              if (_event.timestamp! <= event.timestamp!) {
-                continue;
-              }
-              if (this.isUserInteraction(_event)) {
-                if (
-                  _event.delay! - event.delay! >
-                  SKIP_TIME_THRESHOLD *
-                    this.speedService.state.context.timer.speed
-                ) {
-                  this.nextUserInteractionEvent = _event;
-                }
-                break;
-              }
-            }
-            if (this.nextUserInteractionEvent) {
-              const skipTime =
-                this.nextUserInteractionEvent.delay! - event.delay!;
-              const payload = {
-                speed: Math.min(Math.round(skipTime / SKIP_TIME_INTERVAL), 360),
-              };
-              this.speedService.send({ type: 'FAST_FORWARD', payload });
-              this.emitter.emit(ReplayerEvents.SkipStart, payload);
-            }
-          }
+          this.handleInactivity(event.timestamp);
         };
         break;
       default:
@@ -550,6 +581,33 @@ export class Replayer {
       }
     };
     return wrappedCastFn;
+  }
+
+  private handleInactivity(timestamp: number, resetNext?: boolean) {
+    if (timestamp === this.inactiveEndTimestamp || resetNext) {
+      this.inactiveEndTimestamp = null;
+      this.backToNormal();
+    }
+    if (this.config.skipInactive && !this.inactiveEndTimestamp) {
+      for (const interval of this.activityIntervals) {
+        if (
+          timestamp >= interval.startTime! &&
+          timestamp < interval.endTime! &&
+          !interval.active
+        ) {
+          this.inactiveEndTimestamp = interval.endTime;
+          break;
+        }
+      }
+      if (this.inactiveEndTimestamp) {
+        const skipTime = this.inactiveEndTimestamp! - timestamp!;
+        const payload = {
+          speed: Math.min(Math.round(skipTime / SKIP_TIME_INTERVAL), 360),
+        };
+        this.speedService.send({ type: 'FAST_FORWARD', payload });
+        this.emitter.emit(ReplayerEvents.SkipStart, payload);
+      }
+    }
   }
 
   private rebuildFullSnapshot(

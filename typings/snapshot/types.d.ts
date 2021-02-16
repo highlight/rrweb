@@ -40,9 +40,7 @@ export declare type commentNode = {
     type: NodeType.Comment;
     textContent: string;
 };
-export declare type serializedNode = (documentNode | documentTypeNode | elementNode | textNode | cdataNode | commentNode) & {
-    rootId?: number;
-};
+export declare type serializedNode = documentNode | documentTypeNode | elementNode | textNode | cdataNode | commentNode;
 export declare type serializedNodeWithId = serializedNode & {
     id: number;
 };
