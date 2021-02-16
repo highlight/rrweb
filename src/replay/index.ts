@@ -102,7 +102,6 @@ export class Replayer {
   private emitter: Emitter = mitt();
 
   private inactiveEndTimestamp: number | null;
-  private nextUserInteractionEvent: eventWithTime | null;
 
   // tslint:disable-next-line: variable-name
   private legacy_missingNodeRetryMap: missingNodeMap = {};
@@ -247,17 +246,21 @@ export class Replayer {
     }
     // Preprocessing to get all active/inactive segments in a session
     const allIntervals: Array<SessionInterval> = [];
-    const firstEvent = this.service.state.context.events[0];
+    const metadata = this.getMetaData();
     const userInteractionEvents = [
-      firstEvent,
+      { timestamp: metadata.startTime },
       ...this.service.state.context.events.filter((ev) =>
         this.isUserInteraction(ev),
       ),
+      { timestamp: metadata.endTime },
     ];
     for (let i = 1; i < userInteractionEvents.length; i++) {
       const currentInterval = userInteractionEvents[i - 1];
       const _event = userInteractionEvents[i];
-      if (_event.timestamp! - currentInterval.timestamp! > SKIP_TIME_THRESHOLD) {
+      if (
+        _event.timestamp! - currentInterval.timestamp! >
+        SKIP_TIME_THRESHOLD
+      ) {
         allIntervals.push({
           startTime: currentInterval.timestamp!,
           endTime: _event.timestamp!,
@@ -292,13 +295,13 @@ export class Replayer {
         startTime: currentInterval.startTime,
         endTime: allIntervals[allIntervals.length - 1].endTime,
         duration:
-          allIntervals[allIntervals.length - 1].endTime - currentInterval.startTime,
+          allIntervals[allIntervals.length - 1].endTime -
+          currentInterval.startTime,
         active: allIntervals[allIntervals.length - 1].active,
       });
     }
     // Merges inactive segments that are less than a threshold into surrounding active sessions
     // TODO: Change this from a 3n pass to n
-    const metadata = this.getMetaData();
     currentInterval = mergedIntervals[0];
     for (let i = 1; i < mergedIntervals.length; i++) {
       if (
@@ -1447,7 +1450,7 @@ export class Replayer {
   }
 
   private backToNormal() {
-    this.nextUserInteractionEvent = null;
+    this.inactiveEndTimestamp = null;
     if (this.speedService.state.matches('normal')) {
       return;
     }
