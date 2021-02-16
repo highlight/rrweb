@@ -191,7 +191,6 @@ function record<T = eventWithTime>(
       maskAllInputs: maskInputOptions,
       slimDOM: slimDOMOptions,
       recordCanvas,
-      debug,
     });
 
     if (!node) {
