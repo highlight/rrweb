@@ -504,6 +504,8 @@ export type playerConfig = {
   unpackFn?: UnpackFn;
   logConfig: LogReplayConfig;
   inactiveThreshold: number;
+  inactiveSkipTime: number;
+  maxSkipSpeed: number;
 };
 
 export type LogReplayConfig = {

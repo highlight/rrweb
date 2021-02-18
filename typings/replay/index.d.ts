@@ -14,7 +14,6 @@ export declare class Replayer {
     private tailPositions;
     private emitter;
     private inactiveEndTimestamp;
-    private nextUserInteractionEvent;
     private legacy_missingNodeRetryMap;
     private treeIndex;
     private fragmentParentMap;
