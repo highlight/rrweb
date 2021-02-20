@@ -12,15 +12,13 @@ jobs:
           node-version: 13.x
           registry-url: https://registry.npmjs.org
       - name: Install
-        run: npm install
+        run: yarn install
       - name: Bundle
-        run: npm run bundle
-      - name: Typings
-        run: npm run typings
+        run: yarn bundle:highlight
       - name: Confirm new version
         run: python3 compare.py
       - name: Publish
         if: github.ref == 'refs/heads/master'
-        run: npm publish --access public
+        run: yarn publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
