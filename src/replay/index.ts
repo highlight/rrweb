@@ -136,6 +136,8 @@ export class Replayer {
       mouseTail: defaultMouseTailConfig,
       logConfig: defaultLogConfig,
       inactiveThreshold: 0.02,
+      inactiveSkipTime: SKIP_TIME_INTERVAL,
+      maxSkipSpeed: 360,
     };
     this.config = Object.assign({}, defaultConfig, config);
     if (!this.config.logConfig.replayLogger)
@@ -605,7 +607,10 @@ export class Replayer {
       if (this.inactiveEndTimestamp) {
         const skipTime = this.inactiveEndTimestamp! - timestamp!;
         const payload = {
-          speed: Math.min(Math.round(skipTime / SKIP_TIME_INTERVAL), 360),
+          speed: Math.min(
+            Math.round(skipTime / this.config.inactiveSkipTime),
+            this.config.maxSkipSpeed,
+          ),
         };
         this.speedService.send({ type: 'FAST_FORWARD', payload });
         this.emitter.emit(ReplayerEvents.SkipStart, payload);
