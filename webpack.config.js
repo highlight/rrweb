@@ -46,9 +46,9 @@ module.exports = {
     extensions: ['.js', '.ts', '.tsx'],
     modules: [path.resolve(__dirname, 'src'), 'node_modules'],
     // NOTE: Only uncomment for experimenting with rrweb-snapshot.
-    alias: {
-      'rrweb-snapshot': path.resolve(__dirname, '../rrweb-snapshot/dist'),
-    },
+    // alias: {
+    //   'rrweb-snapshot': path.resolve(__dirname, '../rrweb-snapshot/dist'),
+    // },
   },
   mode: 'development',
   devtool: 'source-map',
