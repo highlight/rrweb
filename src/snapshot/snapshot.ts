@@ -196,6 +196,53 @@ export function _isBlockedElement(
   return false;
 }
 
+// https://stackoverflow.com/a/36155560
+function onceIframeLoaded(
+  iframeEl: HTMLIFrameElement,
+  listener: () => unknown,
+  iframeLoadTimeout: number,
+) {
+  const win = iframeEl.contentWindow;
+  if (!win) {
+    return;
+  }
+  // document is loading
+  let fired = false;
+
+  let readyState: DocumentReadyState;
+  try {
+    readyState = win.document.readyState;
+  } catch (error) {
+    return;
+  }
+  if (readyState !== 'complete') {
+    const timer = setTimeout(() => {
+      if (!fired) {
+        listener();
+        fired = true;
+      }
+    }, iframeLoadTimeout);
+    iframeEl.addEventListener('load', () => {
+      clearTimeout(timer);
+      fired = true;
+      listener();
+    });
+    return;
+  }
+  // check blank frame for Chrome
+  const blankUrl = 'about:blank';
+  if (
+    win.location.href !== blankUrl ||
+    iframeEl.src === blankUrl ||
+    iframeEl.src === ''
+  ) {
+    listener();
+    return;
+  }
+  // use default listener
+  iframeEl.addEventListener('load', listener);
+}
+
 function serializeNode(
   n: Node,
   options: {
@@ -215,11 +262,18 @@ function serializeNode(
     maskInputOptions = {},
     recordCanvas,
   } = options;
+  // Only record root id when document object is not the base document
+  let rootId: number | undefined;
+  if (((doc as unknown) as INode).__sn) {
+    const docId = ((doc as unknown) as INode).__sn.id;
+    rootId = docId === 1 ? undefined : docId;
+  }
   switch (n.nodeType) {
     case n.DOCUMENT_NODE:
       return {
         type: NodeType.Document,
         childNodes: [],
+        rootId,
       };
     case n.DOCUMENT_TYPE_NODE:
       return {
@@ -227,6 +281,7 @@ function serializeNode(
         name: (n as DocumentType).name,
         publicId: (n as DocumentType).publicId,
         systemId: (n as DocumentType).systemId,
+        rootId,
       };
     case n.ELEMENT_NODE:
       const needBlock = _isBlockedElement(
@@ -318,6 +373,7 @@ function serializeNode(
       if ((n as HTMLElement).scrollTop) {
         attributes.rr_scrollTop = (n as HTMLElement).scrollTop;
       }
+      // block element
       if (needBlock) {
         const { width, height } = (n as HTMLElement).getBoundingClientRect();
         attributes = {
@@ -326,6 +382,10 @@ function serializeNode(
           rr_height: `${height}px`,
         };
       }
+      // iframe
+      if (tagName === 'iframe') {
+        delete attributes.src;
+      }
       return {
         type: NodeType.Element,
         tagName,
@@ -333,6 +393,7 @@ function serializeNode(
         childNodes: [],
         isSVG: isSVGElement(n as Element) || undefined,
         needBlock,
+        rootId,
       };
     case n.TEXT_NODE:
       // The parent node may not be a html element which has a tagName attribute.
@@ -351,16 +412,19 @@ function serializeNode(
         type: NodeType.Text,
         textContent: textContent || '',
         isStyle,
+        rootId,
       };
     case n.CDATA_SECTION_NODE:
       return {
         type: NodeType.CDATA,
         textContent: '',
+        rootId,
       };
     case n.COMMENT_NODE:
       return {
         type: NodeType.Comment,
         textContent: (n as Comment).textContent || '',
+        rootId,
       };
     default:
       return false;
@@ -472,6 +536,9 @@ export function serializeNodeWithId(
     slimDOMOptions: SlimDOMOptions;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
+    onSerialize?: (n: INode) => unknown;
+    onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
+    iframeLoadTimeout?: number;
   },
 ): serializedNodeWithId | null {
   const {
@@ -484,6 +551,9 @@ export function serializeNodeWithId(
     maskInputOptions = {},
     slimDOMOptions,
     recordCanvas = false,
+    onSerialize,
+    onIframeLoad,
+    iframeLoadTimeout = 5000,
   } = options;
   let { preserveWhiteSpace = true } = options;
   const _serializedNode = serializeNode(n, {
@@ -521,6 +591,9 @@ export function serializeNodeWithId(
     return null; // slimDOM
   }
   map[id] = n as INode;
+  if (onSerialize) {
+    onSerialize(n as INode);
+  }
   let recordChild = !skipChild;
   if (serializedNode.type === NodeType.Element) {
     recordChild = recordChild && !serializedNode.needBlock;
@@ -552,12 +625,50 @@ export function serializeNodeWithId(
         slimDOMOptions,
         recordCanvas,
         preserveWhiteSpace,
+        onSerialize,
+        onIframeLoad,
+        iframeLoadTimeout,
       });
       if (serializedChildNode) {
         serializedNode.childNodes.push(serializedChildNode);
       }
     }
   }
+
+  if (
+    serializedNode.type === NodeType.Element &&
+    serializedNode.tagName === 'iframe'
+  ) {
+    onceIframeLoaded(
+      n as HTMLIFrameElement,
+      () => {
+        const iframeDoc = (n as HTMLIFrameElement).contentDocument;
+        if (iframeDoc && onIframeLoad) {
+          const serializedIframeNode = serializeNodeWithId(iframeDoc, {
+            doc: iframeDoc,
+            map,
+            blockClass,
+            blockSelector,
+            skipChild: false,
+            inlineStylesheet,
+            maskInputOptions,
+            slimDOMOptions,
+            recordCanvas,
+            preserveWhiteSpace,
+            onSerialize,
+            onIframeLoad,
+            iframeLoadTimeout,
+          });
+
+          if (serializedIframeNode) {
+            onIframeLoad(n as INode, serializedIframeNode);
+          }
+        }
+      },
+      iframeLoadTimeout,
+    );
+  }
+
   return serializedNode;
 }
 
@@ -570,6 +681,10 @@ function snapshot(
     slimDOM?: boolean | SlimDOMOptions;
     recordCanvas?: boolean;
     blockSelector?: string | null;
+    preserveWhiteSpace?: boolean;
+    onSerialize?: (n: INode) => unknown;
+    onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
+    iframeLoadTimeout?: number;
   },
 ): [serializedNodeWithId | null, idNodeMap] {
   const {
@@ -579,6 +694,10 @@ function snapshot(
     blockSelector = null,
     maskAllInputs = false,
     slimDOM = false,
+    preserveWhiteSpace,
+    onSerialize,
+    onIframeLoad,
+    iframeLoadTimeout,
   } = options || {};
   const idNodeMap: idNodeMap = {};
   const maskInputOptions: MaskInputOptions =
@@ -632,6 +751,10 @@ function snapshot(
       maskInputOptions,
       slimDOMOptions,
       recordCanvas,
+      preserveWhiteSpace,
+      onSerialize,
+      onIframeLoad,
+      iframeLoadTimeout,
     }),
     idNodeMap,
   ];
