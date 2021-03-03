@@ -111,7 +111,6 @@ export class Replayer {
   private elementStateMap!: Map<INode, ElementState>;
 
   private imageMap: Map<eventWithTime, HTMLImageElement> = new Map();
-  private activityIntervals: Array<SessionInterval> = [];
 
   constructor(
     events: Array<eventWithTime | string>,
@@ -246,6 +245,48 @@ export class Replayer {
         );
       }, 1);
     }
+  }
+
+  public on(event: string, handler: Handler) {
+    this.emitter.on(event, handler);
+    return this;
+  }
+
+  public setConfig(config: Partial<playerConfig>) {
+    Object.keys(config).forEach((key) => {
+      // @ts-ignore
+      this.config[key] = config[key];
+    });
+    if (!this.config.skipInactive) {
+      this.backToNormal();
+    }
+    if (typeof config.speed !== 'undefined') {
+      this.speedService.send({
+        type: 'SET_SPEED',
+        payload: {
+          speed: config.speed!,
+        },
+      });
+    }
+    if (typeof config.mouseTail !== 'undefined') {
+      if (config.mouseTail === false) {
+        if (this.mouseTail) {
+          this.mouseTail.style.display = 'none';
+        }
+      } else {
+        if (!this.mouseTail) {
+          this.mouseTail = document.createElement('canvas');
+          this.mouseTail.width = Number.parseFloat(this.iframe.width);
+          this.mouseTail.height = Number.parseFloat(this.iframe.height);
+          this.mouseTail.classList.add('replayer-mouse-tail');
+          this.wrapper.insertBefore(this.mouseTail, this.iframe);
+        }
+        this.mouseTail.style.display = 'inherit';
+      }
+    }
+  }
+
+  public getActivityIntervals(): Array<SessionInterval> {
     // Preprocessing to get all active/inactive segments in a session
     const allIntervals: Array<SessionInterval> = [];
     const metadata = this.getMetaData();
@@ -304,6 +345,7 @@ export class Replayer {
     }
     // Merges inactive segments that are less than a threshold into surrounding active sessions
     // TODO: Change this from a 3n pass to n
+    const activityIntervals: Array<SessionInterval> = [];
     currentInterval = mergedIntervals[0];
     for (let i = 1; i < mergedIntervals.length; i++) {
       if (
@@ -314,7 +356,7 @@ export class Replayer {
           mergedIntervals[i - 1].duration >
             this.config.inactiveThreshold * metadata.totalTime)
       ) {
-        this.activityIntervals.push({
+        activityIntervals.push({
           startTime: currentInterval.startTime,
           endTime: mergedIntervals[i - 1].endTime,
           duration: mergedIntervals[i - 1].endTime - currentInterval.startTime,
@@ -324,7 +366,7 @@ export class Replayer {
       }
     }
     if (currentInterval && mergedIntervals.length > 0) {
-      this.activityIntervals.push({
+      activityIntervals.push({
         startTime: currentInterval.startTime,
         endTime: mergedIntervals[mergedIntervals.length - 1].endTime,
         duration:
@@ -333,49 +375,7 @@ export class Replayer {
         active: mergedIntervals[mergedIntervals.length - 1].active,
       });
     }
-  }
-
-  public on(event: string, handler: Handler) {
-    this.emitter.on(event, handler);
-    return this;
-  }
-
-  public setConfig(config: Partial<playerConfig>) {
-    Object.keys(config).forEach((key) => {
-      // @ts-ignore
-      this.config[key] = config[key];
-    });
-    if (!this.config.skipInactive) {
-      this.backToNormal();
-    }
-    if (typeof config.speed !== 'undefined') {
-      this.speedService.send({
-        type: 'SET_SPEED',
-        payload: {
-          speed: config.speed!,
-        },
-      });
-    }
-    if (typeof config.mouseTail !== 'undefined') {
-      if (config.mouseTail === false) {
-        if (this.mouseTail) {
-          this.mouseTail.style.display = 'none';
-        }
-      } else {
-        if (!this.mouseTail) {
-          this.mouseTail = document.createElement('canvas');
-          this.mouseTail.width = Number.parseFloat(this.iframe.width);
-          this.mouseTail.height = Number.parseFloat(this.iframe.height);
-          this.mouseTail.classList.add('replayer-mouse-tail');
-          this.wrapper.insertBefore(this.mouseTail, this.iframe);
-        }
-        this.mouseTail.style.display = 'inherit';
-      }
-    }
-  }
-
-  public getActivityIntervals(): Array<SessionInterval> {
-    return this.activityIntervals;
+    return activityIntervals;
   }
 
   public getMetaData(): playerMetaData {
@@ -594,7 +594,7 @@ export class Replayer {
       this.backToNormal();
     }
     if (this.config.skipInactive && !this.inactiveEndTimestamp) {
-      for (const interval of this.activityIntervals) {
+      for (const interval of this.getActivityIntervals()) {
         if (
           timestamp >= interval.startTime! &&
           timestamp < interval.endTime! &&
