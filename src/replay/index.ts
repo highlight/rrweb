@@ -101,6 +101,7 @@ export class Replayer {
 
   private emitter: Emitter = mitt();
 
+  private activityIntervals: Array<SessionInterval> = [];
   private inactiveEndTimestamp: number | null;
 
   // tslint:disable-next-line: variable-name
@@ -287,95 +288,97 @@ export class Replayer {
   }
 
   public getActivityIntervals(): Array<SessionInterval> {
-    // Preprocessing to get all active/inactive segments in a session
-    const allIntervals: Array<SessionInterval> = [];
-    const metadata = this.getMetaData();
-    const userInteractionEvents = [
-      { timestamp: metadata.startTime },
-      ...this.service.state.context.events.filter((ev) =>
-        this.isUserInteraction(ev),
-      ),
-      { timestamp: metadata.endTime },
-    ];
-    for (let i = 1; i < userInteractionEvents.length; i++) {
-      const currentInterval = userInteractionEvents[i - 1];
-      const _event = userInteractionEvents[i];
-      if (
-        _event.timestamp! - currentInterval.timestamp! >
-        SKIP_TIME_THRESHOLD
-      ) {
-        allIntervals.push({
-          startTime: currentInterval.timestamp!,
-          endTime: _event.timestamp!,
-          duration: _event.timestamp! - currentInterval.timestamp!,
-          active: false,
-        });
-      } else {
-        allIntervals.push({
-          startTime: currentInterval.timestamp!,
-          endTime: _event.timestamp!,
-          duration: _event.timestamp! - currentInterval.timestamp!,
-          active: true,
-        });
+    if (this.activityIntervals.length == 0) {
+      // Preprocessing to get all active/inactive segments in a session
+      const allIntervals: Array<SessionInterval> = [];
+      const metadata = this.getMetaData();
+      const userInteractionEvents = [
+        { timestamp: metadata.startTime },
+        ...this.service.state.context.events.filter((ev) =>
+          this.isUserInteraction(ev),
+        ),
+        { timestamp: metadata.endTime },
+      ];
+      for (let i = 1; i < userInteractionEvents.length; i++) {
+        const currentInterval = userInteractionEvents[i - 1];
+        const _event = userInteractionEvents[i];
+        if (
+          _event.timestamp! - currentInterval.timestamp! >
+          SKIP_TIME_THRESHOLD
+        ) {
+          allIntervals.push({
+            startTime: currentInterval.timestamp!,
+            endTime: _event.timestamp!,
+            duration: _event.timestamp! - currentInterval.timestamp!,
+            active: false,
+          });
+        } else {
+          allIntervals.push({
+            startTime: currentInterval.timestamp!,
+            endTime: _event.timestamp!,
+            duration: _event.timestamp! - currentInterval.timestamp!,
+            active: true,
+          });
+        }
       }
-    }
-    // Merges continuous active/inactive ranges
-    const mergedIntervals: Array<SessionInterval> = [];
-    let currentInterval = allIntervals[0];
-    for (let i = 1; i < allIntervals.length; i++) {
-      if (allIntervals[i].active != allIntervals[i - 1].active) {
+      // Merges continuous active/inactive ranges
+      const mergedIntervals: Array<SessionInterval> = [];
+      let currentInterval = allIntervals[0];
+      for (let i = 1; i < allIntervals.length; i++) {
+        if (allIntervals[i].active != allIntervals[i - 1].active) {
+          mergedIntervals.push({
+            startTime: currentInterval.startTime,
+            endTime: allIntervals[i - 1].endTime,
+            duration: allIntervals[i - 1].endTime - currentInterval.startTime,
+            active: allIntervals[i - 1].active,
+          });
+          currentInterval = allIntervals[i];
+        }
+      }
+      if (currentInterval && allIntervals.length > 0) {
         mergedIntervals.push({
           startTime: currentInterval.startTime,
-          endTime: allIntervals[i - 1].endTime,
-          duration: allIntervals[i - 1].endTime - currentInterval.startTime,
-          active: allIntervals[i - 1].active,
+          endTime: allIntervals[allIntervals.length - 1].endTime,
+          duration:
+            allIntervals[allIntervals.length - 1].endTime -
+            currentInterval.startTime,
+          active: allIntervals[allIntervals.length - 1].active,
         });
-        currentInterval = allIntervals[i];
       }
-    }
-    if (currentInterval && allIntervals.length > 0) {
-      mergedIntervals.push({
-        startTime: currentInterval.startTime,
-        endTime: allIntervals[allIntervals.length - 1].endTime,
-        duration:
-          allIntervals[allIntervals.length - 1].endTime -
-          currentInterval.startTime,
-        active: allIntervals[allIntervals.length - 1].active,
-      });
-    }
-    // Merges inactive segments that are less than a threshold into surrounding active sessions
-    // TODO: Change this from a 3n pass to n
-    const activityIntervals: Array<SessionInterval> = [];
-    currentInterval = mergedIntervals[0];
-    for (let i = 1; i < mergedIntervals.length; i++) {
-      if (
-        (!mergedIntervals[i].active &&
-          mergedIntervals[i].duration >
-            this.config.inactiveThreshold * metadata.totalTime) ||
-        (!mergedIntervals[i - 1].active &&
-          mergedIntervals[i - 1].duration >
-            this.config.inactiveThreshold * metadata.totalTime)
-      ) {
-        activityIntervals.push({
+      // Merges inactive segments that are less than a threshold into surrounding active sessions
+      // TODO: Change this from a 3n pass to n
+      currentInterval = mergedIntervals[0];
+      for (let i = 1; i < mergedIntervals.length; i++) {
+        if (
+          (!mergedIntervals[i].active &&
+            mergedIntervals[i].duration >
+              this.config.inactiveThreshold * metadata.totalTime) ||
+          (!mergedIntervals[i - 1].active &&
+            mergedIntervals[i - 1].duration >
+              this.config.inactiveThreshold * metadata.totalTime)
+        ) {
+          this.activityIntervals.push({
+            startTime: currentInterval.startTime,
+            endTime: mergedIntervals[i - 1].endTime,
+            duration:
+              mergedIntervals[i - 1].endTime - currentInterval.startTime,
+            active: mergedIntervals[i - 1].active,
+          });
+          currentInterval = mergedIntervals[i];
+        }
+      }
+      if (currentInterval && mergedIntervals.length > 0) {
+        this.activityIntervals.push({
           startTime: currentInterval.startTime,
-          endTime: mergedIntervals[i - 1].endTime,
-          duration: mergedIntervals[i - 1].endTime - currentInterval.startTime,
-          active: mergedIntervals[i - 1].active,
+          endTime: mergedIntervals[mergedIntervals.length - 1].endTime,
+          duration:
+            mergedIntervals[mergedIntervals.length - 1].endTime -
+            currentInterval.startTime,
+          active: mergedIntervals[mergedIntervals.length - 1].active,
         });
-        currentInterval = mergedIntervals[i];
       }
     }
-    if (currentInterval && mergedIntervals.length > 0) {
-      activityIntervals.push({
-        startTime: currentInterval.startTime,
-        endTime: mergedIntervals[mergedIntervals.length - 1].endTime,
-        duration:
-          mergedIntervals[mergedIntervals.length - 1].endTime -
-          currentInterval.startTime,
-        active: mergedIntervals[mergedIntervals.length - 1].active,
-      });
-    }
-    return activityIntervals;
+    return this.activityIntervals;
   }
 
   public getMetaData(): playerMetaData {
