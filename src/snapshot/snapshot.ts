@@ -205,6 +205,7 @@ function serializeNode(
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
     recordCanvas: boolean;
+    isStrictPrivacy: boolean;
   },
 ): serializedNode | false {
   const {
@@ -214,6 +215,7 @@ function serializeNode(
     inlineStylesheet,
     maskInputOptions = {},
     recordCanvas,
+    isStrictPrivacy,
   } = options;
   switch (n.nodeType) {
     case n.DOCUMENT_NODE:
@@ -318,7 +320,11 @@ function serializeNode(
       if ((n as HTMLElement).scrollTop) {
         attributes.rr_scrollTop = (n as HTMLElement).scrollTop;
       }
-      if (needBlock) {
+      if (
+        needBlock ||
+        (isStrictPrivacy &&
+           ['p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'img'].includes(tagName))
+      ) {
         const { width, height } = (n as HTMLElement).getBoundingClientRect();
         attributes = {
           class: attributes.class,
@@ -472,6 +478,7 @@ export function serializeNodeWithId(
     slimDOMOptions: SlimDOMOptions;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
+    isStrictPrivacy: boolean;
   },
 ): serializedNodeWithId | null {
   const {
@@ -484,6 +491,7 @@ export function serializeNodeWithId(
     maskInputOptions = {},
     slimDOMOptions,
     recordCanvas = false,
+    isStrictPrivacy,
   } = options;
   let { preserveWhiteSpace = true } = options;
   const _serializedNode = serializeNode(n, {
@@ -493,6 +501,7 @@ export function serializeNodeWithId(
     inlineStylesheet,
     maskInputOptions,
     recordCanvas,
+    isStrictPrivacy,
   });
   if (!_serializedNode) {
     // TODO: dev only
@@ -552,6 +561,7 @@ export function serializeNodeWithId(
         slimDOMOptions,
         recordCanvas,
         preserveWhiteSpace,
+        isStrictPrivacy,
       });
       if (serializedChildNode) {
         serializedNode.childNodes.push(serializedChildNode);
@@ -570,6 +580,7 @@ function snapshot(
     slimDOM?: boolean | SlimDOMOptions;
     recordCanvas?: boolean;
     blockSelector?: string | null;
+    isStrictPrivacy: boolean;
   },
 ): [serializedNodeWithId | null, idNodeMap] {
   const {
@@ -579,6 +590,7 @@ function snapshot(
     blockSelector = null,
     maskAllInputs = false,
     slimDOM = false,
+    isStrictPrivacy = false,
   } = options || {};
   const idNodeMap: idNodeMap = {};
   const maskInputOptions: MaskInputOptions =
@@ -632,6 +644,7 @@ function snapshot(
       maskInputOptions,
       slimDOMOptions,
       recordCanvas,
+      isStrictPrivacy,
     }),
     idNodeMap,
   ];

@@ -148,6 +148,7 @@ export default class MutationBuffer {
   private maskInputOptions: MaskInputOptions;
   private recordCanvas: boolean;
   private slimDOMOptions: SlimDOMOptions;
+  private isStrictPrivacy: boolean;
 
   public init(
     cb: mutationCallBack,
@@ -157,6 +158,7 @@ export default class MutationBuffer {
     maskInputOptions: MaskInputOptions,
     recordCanvas: boolean,
     slimDOMOptions: SlimDOMOptions,
+    isStrictPrivacy: boolean,
   ) {
     this.blockClass = blockClass;
     this.blockSelector = blockSelector;
@@ -165,6 +167,7 @@ export default class MutationBuffer {
     this.recordCanvas = recordCanvas;
     this.slimDOMOptions = slimDOMOptions;
     this.emissionCallback = cb;
+    this.isStrictPrivacy = isStrictPrivacy;
   }
 
   public freeze() {
@@ -228,6 +231,7 @@ export default class MutationBuffer {
         maskInputOptions: this.maskInputOptions,
         slimDOMOptions: this.slimDOMOptions,
         recordCanvas: this.recordCanvas,
+        isStrictPrivacy: this.isStrictPrivacy
       });
       if (sn) {
         adds.push({

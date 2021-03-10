@@ -207,6 +207,8 @@ export type recordOptions<T> = {
   mousemoveWait?: number;
   recordLog?: boolean | LogRecordOptions;
   debug?: boolean;
+  /** When enabled, recording for most elements is disabled to prevent recording personally identifiable information. */
+  isStrictPrivacy?: boolean;
 };
 
 export type observerParam = {
@@ -232,6 +234,7 @@ export type observerParam = {
   recordCanvas: boolean;
   collectFonts: boolean;
   slimDOMOptions: SlimDOMOptions;
+  isStrictPrivacy: boolean;
 };
 
 export type hooksParam = {
