@@ -215,6 +215,8 @@ function serializeNode(
     maskInputOptions = {},
     recordCanvas,
   } = options;
+  const isStrictPrivacyMode = true;
+
   switch (n.nodeType) {
     case n.DOCUMENT_NODE:
       return {
@@ -229,7 +231,7 @@ function serializeNode(
         systemId: (n as DocumentType).systemId,
       };
     case n.ELEMENT_NODE:
-      const needBlock = _isBlockedElement(
+      let needBlock = _isBlockedElement(
         n as HTMLElement,
         blockClass,
         blockSelector,
@@ -318,13 +320,14 @@ function serializeNode(
       if ((n as HTMLElement).scrollTop) {
         attributes.rr_scrollTop = (n as HTMLElement).scrollTop;
       }
-      if (needBlock) {
+      if (needBlock || (tagName === 'img' && isStrictPrivacyMode)) {
         const { width, height } = (n as HTMLElement).getBoundingClientRect();
         attributes = {
           class: attributes.class,
           rr_width: `${width}px`,
           rr_height: `${height}px`,
         };
+        needBlock = true;
       }
       return {
         type: NodeType.Element,
@@ -341,11 +344,35 @@ function serializeNode(
         n.parentNode && (n.parentNode as HTMLElement).tagName;
       let textContent = (n as Text).textContent;
       const isStyle = parentTagName === 'STYLE' ? true : undefined;
+      /** Determines if this node has been handled already. */
+      let textContentHandled = false;
       if (isStyle && textContent) {
         textContent = absoluteToStylesheet(textContent, getHref());
+        textContentHandled = true;
       }
       if (parentTagName === 'SCRIPT') {
         textContent = 'SCRIPT_PLACEHOLDER';
+        textContentHandled = true;
+      }
+
+      // Randomizes the text content to a string of the same length.
+      if (isStrictPrivacyMode && !textContentHandled && parentTagName) {
+        const IGNORE_TAG_NAMES = new Set([
+          'HEAD',
+          'TITLE',
+          'STYLE',
+          'SCRIPT',
+          'HTML',
+          'BODY',
+          'NOSCRIPT',
+        ]);
+        if (!IGNORE_TAG_NAMES.has(parentTagName)) {
+          textContent =
+            textContent
+              ?.split(' ')
+              .map((word) => Math.random().toString(20).substr(2, word.length))
+              .join(' ') || '';
+        }
       }
       return {
         type: NodeType.Text,
