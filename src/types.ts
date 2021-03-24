@@ -207,6 +207,11 @@ export type recordOptions<T> = {
   mousemoveWait?: number;
   recordLog?: boolean | LogRecordOptions;
   debug?: boolean;
+  /**
+   * Enabling this will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
+   * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
+   */
+  isStrictPrivacy?: boolean;
 };
 
 export type observerParam = {
@@ -232,6 +237,7 @@ export type observerParam = {
   recordCanvas: boolean;
   collectFonts: boolean;
   slimDOMOptions: SlimDOMOptions;
+  isStrictPrivacy: boolean;
 };
 
 export type hooksParam = {

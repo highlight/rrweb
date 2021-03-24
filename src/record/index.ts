@@ -49,6 +49,7 @@ function record<T = eventWithTime>(
     collectFonts = false,
     recordLog = false,
     debug,
+    isStrictPrivacy = false,
   } = options;
   // runtime checks for user options
   if (!emit) {
@@ -191,6 +192,7 @@ function record<T = eventWithTime>(
       maskAllInputs: maskInputOptions,
       slimDOM: slimDOMOptions,
       recordCanvas,
+      isStrictPrivacy,
     });
 
     if (!node) {
@@ -366,6 +368,7 @@ function record<T = eventWithTime>(
             collectFonts,
             slimDOMOptions,
             logOptions,
+            isStrictPrivacy,
           },
           hooks,
         ),
