@@ -555,6 +555,16 @@ export function serializeNodeWithId(
   let recordChild = !skipChild;
   if (serializedNode.type === NodeType.Element) {
     recordChild = recordChild && !serializedNode.needBlock;
+
+    /** Highlight Code Begin */
+    // Remove the image's src if isStrictPrivacy.
+    if (serializedNode.needBlock && serializedNode.tagName === 'img') {
+      const clone = n.cloneNode();
+      ((clone as unknown) as HTMLImageElement).src = '';
+      map[id] = clone as INode;
+    }
+    /** Highlight Code End */
+
     // this property was not needed in replay side
     delete serializedNode.needBlock;
   }
