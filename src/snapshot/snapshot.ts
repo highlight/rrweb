@@ -354,6 +354,9 @@ function serializeNode(
       if (parentTagName === 'SCRIPT') {
         textContent = 'SCRIPT_PLACEHOLDER';
         textContentHandled = true;
+      } else if (parentTagName === 'NOSCRIPT') {
+        textContent = '';
+        textContentHandled = true;
       }
 
       // Randomizes the text content to a string of the same length.
@@ -616,7 +619,7 @@ function snapshot(
   },
 ): [serializedNodeWithId | null, idNodeMap] {
   const {
-    blockClass = 'rr-block',
+    blockClass = 'highlight-block',
     inlineStylesheet = true,
     recordCanvas = false,
     blockSelector = null,

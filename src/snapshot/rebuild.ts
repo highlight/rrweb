@@ -165,13 +165,6 @@ function buildNode(
           if (name === 'rr_height') {
             (node as HTMLElement).style.height = value;
           }
-          /** Highlight Code Start */
-          // rr_width and rr_height are only set if the node is blocked/censored.
-          if (name === 'rr_width' || name === 'rr_height') {
-            (node as HTMLElement).style.backgroundColor = '#000000';
-            (node as HTMLElement).style.borderRadius = '5px';
-          }
-          /** Highlight Code End */
           if (name === 'rr_mediaState') {
             switch (value) {
               case 'played':
