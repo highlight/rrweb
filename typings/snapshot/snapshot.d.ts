@@ -15,7 +15,7 @@ export declare function serializeNodeWithId(n: Node | INode, options: {
     slimDOMOptions: SlimDOMOptions;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
-    isStrictPrivacy: boolean;
+    enableStrictPrivacy: boolean;
 }): serializedNodeWithId | null;
 declare function snapshot(n: Document, options?: {
     blockClass?: string | RegExp;
@@ -24,7 +24,7 @@ declare function snapshot(n: Document, options?: {
     slimDOM?: boolean | SlimDOMOptions;
     recordCanvas?: boolean;
     blockSelector?: string | null;
-    isStrictPrivacy: boolean;
+    enableStrictPrivacy: boolean;
 }): [serializedNodeWithId | null, idNodeMap];
 export declare function visitSnapshot(node: serializedNodeWithId, onVisit: (node: serializedNodeWithId) => unknown): void;
 export declare function cleanupSnapshot(): void;

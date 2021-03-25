@@ -205,7 +205,7 @@ function serializeNode(
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
     recordCanvas: boolean;
-    isStrictPrivacy: boolean;
+    enableStrictPrivacy: boolean;
   },
 ): serializedNode | false {
   const {
@@ -215,7 +215,7 @@ function serializeNode(
     inlineStylesheet,
     maskInputOptions = {},
     recordCanvas,
-    isStrictPrivacy,
+    enableStrictPrivacy,
   } = options;
 
   switch (n.nodeType) {
@@ -321,7 +321,7 @@ function serializeNode(
       if ((n as HTMLElement).scrollTop) {
         attributes.rr_scrollTop = (n as HTMLElement).scrollTop;
       }
-      if (needBlock || (tagName === 'img' && isStrictPrivacy)) {
+      if (needBlock || (tagName === 'img' && enableStrictPrivacy)) {
         const { width, height } = (n as HTMLElement).getBoundingClientRect();
         attributes = {
           class: attributes.class,
@@ -357,7 +357,7 @@ function serializeNode(
       }
 
       // Randomizes the text content to a string of the same length.
-      if (isStrictPrivacy && !textContentHandled && parentTagName) {
+      if (enableStrictPrivacy && !textContentHandled && parentTagName) {
         const IGNORE_TAG_NAMES = new Set([
           'HEAD',
           'TITLE',
@@ -500,7 +500,7 @@ export function serializeNodeWithId(
     slimDOMOptions: SlimDOMOptions;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
-    isStrictPrivacy: boolean;
+    enableStrictPrivacy: boolean;
   },
 ): serializedNodeWithId | null {
   const {
@@ -513,7 +513,7 @@ export function serializeNodeWithId(
     maskInputOptions = {},
     slimDOMOptions,
     recordCanvas = false,
-    isStrictPrivacy,
+    enableStrictPrivacy,
   } = options;
   let { preserveWhiteSpace = true } = options;
   const _serializedNode = serializeNode(n, {
@@ -523,7 +523,7 @@ export function serializeNodeWithId(
     inlineStylesheet,
     maskInputOptions,
     recordCanvas,
-    isStrictPrivacy,
+    enableStrictPrivacy,
   });
   if (!_serializedNode) {
     // TODO: dev only
@@ -557,7 +557,7 @@ export function serializeNodeWithId(
     recordChild = recordChild && !serializedNode.needBlock;
 
     /** Highlight Code Begin */
-    // Remove the image's src if isStrictPrivacy.
+    // Remove the image's src if enableStrictPrivacy.
     if (serializedNode.needBlock && serializedNode.tagName === 'img') {
       const clone = n.cloneNode();
       ((clone as unknown) as HTMLImageElement).src = '';
@@ -593,7 +593,7 @@ export function serializeNodeWithId(
         slimDOMOptions,
         recordCanvas,
         preserveWhiteSpace,
-        isStrictPrivacy,
+        enableStrictPrivacy,
       });
       if (serializedChildNode) {
         serializedNode.childNodes.push(serializedChildNode);
@@ -612,7 +612,7 @@ function snapshot(
     slimDOM?: boolean | SlimDOMOptions;
     recordCanvas?: boolean;
     blockSelector?: string | null;
-    isStrictPrivacy: boolean;
+    enableStrictPrivacy: boolean;
   },
 ): [serializedNodeWithId | null, idNodeMap] {
   const {
@@ -622,7 +622,7 @@ function snapshot(
     blockSelector = null,
     maskAllInputs = false,
     slimDOM = false,
-    isStrictPrivacy = false,
+    enableStrictPrivacy = false,
   } = options || {};
   const idNodeMap: idNodeMap = {};
   const maskInputOptions: MaskInputOptions =
@@ -676,7 +676,7 @@ function snapshot(
       maskInputOptions,
       slimDOMOptions,
       recordCanvas,
-      isStrictPrivacy,
+      enableStrictPrivacy,
     }),
     idNodeMap,
   ];

@@ -140,7 +140,7 @@ export declare type recordOptions<T> = {
     mousemoveWait?: number;
     recordLog?: boolean | LogRecordOptions;
     debug?: boolean;
-    isStrictPrivacy?: boolean;
+    enableStrictPrivacy?: boolean;
 };
 export declare type observerParam = {
     mutationCb: mutationCallBack;
@@ -165,7 +165,7 @@ export declare type observerParam = {
     recordCanvas: boolean;
     collectFonts: boolean;
     slimDOMOptions: SlimDOMOptions;
-    isStrictPrivacy: boolean;
+    enableStrictPrivacy: boolean;
 };
 export declare type hooksParam = {
     mutation?: mutationCallBack;
