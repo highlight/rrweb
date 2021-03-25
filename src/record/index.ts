@@ -33,9 +33,9 @@ function record<T = eventWithTime>(
     emit,
     checkoutEveryNms,
     checkoutEveryNth,
-    blockClass = 'rr-block',
+    blockClass = 'highlight-block',
     blockSelector = null,
-    ignoreClass = 'rr-ignore',
+    ignoreClass = 'highlight-ignore',
     inlineStylesheet = true,
     maskAllInputs,
     maskInputOptions: _maskInputOptions,
@@ -49,6 +49,7 @@ function record<T = eventWithTime>(
     collectFonts = false,
     recordLog = false,
     debug,
+    enableStrictPrivacy = false,
   } = options;
   // runtime checks for user options
   if (!emit) {
@@ -191,6 +192,7 @@ function record<T = eventWithTime>(
       maskAllInputs: maskInputOptions,
       slimDOM: slimDOMOptions,
       recordCanvas,
+      enableStrictPrivacy,
     });
 
     if (!node) {
@@ -366,6 +368,7 @@ function record<T = eventWithTime>(
             collectFonts,
             slimDOMOptions,
             logOptions,
+            enableStrictPrivacy,
           },
           hooks,
         ),

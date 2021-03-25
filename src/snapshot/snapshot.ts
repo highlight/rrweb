@@ -205,6 +205,7 @@ function serializeNode(
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
     recordCanvas: boolean;
+    enableStrictPrivacy: boolean;
   },
 ): serializedNode | false {
   const {
@@ -214,7 +215,9 @@ function serializeNode(
     inlineStylesheet,
     maskInputOptions = {},
     recordCanvas,
+    enableStrictPrivacy,
   } = options;
+
   switch (n.nodeType) {
     case n.DOCUMENT_NODE:
       return {
@@ -229,7 +232,7 @@ function serializeNode(
         systemId: (n as DocumentType).systemId,
       };
     case n.ELEMENT_NODE:
-      const needBlock = _isBlockedElement(
+      let needBlock = _isBlockedElement(
         n as HTMLElement,
         blockClass,
         blockSelector,
@@ -318,13 +321,14 @@ function serializeNode(
       if ((n as HTMLElement).scrollTop) {
         attributes.rr_scrollTop = (n as HTMLElement).scrollTop;
       }
-      if (needBlock) {
+      if (needBlock || (tagName === 'img' && enableStrictPrivacy)) {
         const { width, height } = (n as HTMLElement).getBoundingClientRect();
         attributes = {
           class: attributes.class,
           rr_width: `${width}px`,
           rr_height: `${height}px`,
         };
+        needBlock = true;
       }
       return {
         type: NodeType.Element,
@@ -341,11 +345,38 @@ function serializeNode(
         n.parentNode && (n.parentNode as HTMLElement).tagName;
       let textContent = (n as Text).textContent;
       const isStyle = parentTagName === 'STYLE' ? true : undefined;
+      /** Determines if this node has been handled already. */
+      let textContentHandled = false;
       if (isStyle && textContent) {
         textContent = absoluteToStylesheet(textContent, getHref());
+        textContentHandled = true;
       }
       if (parentTagName === 'SCRIPT') {
         textContent = 'SCRIPT_PLACEHOLDER';
+        textContentHandled = true;
+      } else if (parentTagName === 'NOSCRIPT') {
+        textContent = '';
+        textContentHandled = true;
+      }
+
+      // Randomizes the text content to a string of the same length.
+      if (enableStrictPrivacy && !textContentHandled && parentTagName) {
+        const IGNORE_TAG_NAMES = new Set([
+          'HEAD',
+          'TITLE',
+          'STYLE',
+          'SCRIPT',
+          'HTML',
+          'BODY',
+          'NOSCRIPT',
+        ]);
+        if (!IGNORE_TAG_NAMES.has(parentTagName)) {
+          textContent =
+            textContent
+              ?.split(' ')
+              .map((word) => Math.random().toString(20).substr(2, word.length))
+              .join(' ') || '';
+        }
       }
       return {
         type: NodeType.Text,
@@ -472,6 +503,7 @@ export function serializeNodeWithId(
     slimDOMOptions: SlimDOMOptions;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
+    enableStrictPrivacy: boolean;
   },
 ): serializedNodeWithId | null {
   const {
@@ -484,6 +516,7 @@ export function serializeNodeWithId(
     maskInputOptions = {},
     slimDOMOptions,
     recordCanvas = false,
+    enableStrictPrivacy,
   } = options;
   let { preserveWhiteSpace = true } = options;
   const _serializedNode = serializeNode(n, {
@@ -493,6 +526,7 @@ export function serializeNodeWithId(
     inlineStylesheet,
     maskInputOptions,
     recordCanvas,
+    enableStrictPrivacy,
   });
   if (!_serializedNode) {
     // TODO: dev only
@@ -524,6 +558,16 @@ export function serializeNodeWithId(
   let recordChild = !skipChild;
   if (serializedNode.type === NodeType.Element) {
     recordChild = recordChild && !serializedNode.needBlock;
+
+    /** Highlight Code Begin */
+    // Remove the image's src if enableStrictPrivacy.
+    if (serializedNode.needBlock && serializedNode.tagName === 'img') {
+      const clone = n.cloneNode();
+      ((clone as unknown) as HTMLImageElement).src = '';
+      map[id] = clone as INode;
+    }
+    /** Highlight Code End */
+
     // this property was not needed in replay side
     delete serializedNode.needBlock;
   }
@@ -552,6 +596,7 @@ export function serializeNodeWithId(
         slimDOMOptions,
         recordCanvas,
         preserveWhiteSpace,
+        enableStrictPrivacy,
       });
       if (serializedChildNode) {
         serializedNode.childNodes.push(serializedChildNode);
@@ -570,15 +615,17 @@ function snapshot(
     slimDOM?: boolean | SlimDOMOptions;
     recordCanvas?: boolean;
     blockSelector?: string | null;
+    enableStrictPrivacy: boolean;
   },
 ): [serializedNodeWithId | null, idNodeMap] {
   const {
-    blockClass = 'rr-block',
+    blockClass = 'highlight-block',
     inlineStylesheet = true,
     recordCanvas = false,
     blockSelector = null,
     maskAllInputs = false,
     slimDOM = false,
+    enableStrictPrivacy = false,
   } = options || {};
   const idNodeMap: idNodeMap = {};
   const maskInputOptions: MaskInputOptions =
@@ -632,6 +679,7 @@ function snapshot(
       maskInputOptions,
       slimDOMOptions,
       recordCanvas,
+      enableStrictPrivacy,
     }),
     idNodeMap,
   ];

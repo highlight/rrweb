@@ -60,6 +60,7 @@ function initMutationObserver(
   maskInputOptions: MaskInputOptions,
   recordCanvas: boolean,
   slimDOMOptions: SlimDOMOptions,
+  enableStrictPrivacy: boolean,
 ): MutationObserver {
   // see mutation.ts for details
   mutationBuffer.init(
@@ -70,6 +71,7 @@ function initMutationObserver(
     maskInputOptions,
     recordCanvas,
     slimDOMOptions,
+    enableStrictPrivacy,
   );
   let mutationBufferCtor = window.MutationObserver;
   const angularZoneSymbol = (window as WindowWithAngularZone)?.Zone?.__symbol__?.(
@@ -720,6 +722,7 @@ export function initObservers(
     o.maskInputOptions,
     o.recordCanvas,
     o.slimDOMOptions,
+    o.enableStrictPrivacy,
   );
   const mousemoveHandler = initMoveObserver(o.mousemoveCb, o.sampling);
   const mouseInteractionHandler = initMouseInteractionObserver(

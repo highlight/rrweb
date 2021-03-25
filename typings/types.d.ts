@@ -140,6 +140,7 @@ export declare type recordOptions<T> = {
     mousemoveWait?: number;
     recordLog?: boolean | LogRecordOptions;
     debug?: boolean;
+    enableStrictPrivacy?: boolean;
 };
 export declare type observerParam = {
     mutationCb: mutationCallBack;
@@ -164,6 +165,7 @@ export declare type observerParam = {
     recordCanvas: boolean;
     collectFonts: boolean;
     slimDOMOptions: SlimDOMOptions;
+    enableStrictPrivacy: boolean;
 };
 export declare type hooksParam = {
     mutation?: mutationCallBack;
@@ -367,6 +369,8 @@ export declare type playerConfig = {
     unpackFn?: UnpackFn;
     logConfig: LogReplayConfig;
     inactiveThreshold: number;
+    inactiveSkipTime: number;
+    maxSkipSpeed: number;
 };
 export declare type LogReplayConfig = {
     level?: Array<LogLevel> | undefined;

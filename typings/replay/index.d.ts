@@ -13,13 +13,13 @@ export declare class Replayer {
     private mouseTail;
     private tailPositions;
     private emitter;
+    private activityIntervals;
     private inactiveEndTimestamp;
     private legacy_missingNodeRetryMap;
     private treeIndex;
     private fragmentParentMap;
     private elementStateMap;
     private imageMap;
-    private activityIntervals;
     constructor(events: Array<eventWithTime | string>, config?: Partial<playerConfig>);
     on(event: string, handler: Handler): this;
     setConfig(config: Partial<playerConfig>): void;

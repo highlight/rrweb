@@ -16,8 +16,9 @@ export default class MutationBuffer {
     private inlineStylesheet;
     private maskInputOptions;
     private recordCanvas;
+    private enableStrictPrivacy;
     private slimDOMOptions;
-    init(cb: mutationCallBack, blockClass: blockClass, blockSelector: string | null, inlineStylesheet: boolean, maskInputOptions: MaskInputOptions, recordCanvas: boolean, slimDOMOptions: SlimDOMOptions): void;
+    init(cb: mutationCallBack, blockClass: blockClass, blockSelector: string | null, inlineStylesheet: boolean, maskInputOptions: MaskInputOptions, recordCanvas: boolean, slimDOMOptions: SlimDOMOptions, enableStrictPrivacy: boolean): void;
     freeze(): void;
     unfreeze(): void;
     isFrozen(): boolean;

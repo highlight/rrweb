@@ -127,7 +127,7 @@ export class Replayer {
       skipInactive: false,
       showWarning: true,
       showDebug: false,
-      blockClass: 'rr-block',
+      blockClass: 'highlight-block',
       liveMode: false,
       insertStyleRules: [],
       triggerFocus: true,
@@ -641,6 +641,7 @@ export class Replayer {
     const styleEl = document.createElement('style');
     const { documentElement, head } = this.iframe.contentDocument;
     documentElement!.insertBefore(styleEl, head);
+    console.log(this.config.blockClass);
     const injectStylesRules = getInjectStyleRules(
       this.config.blockClass,
     ).concat(this.config.insertStyleRules);
