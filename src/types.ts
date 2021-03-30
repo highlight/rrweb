@@ -511,7 +511,6 @@ export type playerConfig = {
   logConfig: LogReplayConfig;
   inactiveThreshold: number;
   inactiveSkipTime: number;
-  maxSkipSpeed: number;
 };
 
 export type LogReplayConfig = {
