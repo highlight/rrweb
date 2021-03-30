@@ -137,7 +137,6 @@ export class Replayer {
       logConfig: defaultLogConfig,
       inactiveThreshold: 0.02,
       inactiveSkipTime: SKIP_TIME_INTERVAL,
-      maxSkipSpeed: 360,
     };
     this.config = Object.assign({}, defaultConfig, config);
     if (!this.config.logConfig.replayLogger)
@@ -292,16 +291,14 @@ export class Replayer {
       // Preprocessing to get all active/inactive segments in a session
       const allIntervals: Array<SessionInterval> = [];
       const metadata = this.getMetaData();
-      const userInteractionEvents = [
+      const allEvents = [
         { timestamp: metadata.startTime },
-        ...this.service.state.context.events.filter((ev) =>
-          this.isUserInteraction(ev),
-        ),
+        ...this.service.state.context.events,
         { timestamp: metadata.endTime },
       ];
-      for (let i = 1; i < userInteractionEvents.length; i++) {
-        const currentInterval = userInteractionEvents[i - 1];
-        const _event = userInteractionEvents[i];
+      for (let i = 1; i < allEvents.length; i++) {
+        const currentInterval = allEvents[i - 1];
+        const _event = allEvents[i];
         if (
           _event.timestamp! - currentInterval.timestamp! >
           SKIP_TIME_THRESHOLD
@@ -531,19 +528,23 @@ export class Replayer {
            * This will add more value to the custom event and allows the client to react for custom-event.
            */
           this.emitter.emit(ReplayerEvents.CustomEvent, event);
+          this.handleInactivity(event.timestamp);
         };
         break;
       case EventType.Meta:
-        castFn = () =>
+        castFn = () => {
           this.emitter.emit(ReplayerEvents.Resize, {
             width: event.data.width,
             height: event.data.height,
           });
+          this.handleInactivity(event.timestamp);
+        };
         break;
       case EventType.FullSnapshot:
         castFn = () => {
           this.rebuildFullSnapshot(event, isSync);
           this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
+          this.handleInactivity(event.timestamp);
         };
         break;
       case EventType.IncrementalSnapshot:
@@ -594,7 +595,6 @@ export class Replayer {
   private handleInactivity(timestamp: number, resetNext?: boolean) {
     if (timestamp === this.inactiveEndTimestamp || resetNext) {
       this.inactiveEndTimestamp = null;
-      this.backToNormal();
     }
     if (this.config.skipInactive && !this.inactiveEndTimestamp) {
       for (const interval of this.getActivityIntervals()) {
@@ -608,15 +608,24 @@ export class Replayer {
         }
       }
       if (this.inactiveEndTimestamp) {
-        const skipTime = this.inactiveEndTimestamp! - timestamp!;
-        const payload = {
-          speed: Math.min(
-            Math.round(skipTime / this.config.inactiveSkipTime),
-            this.config.maxSkipSpeed,
-          ),
-        };
-        this.speedService.send({ type: 'FAST_FORWARD', payload });
-        this.emitter.emit(ReplayerEvents.SkipStart, payload);
+        const skipOffset =
+          this.inactiveEndTimestamp - this.getMetaData().startTime;
+        if (this.service.state.matches('paused')) {
+          this.service.send({
+            type: 'PLAY',
+            payload: { timeOffset: skipOffset },
+          });
+        } else {
+          this.service.send({ type: 'PAUSE' });
+          this.service.send({
+            type: 'PLAY',
+            payload: { timeOffset: skipOffset },
+          });
+        }
+        this.iframe.contentDocument
+          ?.getElementsByTagName('html')[0]
+          .classList.remove('rrweb-paused');
+        this.emitter.emit(ReplayerEvents.Start);
       }
     }
   }
