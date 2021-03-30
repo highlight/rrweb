@@ -246,7 +246,6 @@ export class Replayer {
         );
       }, 1);
     }
-    console.log('POGGES');
   }
 
   public on(event: string, handler: Handler) {
