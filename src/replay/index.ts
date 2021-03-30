@@ -246,6 +246,7 @@ export class Replayer {
         );
       }, 1);
     }
+    console.log('POGGES');
   }
 
   public on(event: string, handler: Handler) {
@@ -292,16 +293,14 @@ export class Replayer {
       // Preprocessing to get all active/inactive segments in a session
       const allIntervals: Array<SessionInterval> = [];
       const metadata = this.getMetaData();
-      const userInteractionEvents = [
+      const allEvents = [
         { timestamp: metadata.startTime },
-        ...this.service.state.context.events.filter((ev) =>
-          this.isUserInteraction(ev),
-        ),
+        ...this.service.state.context.events,
         { timestamp: metadata.endTime },
       ];
-      for (let i = 1; i < userInteractionEvents.length; i++) {
-        const currentInterval = userInteractionEvents[i - 1];
-        const _event = userInteractionEvents[i];
+      for (let i = 1; i < allEvents.length; i++) {
+        const currentInterval = allEvents[i - 1];
+        const _event = allEvents[i];
         if (
           _event.timestamp! - currentInterval.timestamp! >
           SKIP_TIME_THRESHOLD
