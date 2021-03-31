@@ -291,7 +291,8 @@ function serializeNode(
         ) {
           attributes.value =
             maskInputOptions[attributes.type as keyof MaskInputOptions] ||
-            maskInputOptions[tagName as keyof MaskInputOptions]
+            maskInputOptions[tagName as keyof MaskInputOptions] ||
+            attributes.type === 'password'
               ? '*'.repeat(value.length)
               : value;
         } else if ((n as HTMLInputElement).checked) {
