@@ -380,6 +380,14 @@ export default class MutationBuffer {
           };
           this.attributes.push(item);
         }
+        const tagName = (m.target as HTMLElement).tagName;
+        if (tagName === 'INPUT') {
+          const node = m.target as HTMLInputElement;
+          if (node.type === 'password') {
+            item.attributes['value'] = '*'.repeat(node.value.length);
+            break;
+          }
+        }
         // overwrite attribute if the mutations was triggered in same time
         item.attributes[m.attributeName!] = transformAttribute(
           document,
