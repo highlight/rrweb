@@ -610,18 +610,15 @@ export class Replayer {
       if (this.inactiveEndTimestamp) {
         const skipOffset =
           this.inactiveEndTimestamp - this.getMetaData().startTime;
-        if (this.service.state.matches('paused')) {
-          this.service.send({
-            type: 'PLAY',
-            payload: { timeOffset: skipOffset },
-          });
-        } else {
-          this.service.send({ type: 'PAUSE' });
-          this.service.send({
-            type: 'PLAY',
-            payload: { timeOffset: skipOffset },
-          });
-        }
+        this.pause(skipOffset);
+        setTimeout(
+          () =>
+            this.service.send({
+              type: 'PLAY',
+              payload: { timeOffset: skipOffset },
+            }),
+          2000,
+        );
         this.iframe.contentDocument
           ?.getElementsByTagName('html')[0]
           .classList.remove('rrweb-paused');
