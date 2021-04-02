@@ -43,7 +43,9 @@ import getInjectStyleRules from './styles/inject-style';
 import './styles/style.css';
 
 const SKIP_TIME_THRESHOLD = 10 * 1000;
-const SKIP_TIME_INTERVAL = 5 * 1000;
+const SKIP_TIME_INTERVAL = 2 * 1000;
+const SKIP_TIME_MIN = 0.5 * 1000;
+const SKIP_DURATION_LIMIT = 60 * 60 * 1000;
 
 // https://github.com/rollup/rollup/issues/1267#issuecomment-296395734
 // tslint:disable-next-line
@@ -595,6 +597,7 @@ export class Replayer {
   private handleInactivity(timestamp: number, resetNext?: boolean) {
     if (timestamp === this.inactiveEndTimestamp || resetNext) {
       this.inactiveEndTimestamp = null;
+      this.backToNormal();
     }
     if (this.config.skipInactive && !this.inactiveEndTimestamp) {
       for (const interval of this.getActivityIntervals()) {
@@ -608,24 +611,19 @@ export class Replayer {
         }
       }
       if (this.inactiveEndTimestamp) {
-        const skipOffset =
-          this.inactiveEndTimestamp - this.getMetaData().startTime;
-        if (this.service.state.matches('paused')) {
-          this.service.send({
-            type: 'PLAY',
-            payload: { timeOffset: skipOffset },
-          });
-        } else {
-          this.service.send({ type: 'PAUSE' });
-          this.service.send({
-            type: 'PLAY',
-            payload: { timeOffset: skipOffset },
-          });
-        }
-        this.iframe.contentDocument
-          ?.getElementsByTagName('html')[0]
-          .classList.remove('rrweb-paused');
-        this.emitter.emit(ReplayerEvents.Start);
+        const skipTime = this.inactiveEndTimestamp! - timestamp!;
+        const payload = {
+          speed:
+            (skipTime / SKIP_DURATION_LIMIT) * this.config.inactiveSkipTime <
+            SKIP_TIME_MIN
+              ? skipTime / SKIP_TIME_MIN
+              : Math.round(
+                  Math.max(skipTime, SKIP_DURATION_LIMIT) /
+                    this.config.inactiveSkipTime,
+                ),
+        };
+        this.speedService.send({ type: 'FAST_FORWARD', payload });
+        this.emitter.emit(ReplayerEvents.SkipStart, payload);
       }
     }
   }
