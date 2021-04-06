@@ -1,1 +1,7 @@
-!**/node_modules
+.vscode
+.idea
+node_modules
+package-lock.json
+yarn.lock
+temp
+*.log
