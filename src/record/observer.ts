@@ -43,25 +43,36 @@ import {
 } from '../types';
 import MutationBuffer from './mutation';
 import { stringify } from './stringify';
+import { IframeManager } from './iframe-manager';
+import { ShadowDomManager } from './shadow-dom-manager';
 
+type WindowWithStoredMutationObserver = Window & {
+  __rrMutationObserver?: MutationObserver;
+};
 type WindowWithAngularZone = Window & {
   Zone?: {
     __symbol__?: (key: string) => string;
   };
 };
 
-export const mutationBuffer = new MutationBuffer();
+export const mutationBuffers: MutationBuffer[] = [];
 
-function initMutationObserver(
+export function initMutationObserver(
   cb: mutationCallBack,
+  doc: Document,
   blockClass: blockClass,
   blockSelector: string | null,
   inlineStylesheet: boolean,
   maskInputOptions: MaskInputOptions,
   recordCanvas: boolean,
   slimDOMOptions: SlimDOMOptions,
+  iframeManager: IframeManager,
+  shadowDomManager: ShadowDomManager,
+  rootEl: Node,
   enableStrictPrivacy: boolean,
 ): MutationObserver {
+  const mutationBuffer = new MutationBuffer();
+  mutationBuffers.push(mutationBuffer);
   // see mutation.ts for details
   mutationBuffer.init(
     cb,
@@ -71,9 +82,22 @@ function initMutationObserver(
     maskInputOptions,
     recordCanvas,
     slimDOMOptions,
+    doc,
+    iframeManager,
+    shadowDomManager,
     enableStrictPrivacy,
   );
-  let mutationBufferCtor = window.MutationObserver;
+  let mutationObserverCtor =
+    window.MutationObserver ||
+    /**
+     * Some websites may disable MutationObserver by removing it from the window object.
+     * If someone is using rrweb to build a browser extention or things like it, they
+     * could not change the website's code but can have an opportunity to inject some
+     * code before the website executing its JS logic.
+     * Then they can do this to store the native MutationObserver:
+     * window.__rrMutationObserver = MutationObserver
+     */
+    (window as WindowWithStoredMutationObserver).__rrMutationObserver;
   const angularZoneSymbol = (window as WindowWithAngularZone)?.Zone?.__symbol__?.(
     'MutationObserver',
   );
@@ -83,15 +107,15 @@ function initMutationObserver(
       angularZoneSymbol
     ]
   ) {
-    mutationBufferCtor = ((window as unknown) as Record<
+    mutationObserverCtor = ((window as unknown) as Record<
       string,
       typeof MutationObserver
     >)[angularZoneSymbol];
   }
-  const observer = new mutationBufferCtor(
+  const observer = new mutationObserverCtor(
     mutationBuffer.processMutations.bind(mutationBuffer),
   );
-  observer.observe(document, {
+  observer.observe(rootEl, {
     attributes: true,
     attributeOldValue: true,
     characterData: true,
@@ -105,6 +129,7 @@ function initMutationObserver(
 function initMoveObserver(
   cb: mousemoveCallBack,
   sampling: SamplingStrategy,
+  doc: Document,
 ): listenerHandler {
   if (sampling.mousemove === false) {
     return () => {};
@@ -112,6 +137,10 @@ function initMoveObserver(
 
   const threshold =
     typeof sampling.mousemove === 'number' ? sampling.mousemove : 50;
+  const callbackThreshold =
+    typeof sampling.mousemoveCallback === 'number'
+      ? sampling.mousemoveCallback
+      : 500;
 
   let positions: mousePosition[] = [];
   let timeBaseline: number | null;
@@ -126,7 +155,7 @@ function initMoveObserver(
     );
     positions = [];
     timeBaseline = null;
-  }, 500);
+  }, callbackThreshold);
   const updatePosition = throttle<MouseEvent | TouchEvent>(
     (evt) => {
       const { target } = evt;
@@ -150,8 +179,8 @@ function initMoveObserver(
     },
   );
   const handlers = [
-    on('mousemove', updatePosition),
-    on('touchmove', updatePosition),
+    on('mousemove', updatePosition, doc),
+    on('touchmove', updatePosition, doc),
   ];
   return () => {
     handlers.forEach((h) => h());
@@ -160,6 +189,7 @@ function initMoveObserver(
 
 function initMouseInteractionObserver(
   cb: mouseInteractionCallBack,
+  doc: Document,
   blockClass: blockClass,
   sampling: SamplingStrategy,
 ): listenerHandler {
@@ -178,10 +208,12 @@ function initMouseInteractionObserver(
       if (isBlocked(event.target as Node, blockClass)) {
         return;
       }
+      const e = isTouchEvent(event) ? event.changedTouches[0] : event;
+      if (!e) {
+        return;
+      }
       const id = mirror.getId(event.target as INode);
-      const { clientX, clientY } = isTouchEvent(event)
-        ? event.changedTouches[0]
-        : event;
+      const { clientX, clientY } = e;
       cb({
         type: MouseInteractions[eventKey],
         id,
@@ -200,7 +232,7 @@ function initMouseInteractionObserver(
     .forEach((eventKey: keyof typeof MouseInteractions) => {
       const eventName = eventKey.toLowerCase();
       const handler = getHandler(eventKey);
-      handlers.push(on(eventName, handler));
+      handlers.push(on(eventName, handler, doc));
     });
   return () => {
     handlers.forEach((h) => h());
@@ -209,6 +241,7 @@ function initMouseInteractionObserver(
 
 function initScrollObserver(
   cb: scrollCallback,
+  doc: Document,
   blockClass: blockClass,
   sampling: SamplingStrategy,
 ): listenerHandler {
@@ -217,8 +250,8 @@ function initScrollObserver(
       return;
     }
     const id = mirror.getId(evt.target as INode);
-    if (evt.target === document) {
-      const scrollEl = (document.scrollingElement || document.documentElement)!;
+    if (evt.target === doc) {
+      const scrollEl = (doc.scrollingElement || doc.documentElement)!;
       cb({
         id,
         x: scrollEl.scrollLeft,
@@ -238,18 +271,18 @@ function initScrollObserver(
 function initViewportResizeObserver(
   cb: viewportResizeCallback,
 ): listenerHandler {
-  let last_h = -1;
-  let last_w = -1;
+  let lastH = -1;
+  let lastW = -1;
   const updateDimension = throttle(() => {
     const height = getWindowHeight();
     const width = getWindowWidth();
-    if (last_h !== height || last_w != width) {
+    if (lastH !== height || lastW !== width) {
       cb({
         width: Number(width),
         height: Number(height),
       });
-      last_h = height;
-      last_w = width;
+      lastH = height;
+      lastW = width;
     }
   }, 200);
   return on('resize', updateDimension, window);
@@ -259,6 +292,7 @@ export const INPUT_TAGS = ['INPUT', 'TEXTAREA', 'SELECT'];
 const lastInputValueMap: WeakMap<EventTarget, inputValue> = new WeakMap();
 function initInputObserver(
   cb: inputCallback,
+  doc: Document,
   blockClass: blockClass,
   ignoreClass: string,
   maskInputOptions: MaskInputOptions,
@@ -303,7 +337,7 @@ function initInputObserver(
     // the other radios with the same name attribute will be unchecked.
     const name: string | undefined = (target as HTMLInputElement).name;
     if (type === 'radio' && name && isChecked) {
-      document
+      doc
         .querySelectorAll(`input[type="radio"][name="${name}"]`)
         .forEach((el) => {
           if (el !== target) {
@@ -333,7 +367,7 @@ function initInputObserver(
   const events = sampling.input === 'last' ? ['change'] : ['input', 'change'];
   const handlers: Array<
     listenerHandler | hookResetter
-  > = events.map((eventName) => on(eventName, eventHandler));
+  > = events.map((eventName) => on(eventName, eventHandler, doc));
   const propertyDescriptor = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     'value',
@@ -538,24 +572,30 @@ function initLogObserver(
   logOptions: LogRecordOptions,
 ): listenerHandler {
   const logger = logOptions.logger;
-  if (!logger) return () => {};
+  if (!logger) {
+    return () => {};
+  }
   let logCount = 0;
-  const cancelHandlers: any[] = [];
+  const cancelHandlers: listenerHandler[] = [];
   // add listener to thrown errors
   if (logOptions.level!.includes('error')) {
     if (window) {
       const originalOnError = window.onerror;
+      // tslint:disable-next-line:no-any
       window.onerror = (...args: any[]) => {
-        originalOnError && originalOnError.apply(this, args);
-        let stack: Array<string> = [];
-        if (args[args.length - 1] instanceof Error)
+        if (originalOnError) {
+          originalOnError.apply(this, args);
+        }
+        let stack: string[] = [];
+        if (args[args.length - 1] instanceof Error) {
           // 0(the second parameter) tells parseStack that every stack in Error is useful
           stack = parseStack(args[args.length - 1].stack, 0);
+        }
         const payload = [stringify(args[0], logOptions.stringifyOptions)];
         cb({
           level: 'error',
           trace: stack,
-          payload: payload,
+          payload,
         });
       };
       cancelHandlers.push(() => {
@@ -563,8 +603,9 @@ function initLogObserver(
       });
     }
   }
-  for (const levelType of logOptions.level!)
+  for (const levelType of logOptions.level!) {
     cancelHandlers.push(replace(logger, levelType));
+  }
   return () => {
     cancelHandlers.forEach((h) => h());
   };
@@ -574,10 +615,13 @@ function initLogObserver(
    * @param logger the logger object such as Console
    * @param level the name of log function to be replaced
    */
-  function replace(logger: Logger, level: LogLevel) {
-    if (!logger[level]) return () => {};
+  function replace(_logger: Logger, level: LogLevel) {
+    if (!_logger[level]) {
+      return () => {};
+    }
     // replace the logger.{level}. return a restore function
-    return patch(logger, level, (original) => {
+    return patch(_logger, level, (original) => {
+      // tslint:disable-next-line:no-any
       return (...args: any[]) => {
         original.apply(this, args);
         try {
@@ -586,13 +630,13 @@ function initLogObserver(
             stringify(s, logOptions.stringifyOptions),
           );
           logCount++;
-          if (logCount < logOptions.lengthThreshold!)
+          if (logCount < logOptions.lengthThreshold!) {
             cb({
-              level: level,
+              level,
               trace: stack,
-              payload: payload,
+              payload,
             });
-          else if (logCount === logOptions.lengthThreshold)
+          } else if (logCount === logOptions.lengthThreshold) {
             // notify the user
             cb({
               level: 'warn',
@@ -601,6 +645,7 @@ function initLogObserver(
                 stringify('The number of log records reached the threshold.'),
               ],
             });
+          }
         } catch (error) {
           original('rrweb logger error:', error, ...args);
         }
@@ -615,7 +660,7 @@ function initLogObserver(
   function parseStack(
     stack: string | undefined,
     omitDepth: number = 1,
-  ): Array<string> {
+  ): string[] {
     let stacks: string[] = [];
     if (stack) {
       stacks = stack
@@ -716,28 +761,35 @@ export function initObservers(
   mergeHooks(o, hooks);
   const mutationObserver = initMutationObserver(
     o.mutationCb,
+    o.doc,
     o.blockClass,
     o.blockSelector,
     o.inlineStylesheet,
     o.maskInputOptions,
     o.recordCanvas,
     o.slimDOMOptions,
+    o.iframeManager,
+    o.shadowDomManager,
+    o.doc,
     o.enableStrictPrivacy,
   );
-  const mousemoveHandler = initMoveObserver(o.mousemoveCb, o.sampling);
+  const mousemoveHandler = initMoveObserver(o.mousemoveCb, o.sampling, o.doc);
   const mouseInteractionHandler = initMouseInteractionObserver(
     o.mouseInteractionCb,
+    o.doc,
     o.blockClass,
     o.sampling,
   );
   const scrollHandler = initScrollObserver(
     o.scrollCb,
+    o.doc,
     o.blockClass,
     o.sampling,
   );
   const viewportResizeHandler = initViewportResizeObserver(o.viewportResizeCb);
   const inputHandler = initInputObserver(
     o.inputCb,
+    o.doc,
     o.blockClass,
     o.ignoreClass,
     o.maskInputOptions,
