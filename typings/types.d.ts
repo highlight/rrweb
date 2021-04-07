@@ -1,503 +1,433 @@
 /// <reference types="node" />
-import {
-  serializedNodeWithId,
-  idNodeMap,
-  INode,
-  MaskInputOptions,
-  SlimDOMOptions,
-} from './snapshot';
+import { serializedNodeWithId, idNodeMap, INode, MaskInputOptions, SlimDOMOptions } from './snapshot';
 import { PackFn, UnpackFn } from './packer/base';
 import { FontFaceDescriptors } from 'css-font-loading-module';
-import { IframeManager } from './record/iframe-manager';
 export declare enum EventType {
-  DomContentLoaded = 0,
-  Load = 1,
-  FullSnapshot = 2,
-  IncrementalSnapshot = 3,
-  Meta = 4,
-  Custom = 5,
+    DomContentLoaded = 0,
+    Load = 1,
+    FullSnapshot = 2,
+    IncrementalSnapshot = 3,
+    Meta = 4,
+    Custom = 5
 }
 export declare type SessionInterval = {
-  startTime: number;
-  endTime: number;
-  duration: number;
-  active: boolean;
+    startTime: number;
+    endTime: number;
+    duration: number;
+    active: boolean;
 };
 export declare type domContentLoadedEvent = {
-  type: EventType.DomContentLoaded;
-  data: {};
+    type: EventType.DomContentLoaded;
+    data: {};
 };
 export declare type loadedEvent = {
-  type: EventType.Load;
-  data: {};
+    type: EventType.Load;
+    data: {};
 };
 export declare type fullSnapshotEvent = {
-  type: EventType.FullSnapshot;
-  data: {
-    node: serializedNodeWithId;
-    initialOffset: {
-      top: number;
-      left: number;
+    type: EventType.FullSnapshot;
+    data: {
+        node: serializedNodeWithId;
+        initialOffset: {
+            top: number;
+            left: number;
+        };
     };
-  };
 };
 export declare type incrementalSnapshotEvent = {
-  type: EventType.IncrementalSnapshot;
-  data: incrementalData;
+    type: EventType.IncrementalSnapshot;
+    data: incrementalData;
 };
 export declare type metaEvent = {
-  type: EventType.Meta;
-  data: {
-    href: string;
-    width: number;
-    height: number;
-  };
+    type: EventType.Meta;
+    data: {
+        href: string;
+        width: number;
+        height: number;
+    };
 };
 export declare type logEvent = {
-  type: EventType.IncrementalSnapshot;
-  data: incrementalData;
+    type: EventType.IncrementalSnapshot;
+    data: incrementalData;
 };
 export declare type customEvent<T = unknown> = {
-  type: EventType.Custom;
-  data: {
-    tag: string;
-    payload: T;
-  };
+    type: EventType.Custom;
+    data: {
+        tag: string;
+        payload: T;
+    };
 };
 export declare type styleSheetEvent = {};
 export declare enum IncrementalSource {
-  Mutation = 0,
-  MouseMove = 1,
-  MouseInteraction = 2,
-  Scroll = 3,
-  ViewportResize = 4,
-  Input = 5,
-  TouchMove = 6,
-  MediaInteraction = 7,
-  StyleSheetRule = 8,
-  CanvasMutation = 9,
-  Font = 10,
-  Log = 11,
+    Mutation = 0,
+    MouseMove = 1,
+    MouseInteraction = 2,
+    Scroll = 3,
+    ViewportResize = 4,
+    Input = 5,
+    TouchMove = 6,
+    MediaInteraction = 7,
+    StyleSheetRule = 8,
+    CanvasMutation = 9,
+    Font = 10,
+    Log = 11
 }
 export declare type mutationData = {
-  source: IncrementalSource.Mutation;
+    source: IncrementalSource.Mutation;
 } & mutationCallbackParam;
 export declare type mousemoveData = {
-  source: IncrementalSource.MouseMove | IncrementalSource.TouchMove;
-  positions: mousePosition[];
+    source: IncrementalSource.MouseMove | IncrementalSource.TouchMove;
+    positions: mousePosition[];
 };
 export declare type mouseInteractionData = {
-  source: IncrementalSource.MouseInteraction;
+    source: IncrementalSource.MouseInteraction;
 } & mouseInteractionParam;
 export declare type scrollData = {
-  source: IncrementalSource.Scroll;
+    source: IncrementalSource.Scroll;
 } & scrollPosition;
 export declare type viewportResizeData = {
-  source: IncrementalSource.ViewportResize;
-} & viewportResizeDimension;
+    source: IncrementalSource.ViewportResize;
+} & viewportResizeDimention;
 export declare type inputData = {
-  source: IncrementalSource.Input;
-  id: number;
+    source: IncrementalSource.Input;
+    id: number;
 } & inputValue;
 export declare type mediaInteractionData = {
-  source: IncrementalSource.MediaInteraction;
+    source: IncrementalSource.MediaInteraction;
 } & mediaInteractionParam;
 export declare type styleSheetRuleData = {
-  source: IncrementalSource.StyleSheetRule;
+    source: IncrementalSource.StyleSheetRule;
 } & styleSheetRuleParam;
 export declare type canvasMutationData = {
-  source: IncrementalSource.CanvasMutation;
+    source: IncrementalSource.CanvasMutation;
 } & canvasMutationParam;
 export declare type fontData = {
-  source: IncrementalSource.Font;
+    source: IncrementalSource.Font;
 } & fontParam;
 export declare type logData = {
-  source: IncrementalSource.Log;
+    source: IncrementalSource.Log;
 } & LogParam;
-export declare type incrementalData =
-  | mutationData
-  | mousemoveData
-  | mouseInteractionData
-  | scrollData
-  | viewportResizeData
-  | inputData
-  | mediaInteractionData
-  | styleSheetRuleData
-  | canvasMutationData
-  | fontData
-  | logData;
-export declare type event =
-  | domContentLoadedEvent
-  | loadedEvent
-  | fullSnapshotEvent
-  | incrementalSnapshotEvent
-  | metaEvent
-  | logEvent
-  | customEvent;
+export declare type incrementalData = mutationData | mousemoveData | mouseInteractionData | scrollData | viewportResizeData | inputData | mediaInteractionData | styleSheetRuleData | canvasMutationData | fontData | logData;
+export declare type event = domContentLoadedEvent | loadedEvent | fullSnapshotEvent | incrementalSnapshotEvent | metaEvent | logEvent | customEvent;
 export declare type eventWithTime = event & {
-  timestamp: number;
-  delay?: number;
+    timestamp: number;
+    delay?: number;
 };
 export declare type blockClass = string | RegExp;
 export declare type SamplingStrategy = Partial<{
-  mousemove: boolean | number;
-  mousemoveCallback: number;
-  mouseInteraction: boolean | Record<string, boolean | undefined>;
-  scroll: number;
-  input: 'all' | 'last';
+    mousemove: boolean | number;
+    mouseInteraction: boolean | Record<string, boolean | undefined>;
+    scroll: number;
+    input: 'all' | 'last';
 }>;
 export declare type recordOptions<T> = {
-  emit?: (e: T, isCheckout?: boolean) => void;
-  checkoutEveryNth?: number;
-  checkoutEveryNms?: number;
-  blockClass?: blockClass;
-  blockSelector?: string;
-  ignoreClass?: string;
-  maskAllInputs?: boolean;
-  maskInputOptions?: MaskInputOptions;
-  maskInputFn?: MaskInputFn;
-  slimDOMOptions?: SlimDOMOptions | 'all' | true;
-  inlineStylesheet?: boolean;
-  hooks?: hooksParam;
-  packFn?: PackFn;
-  sampling?: SamplingStrategy;
-  recordCanvas?: boolean;
-  collectFonts?: boolean;
-  mousemoveWait?: number;
-  recordLog?: boolean | LogRecordOptions;
-  debug?: boolean;
-  enableStrictPrivacy?: boolean;
+    emit?: (e: T, isCheckout?: boolean) => void;
+    checkoutEveryNth?: number;
+    checkoutEveryNms?: number;
+    blockClass?: blockClass;
+    blockSelector?: string;
+    ignoreClass?: string;
+    maskAllInputs?: boolean;
+    maskInputOptions?: MaskInputOptions;
+    maskInputFn?: MaskInputFn;
+    slimDOMOptions?: SlimDOMOptions | 'all' | true;
+    inlineStylesheet?: boolean;
+    hooks?: hooksParam;
+    packFn?: PackFn;
+    sampling?: SamplingStrategy;
+    recordCanvas?: boolean;
+    collectFonts?: boolean;
+    mousemoveWait?: number;
+    recordLog?: boolean | LogRecordOptions;
+    debug?: boolean;
+    enableStrictPrivacy?: boolean;
 };
 export declare type observerParam = {
-  mutationCb: mutationCallBack;
-  mousemoveCb: mousemoveCallBack;
-  mouseInteractionCb: mouseInteractionCallBack;
-  scrollCb: scrollCallback;
-  viewportResizeCb: viewportResizeCallback;
-  inputCb: inputCallback;
-  mediaInteractionCb: mediaInteractionCallback;
-  blockClass: blockClass;
-  blockSelector: string | null;
-  ignoreClass: string;
-  maskInputOptions: MaskInputOptions;
-  maskInputFn?: MaskInputFn;
-  inlineStylesheet: boolean;
-  styleSheetRuleCb: styleSheetRuleCallback;
-  canvasMutationCb: canvasMutationCallback;
-  fontCb: fontCallback;
-  logCb: logCallback;
-  logOptions: LogRecordOptions;
-  sampling: SamplingStrategy;
-  recordCanvas: boolean;
-  collectFonts: boolean;
-  slimDOMOptions: SlimDOMOptions;
-  enableStrictPrivacy: boolean;
-  doc: Document;
-  iframeManager: IframeManager;
+    mutationCb: mutationCallBack;
+    mousemoveCb: mousemoveCallBack;
+    mouseInteractionCb: mouseInteractionCallBack;
+    scrollCb: scrollCallback;
+    viewportResizeCb: viewportResizeCallback;
+    inputCb: inputCallback;
+    mediaInteractionCb: mediaInteractionCallback;
+    blockClass: blockClass;
+    blockSelector: string | null;
+    ignoreClass: string;
+    maskInputOptions: MaskInputOptions;
+    maskInputFn?: MaskInputFn;
+    inlineStylesheet: boolean;
+    styleSheetRuleCb: styleSheetRuleCallback;
+    canvasMutationCb: canvasMutationCallback;
+    fontCb: fontCallback;
+    logCb: logCallback;
+    logOptions: LogRecordOptions;
+    sampling: SamplingStrategy;
+    recordCanvas: boolean;
+    collectFonts: boolean;
+    slimDOMOptions: SlimDOMOptions;
+    enableStrictPrivacy: boolean;
 };
 export declare type hooksParam = {
-  mutation?: mutationCallBack;
-  mousemove?: mousemoveCallBack;
-  mouseInteraction?: mouseInteractionCallBack;
-  scroll?: scrollCallback;
-  viewportResize?: viewportResizeCallback;
-  input?: inputCallback;
-  mediaInteaction?: mediaInteractionCallback;
-  styleSheetRule?: styleSheetRuleCallback;
-  canvasMutation?: canvasMutationCallback;
-  font?: fontCallback;
-  log?: logCallback;
+    mutation?: mutationCallBack;
+    mousemove?: mousemoveCallBack;
+    mouseInteraction?: mouseInteractionCallBack;
+    scroll?: scrollCallback;
+    viewportResize?: viewportResizeCallback;
+    input?: inputCallback;
+    mediaInteaction?: mediaInteractionCallback;
+    styleSheetRule?: styleSheetRuleCallback;
+    canvasMutation?: canvasMutationCallback;
+    font?: fontCallback;
+    log?: logCallback;
 };
 export declare type mutationRecord = {
-  type: string;
-  target: Node;
-  oldValue: string | null;
-  addedNodes: NodeList;
-  removedNodes: NodeList;
-  attributeName: string | null;
+    type: string;
+    target: Node;
+    oldValue: string | null;
+    addedNodes: NodeList;
+    removedNodes: NodeList;
+    attributeName: string | null;
 };
 export declare type textCursor = {
-  node: Node;
-  value: string | null;
+    node: Node;
+    value: string | null;
 };
 export declare type textMutation = {
-  id: number;
-  value: string | null;
+    id: number;
+    value: string | null;
 };
 export declare type attributeCursor = {
-  node: Node;
-  attributes: {
-    [key: string]: string | null;
-  };
+    node: Node;
+    attributes: {
+        [key: string]: string | null;
+    };
 };
 export declare type attributeMutation = {
-  id: number;
-  attributes: {
-    [key: string]: string | null;
-  };
+    id: number;
+    attributes: {
+        [key: string]: string | null;
+    };
 };
 export declare type removedNodeMutation = {
-  parentId: number;
-  id: number;
+    parentId: number;
+    id: number;
 };
 export declare type addedNodeMutation = {
-  parentId: number;
-  previousId?: number | null;
-  nextId: number | null;
-  node: serializedNodeWithId;
+    parentId: number;
+    previousId?: number | null;
+    nextId: number | null;
+    node: serializedNodeWithId;
 };
 declare type mutationCallbackParam = {
-  texts: textMutation[];
-  attributes: attributeMutation[];
-  removes: removedNodeMutation[];
-  adds: addedNodeMutation[];
+    texts: textMutation[];
+    attributes: attributeMutation[];
+    removes: removedNodeMutation[];
+    adds: addedNodeMutation[];
 };
 export declare type mutationCallBack = (m: mutationCallbackParam) => void;
-export declare type mousemoveCallBack = (
-  p: mousePosition[],
-  source: IncrementalSource.MouseMove | IncrementalSource.TouchMove,
-) => void;
+export declare type mousemoveCallBack = (p: mousePosition[], source: IncrementalSource.MouseMove | IncrementalSource.TouchMove) => void;
 export declare type mousePosition = {
-  x: number;
-  y: number;
-  id: number;
-  timeOffset: number;
+    x: number;
+    y: number;
+    id: number;
+    timeOffset: number;
 };
 export declare enum MouseInteractions {
-  MouseUp = 0,
-  MouseDown = 1,
-  Click = 2,
-  ContextMenu = 3,
-  DblClick = 4,
-  Focus = 5,
-  Blur = 6,
-  TouchStart = 7,
-  TouchMove_Departed = 8,
-  TouchEnd = 9,
+    MouseUp = 0,
+    MouseDown = 1,
+    Click = 2,
+    ContextMenu = 3,
+    DblClick = 4,
+    Focus = 5,
+    Blur = 6,
+    TouchStart = 7,
+    TouchMove_Departed = 8,
+    TouchEnd = 9
 }
 declare type mouseInteractionParam = {
-  type: MouseInteractions;
-  id: number;
-  x: number;
-  y: number;
+    type: MouseInteractions;
+    id: number;
+    x: number;
+    y: number;
 };
-export declare type mouseInteractionCallBack = (
-  d: mouseInteractionParam,
-) => void;
+export declare type mouseInteractionCallBack = (d: mouseInteractionParam) => void;
 export declare type scrollPosition = {
-  id: number;
-  x: number;
-  y: number;
+    id: number;
+    x: number;
+    y: number;
 };
 export declare type scrollCallback = (p: scrollPosition) => void;
 export declare type styleSheetAddRule = {
-  rule: string;
-  index?: number;
+    rule: string;
+    index?: number;
 };
 export declare type styleSheetDeleteRule = {
-  index: number;
+    index: number;
 };
 export declare type styleSheetRuleParam = {
-  id: number;
-  removes?: styleSheetDeleteRule[];
-  adds?: styleSheetAddRule[];
+    id: number;
+    removes?: styleSheetDeleteRule[];
+    adds?: styleSheetAddRule[];
 };
 export declare type styleSheetRuleCallback = (s: styleSheetRuleParam) => void;
 export declare type canvasMutationCallback = (p: canvasMutationParam) => void;
 export declare type canvasMutationParam = {
-  id: number;
-  property: string;
-  args: Array<unknown>;
-  setter?: true;
+    id: number;
+    property: string;
+    args: Array<unknown>;
+    setter?: true;
 };
 export declare type fontParam = {
-  family: string;
-  fontSource: string;
-  buffer: boolean;
-  descriptors?: FontFaceDescriptors;
+    family: string;
+    fontSource: string;
+    buffer: boolean;
+    descriptors?: FontFaceDescriptors;
 };
-export declare type LogLevel =
-  | 'assert'
-  | 'clear'
-  | 'count'
-  | 'countReset'
-  | 'debug'
-  | 'dir'
-  | 'dirxml'
-  | 'error'
-  | 'group'
-  | 'groupCollapsed'
-  | 'groupEnd'
-  | 'info'
-  | 'log'
-  | 'table'
-  | 'time'
-  | 'timeEnd'
-  | 'timeLog'
-  | 'trace'
-  | 'warn';
+export declare type LogLevel = 'assert' | 'clear' | 'count' | 'countReset' | 'debug' | 'dir' | 'dirxml' | 'error' | 'group' | 'groupCollapsed' | 'groupEnd' | 'info' | 'log' | 'table' | 'time' | 'timeEnd' | 'timeLog' | 'trace' | 'warn';
 export declare type Logger = {
-  assert?: (value: any, message?: string, ...optionalParams: any[]) => void;
-  clear?: () => void;
-  count?: (label?: string) => void;
-  countReset?: (label?: string) => void;
-  debug?: (message?: any, ...optionalParams: any[]) => void;
-  dir?: (obj: any, options?: NodeJS.InspectOptions) => void;
-  dirxml?: (...data: any[]) => void;
-  error?: (message?: any, ...optionalParams: any[]) => void;
-  group?: (...label: any[]) => void;
-  groupCollapsed?: (label?: any[]) => void;
-  groupEnd?: () => void;
-  info?: (message?: any, ...optionalParams: any[]) => void;
-  log?: (message?: any, ...optionalParams: any[]) => void;
-  table?: (tabularData: any, properties?: ReadonlyArray<string>) => void;
-  time?: (label?: string) => void;
-  timeEnd?: (label?: string) => void;
-  timeLog?: (label?: string, ...data: any[]) => void;
-  trace?: (message?: any, ...optionalParams: any[]) => void;
-  warn?: (message?: any, ...optionalParams: any[]) => void;
+    assert?: (value: any, message?: string, ...optionalParams: any[]) => void;
+    clear?: () => void;
+    count?: (label?: string) => void;
+    countReset?: (label?: string) => void;
+    debug?: (message?: any, ...optionalParams: any[]) => void;
+    dir?: (obj: any, options?: NodeJS.InspectOptions) => void;
+    dirxml?: (...data: any[]) => void;
+    error?: (message?: any, ...optionalParams: any[]) => void;
+    group?: (...label: any[]) => void;
+    groupCollapsed?: (label?: any[]) => void;
+    groupEnd?: () => void;
+    info?: (message?: any, ...optionalParams: any[]) => void;
+    log?: (message?: any, ...optionalParams: any[]) => void;
+    table?: (tabularData: any, properties?: ReadonlyArray<string>) => void;
+    time?: (label?: string) => void;
+    timeEnd?: (label?: string) => void;
+    timeLog?: (label?: string, ...data: any[]) => void;
+    trace?: (message?: any, ...optionalParams: any[]) => void;
+    warn?: (message?: any, ...optionalParams: any[]) => void;
 };
-export declare type ReplayLogger = Partial<
-  Record<LogLevel, (data: logData) => void>
->;
+export declare type ReplayLogger = Partial<Record<LogLevel, (data: logData) => void>>;
 export declare type LogParam = {
-  level: LogLevel;
-  trace: Array<string>;
-  payload: Array<string>;
+    level: LogLevel;
+    trace: Array<string>;
+    payload: Array<string>;
 };
 export declare type fontCallback = (p: fontParam) => void;
 export declare type logCallback = (p: LogParam) => void;
-export declare type viewportResizeDimension = {
-  width: number;
-  height: number;
+export declare type viewportResizeDimention = {
+    width: number;
+    height: number;
 };
-export declare type viewportResizeCallback = (
-  d: viewportResizeDimension,
-) => void;
+export declare type viewportResizeCallback = (d: viewportResizeDimention) => void;
 export declare type inputValue = {
-  text: string;
-  isChecked: boolean;
+    text: string;
+    isChecked: boolean;
 };
-export declare type inputCallback = (
-  v: inputValue & {
+export declare type inputCallback = (v: inputValue & {
     id: number;
-  },
-) => void;
+}) => void;
 export declare const enum MediaInteractions {
-  Play = 0,
-  Pause = 1,
+    Play = 0,
+    Pause = 1
 }
 export declare type mediaInteractionParam = {
-  type: MediaInteractions;
-  id: number;
+    type: MediaInteractions;
+    id: number;
 };
-export declare type mediaInteractionCallback = (
-  p: mediaInteractionParam,
-) => void;
-export declare type DocumentDimension = {
-  x: number;
-  y: number;
-  relativeScale: number;
-  absoluteScale: number;
-};
+export declare type mediaInteractionCallback = (p: mediaInteractionParam) => void;
 export declare type Mirror = {
-  map: idNodeMap;
-  getId: (n: INode) => number;
-  getNode: (id: number) => INode | null;
-  removeNodeFromMap: (n: INode) => void;
-  has: (id: number) => boolean;
+    map: idNodeMap;
+    getId: (n: INode) => number;
+    getNode: (id: number) => INode | null;
+    removeNodeFromMap: (n: INode) => void;
+    has: (id: number) => boolean;
 };
 export declare type throttleOptions = {
-  leading?: boolean;
-  trailing?: boolean;
+    leading?: boolean;
+    trailing?: boolean;
 };
 export declare type listenerHandler = () => void;
 export declare type hookResetter = () => void;
 export declare type playerConfig = {
-  speed: number;
-  root: Element;
-  loadTimeout: number;
-  skipInactive: boolean;
-  showWarning: boolean;
-  showDebug: boolean;
-  blockClass: string;
-  liveMode: boolean;
-  insertStyleRules: string[];
-  triggerFocus: boolean;
-  UNSAFE_replayCanvas: boolean;
-  pauseAnimation?: boolean;
-  mouseTail:
-    | boolean
-    | {
+    speed: number;
+    root: Element;
+    loadTimeout: number;
+    skipInactive: boolean;
+    showWarning: boolean;
+    showDebug: boolean;
+    blockClass: string;
+    liveMode: boolean;
+    insertStyleRules: string[];
+    triggerFocus: boolean;
+    UNSAFE_replayCanvas: boolean;
+    pauseAnimation?: boolean;
+    mouseTail: boolean | {
         duration?: number;
         lineCap?: string;
         lineWidth?: number;
         strokeStyle?: string;
-      };
-  unpackFn?: UnpackFn;
-  logConfig: LogReplayConfig;
-  inactiveThreshold: number;
-  inactiveSkipTime: number;
-  maxSkipSpeed: number;
+    };
+    unpackFn?: UnpackFn;
+    logConfig: LogReplayConfig;
+    inactiveThreshold: number;
+    inactiveSkipTime: number;
+    maxSkipSpeed: number;
 };
 export declare type LogReplayConfig = {
-  level?: Array<LogLevel> | undefined;
-  replayLogger: ReplayLogger | undefined;
+    level?: Array<LogLevel> | undefined;
+    replayLogger: ReplayLogger | undefined;
 };
 export declare type playerMetaData = {
-  startTime: number;
-  endTime: number;
-  totalTime: number;
+    startTime: number;
+    endTime: number;
+    totalTime: number;
 };
 export declare type missingNode = {
-  node: Node;
-  mutation: addedNodeMutation;
+    node: Node;
+    mutation: addedNodeMutation;
 };
 export declare type missingNodeMap = {
-  [id: number]: missingNode;
+    [id: number]: missingNode;
 };
 export declare type actionWithDelay = {
-  doAction: () => void;
-  delay: number;
+    doAction: () => void;
+    delay: number;
 };
 export declare type Handler = (event?: unknown) => void;
 export declare type Emitter = {
-  on(type: string, handler: Handler): void;
-  emit(type: string, event?: unknown): void;
-  off(type: string, handler: Handler): void;
+    on(type: string, handler: Handler): void;
+    emit(type: string, event?: unknown): void;
+    off(type: string, handler: Handler): void;
 };
-export declare type Arguments<T> = T extends (...payload: infer U) => unknown
-  ? U
-  : unknown;
+export declare type Arguments<T> = T extends (...payload: infer U) => unknown ? U : unknown;
 export declare enum ReplayerEvents {
-  Start = 'start',
-  Pause = 'pause',
-  Resume = 'resume',
-  Resize = 'resize',
-  Finish = 'finish',
-  FullsnapshotRebuilded = 'fullsnapshot-rebuilded',
-  LoadStylesheetStart = 'load-stylesheet-start',
-  LoadStylesheetEnd = 'load-stylesheet-end',
-  SkipStart = 'skip-start',
-  SkipEnd = 'skip-end',
-  MouseInteraction = 'mouse-interaction',
-  EventCast = 'event-cast',
-  CustomEvent = 'custom-event',
-  Flush = 'flush',
-  StateChange = 'state-change',
+    Start = "start",
+    Pause = "pause",
+    Resume = "resume",
+    Resize = "resize",
+    Finish = "finish",
+    FullsnapshotRebuilded = "fullsnapshot-rebuilded",
+    LoadStylesheetStart = "load-stylesheet-start",
+    LoadStylesheetEnd = "load-stylesheet-end",
+    SkipStart = "skip-start",
+    SkipEnd = "skip-end",
+    MouseInteraction = "mouse-interaction",
+    EventCast = "event-cast",
+    CustomEvent = "custom-event",
+    Flush = "flush",
+    StateChange = "state-change"
 }
 export declare type MaskInputFn = (text: string) => string;
 export declare type ElementState = {
-  scroll?: [number, number];
+    scroll?: [number, number];
 };
 export declare type StringifyOptions = {
-  stringLengthLimit?: number;
-  numOfKeysLimit: number;
+    stringLengthLimit?: number;
+    numOfKeysLimit: number;
 };
 export declare type LogRecordOptions = {
-  level?: Array<LogLevel> | undefined;
-  lengthThreshold?: number;
-  stringifyOptions?: StringifyOptions;
-  logger?: Logger;
+    level?: Array<LogLevel> | undefined;
+    lengthThreshold?: number;
+    stringifyOptions?: StringifyOptions;
+    logger?: Logger;
 };
 export {};

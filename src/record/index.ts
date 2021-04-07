@@ -1,13 +1,11 @@
 import { snapshot, MaskInputOptions, SlimDOMOptions } from '../snapshot';
-import { initObservers, mutationBuffers } from './observer';
+import { initObservers, mutationBuffer } from './observer';
 import {
   mirror,
   on,
   getWindowWidth,
   getWindowHeight,
   polyfill,
-  isIframeINode,
-  hasShadowRoot,
 } from '../utils';
 import {
   EventType,
@@ -17,10 +15,7 @@ import {
   IncrementalSource,
   listenerHandler,
   LogRecordOptions,
-  mutationCallbackParam,
 } from '../types';
-import { IframeManager } from './iframe-manager';
-import { ShadowDomManager } from './shadow-dom-manager';
 
 function wrapEvent(e: event): eventWithTime {
   return {
@@ -30,8 +25,6 @@ function wrapEvent(e: event): eventWithTime {
 }
 
 let wrappedEmit!: (e: eventWithTime, isCheckout?: boolean) => void;
-
-let takeFullSnapshot!: (isCheckout?: boolean) => void;
 
 function record<T = eventWithTime>(
   options: recordOptions<T> = {},
@@ -147,7 +140,7 @@ function record<T = eventWithTime>(
   let incrementalSnapshotCount = 0;
   wrappedEmit = (e: eventWithTime, isCheckout?: boolean) => {
     if (
-      mutationBuffers[0]?.isFrozen() &&
+      mutationBuffer.isFrozen() &&
       e.type !== EventType.FullSnapshot &&
       !(
         e.type === EventType.IncrementalSnapshot &&
@@ -156,7 +149,8 @@ function record<T = eventWithTime>(
     ) {
       // we've got a user initiated event so first we need to apply
       // all DOM changes that have been buffering during paused state
-      mutationBuffers.forEach((buf) => buf.unfreeze());
+      mutationBuffer.emit();
+      mutationBuffer.unfreeze();
     }
 
     emit(((packFn ? packFn(e) : e) as unknown) as T, isCheckout);
@@ -164,14 +158,6 @@ function record<T = eventWithTime>(
       lastFullSnapshotEvent = e;
       incrementalSnapshotCount = 0;
     } else if (e.type === EventType.IncrementalSnapshot) {
-      // attch iframe should be considered as full snapshot
-      if (
-        e.data.source === IncrementalSource.Mutation &&
-        e.data.isAttachIframe
-      ) {
-        return;
-      }
-
       incrementalSnapshotCount++;
       const exceedCount =
         checkoutEveryNth && incrementalSnapshotCount >= checkoutEveryNth;
@@ -184,37 +170,7 @@ function record<T = eventWithTime>(
     }
   };
 
-  const wrappedMutationEmit = (m: mutationCallbackParam) => {
-    wrappedEmit(
-      wrapEvent({
-        type: EventType.IncrementalSnapshot,
-        data: {
-          source: IncrementalSource.Mutation,
-          ...m,
-        },
-      }),
-    );
-  };
-
-  const iframeManager = new IframeManager({
-    mutationCb: wrappedMutationEmit,
-  });
-
-  const shadowDomManager = new ShadowDomManager({
-    mutationCb: wrappedMutationEmit,
-    bypassOptions: {
-      blockClass,
-      blockSelector,
-      inlineStylesheet,
-      maskInputOptions,
-      recordCanvas,
-      slimDOMOptions,
-      iframeManager,
-      enableStrictPrivacy,
-    },
-  });
-
-  takeFullSnapshot = (isCheckout = false) => {
+  function takeFullSnapshot(isCheckout = false) {
     wrappedEmit(
       wrapEvent({
         type: EventType.Meta,
@@ -227,7 +183,8 @@ function record<T = eventWithTime>(
       isCheckout,
     );
 
-    mutationBuffers.forEach((buf) => buf.lock()); // don't allow any mirror modifications during snapshotting
+    let wasFrozen = mutationBuffer.isFrozen();
+    mutationBuffer.freeze(); // don't allow any mirror modifications during snapshotting
     const [node, idNodeMap] = snapshot(document, {
       blockClass,
       blockSelector,
@@ -236,17 +193,6 @@ function record<T = eventWithTime>(
       slimDOM: slimDOMOptions,
       recordCanvas,
       enableStrictPrivacy,
-      onSerialize: (n) => {
-        if (isIframeINode(n)) {
-          iframeManager.addIframe(n);
-        }
-        if (hasShadowRoot(n)) {
-          shadowDomManager.addShadowRoot(n.shadowRoot, document);
-        }
-      },
-      onIframeLoad: (iframe, childSn) => {
-        iframeManager.attachIframe(iframe, childSn);
-      },
     });
 
     if (!node) {
@@ -278,8 +224,11 @@ function record<T = eventWithTime>(
         },
       }),
     );
-    mutationBuffers.forEach((buf) => buf.unlock()); // generate & emit any mutations that happened during snapshotting, as can now apply against the newly built mirror
-  };
+    if (!wasFrozen) {
+      mutationBuffer.emit(); // emit anything queued up now
+      mutationBuffer.unfreeze();
+    }
+  }
 
   try {
     const handlers: listenerHandler[] = [];
@@ -293,138 +242,137 @@ function record<T = eventWithTime>(
         );
       }),
     );
-
-    const observe = (doc: Document) => {
-      return initObservers(
-        {
-          mutationCb: wrappedMutationEmit,
-          mousemoveCb: (positions, source) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source,
-                  positions,
-                },
-              }),
-            ),
-          mouseInteractionCb: (d) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.MouseInteraction,
-                  ...d,
-                },
-              }),
-            ),
-          scrollCb: (p) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.Scroll,
-                  ...p,
-                },
-              }),
-            ),
-          viewportResizeCb: (d) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.ViewportResize,
-                  ...d,
-                },
-              }),
-            ),
-          inputCb: (v) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.Input,
-                  ...v,
-                },
-              }),
-            ),
-          mediaInteractionCb: (p) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.MediaInteraction,
-                  ...p,
-                },
-              }),
-            ),
-          styleSheetRuleCb: (r) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.StyleSheetRule,
-                  ...r,
-                },
-              }),
-            ),
-          canvasMutationCb: (p) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.CanvasMutation,
-                  ...p,
-                },
-              }),
-            ),
-          fontCb: (p) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.Font,
-                  ...p,
-                },
-              }),
-            ),
-          logCb: (p) =>
-            wrappedEmit(
-              wrapEvent({
-                type: EventType.IncrementalSnapshot,
-                data: {
-                  source: IncrementalSource.Log,
-                  ...p,
-                },
-              }),
-            ),
-          blockClass,
-          ignoreClass,
-          maskInputOptions,
-          inlineStylesheet,
-          sampling,
-          recordCanvas,
-          collectFonts,
-          doc,
-          maskInputFn,
-          logOptions,
-          blockSelector,
-          slimDOMOptions,
-          iframeManager,
-          shadowDomManager,
-          enableStrictPrivacy,
-        },
-        hooks,
-      );
-    };
-
-    iframeManager.addLoadListener((iframeEl) => {
-      handlers.push(observe(iframeEl.contentDocument!));
-    });
-
     const init = () => {
       takeFullSnapshot();
-      handlers.push(observe(document));
+      handlers.push(
+        initObservers(
+          {
+            mutationCb: (m) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.Mutation,
+                    ...m,
+                  },
+                }),
+              ),
+            mousemoveCb: (positions, source) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source,
+                    positions,
+                  },
+                }),
+              ),
+            mouseInteractionCb: (d) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.MouseInteraction,
+                    ...d,
+                  },
+                }),
+              ),
+            scrollCb: (p) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.Scroll,
+                    ...p,
+                  },
+                }),
+              ),
+            viewportResizeCb: (d) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.ViewportResize,
+                    ...d,
+                  },
+                }),
+              ),
+            inputCb: (v) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.Input,
+                    ...v,
+                  },
+                }),
+              ),
+            mediaInteractionCb: (p) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.MediaInteraction,
+                    ...p,
+                  },
+                }),
+              ),
+            styleSheetRuleCb: (r) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.StyleSheetRule,
+                    ...r,
+                  },
+                }),
+              ),
+            canvasMutationCb: (p) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.CanvasMutation,
+                    ...p,
+                  },
+                }),
+              ),
+            fontCb: (p) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.Font,
+                    ...p,
+                  },
+                }),
+              ),
+            logCb: (p) =>
+              wrappedEmit(
+                wrapEvent({
+                  type: EventType.IncrementalSnapshot,
+                  data: {
+                    source: IncrementalSource.Log,
+                    ...p,
+                  },
+                }),
+              ),
+            blockClass,
+            blockSelector,
+            ignoreClass,
+            maskInputOptions,
+            maskInputFn,
+            inlineStylesheet,
+            sampling,
+            recordCanvas,
+            collectFonts,
+            slimDOMOptions,
+            logOptions,
+            enableStrictPrivacy,
+          },
+          hooks,
+        ),
+      );
     };
     if (
       document.readyState === 'interactive' ||
@@ -473,14 +421,7 @@ record.addCustomEvent = <T>(tag: string, payload: T) => {
 };
 
 record.freezePage = () => {
-  mutationBuffers.forEach((buf) => buf.freeze());
-};
-
-record.takeFullSnapshot = (isCheckout?: boolean) => {
-  if (!takeFullSnapshot) {
-    throw new Error('please take full snapshot after start recording');
-  }
-  takeFullSnapshot(isCheckout);
+  mutationBuffer.freeze();
 };
 
 export default record;

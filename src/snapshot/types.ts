@@ -47,18 +47,13 @@ export type commentNode = {
   textContent: string;
 };
 
-export type serializedNode = (
+export type serializedNode =
   | documentNode
   | documentTypeNode
   | elementNode
   | textNode
   | cdataNode
-  | commentNode
-) & {
-  rootId?: number;
-  isShadowHost?: boolean;
-  isShadow?: boolean;
-};
+  | commentNode;
 
 export type serializedNodeWithId = serializedNode & { id: number };
 

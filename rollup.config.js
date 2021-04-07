@@ -2,7 +2,6 @@ import typescript from 'rollup-plugin-typescript';
 import resolve from 'rollup-plugin-node-resolve';
 import { terser } from 'rollup-plugin-terser';
 import postcss from 'rollup-plugin-postcss';
-import renameNodeModules from 'rollup-plugin-rename-node-modules';
 import pkg from './package.json';
 
 function toRecordPath(path) {
@@ -138,7 +137,6 @@ for (const c of baseConfigs) {
       {
         format: 'esm',
         dir: 'es/rrweb',
-        plugins: [renameNodeModules('ext')],
       },
     ],
   });
