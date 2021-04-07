@@ -43,6 +43,7 @@ export type fullSnapshotEvent = {
       left: number;
     };
   };
+  isFirstFullSnapshot?: boolean;
 };
 
 export type incrementalSnapshotEvent = {

@@ -238,6 +238,7 @@ export class Replayer {
       }, 0);
     }
     if (firstFullsnapshot) {
+      (firstFullsnapshot as fullSnapshotEvent).isFirstFullSnapshot = true;
       setTimeout(() => {
         this.rebuildFullSnapshot(
           firstFullsnapshot as fullSnapshotEvent & { timestamp: number },
@@ -544,8 +545,10 @@ export class Replayer {
         break;
       case EventType.FullSnapshot:
         castFn = () => {
-          this.rebuildFullSnapshot(event, isSync);
-          this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
+          if (!event.isFirstFullSnapshot) {
+            this.rebuildFullSnapshot(event, isSync);
+            this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
+          }
           this.handleInactivity(event.timestamp);
         };
         break;
@@ -648,7 +651,6 @@ export class Replayer {
     const styleEl = document.createElement('style');
     const { documentElement, head } = this.iframe.contentDocument;
     documentElement!.insertBefore(styleEl, head);
-    console.log(this.config.blockClass);
     const injectStylesRules = getInjectStyleRules(
       this.config.blockClass,
     ).concat(this.config.insertStyleRules);
