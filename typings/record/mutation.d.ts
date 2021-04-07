@@ -1,9 +1,7 @@
 import { MaskInputOptions, SlimDOMOptions } from '../snapshot';
 import { mutationRecord, blockClass, mutationCallBack } from '../types';
-import { IframeManager } from './iframe-manager';
 export default class MutationBuffer {
     private frozen;
-    private locked;
     private texts;
     private attributes;
     private removes;
@@ -20,14 +18,10 @@ export default class MutationBuffer {
     private recordCanvas;
     private enableStrictPrivacy;
     private slimDOMOptions;
-    private doc;
-    private iframeManager;
-    init(cb: mutationCallBack, blockClass: blockClass, blockSelector: string | null, inlineStylesheet: boolean, maskInputOptions: MaskInputOptions, recordCanvas: boolean, slimDOMOptions: SlimDOMOptions, doc: Document, iframeManager: IframeManager, enableStrictPrivacy: boolean): void;
+    init(cb: mutationCallBack, blockClass: blockClass, blockSelector: string | null, inlineStylesheet: boolean, maskInputOptions: MaskInputOptions, recordCanvas: boolean, slimDOMOptions: SlimDOMOptions, enableStrictPrivacy: boolean): void;
     freeze(): void;
     unfreeze(): void;
     isFrozen(): boolean;
-    lock(): void;
-    unlock(): void;
     processMutations: (mutations: mutationRecord[]) => void;
     emit: () => void;
     private processMutation;

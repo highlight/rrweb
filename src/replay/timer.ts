@@ -30,7 +30,7 @@ export class Timer {
    * @param actions
    */
   public addActions(actions: actionWithDelay[]) {
-    this.actions = this.actions.concat(actions);
+    this.actions.push(...actions);
   }
 
   public start() {
