@@ -8,9 +8,10 @@ import {
   MaskInputOptions,
   SlimDOMOptions,
 } from './types';
+import { isElement, isShadowRoot } from './utils';
 
 let _id = 1;
-const tagNameRegex = RegExp('[^a-z1-6-_]');
+const tagNameRegex = RegExp('[^a-z0-9-_]');
 
 export const IGNORED_NODE = -2;
 
@@ -158,11 +159,18 @@ function getHref() {
 
 export function transformAttribute(
   doc: Document,
+  tagName: string,
   name: string,
   value: string,
 ): string {
   // relative path in attribute
   if (name === 'src' || ((name === 'href' || name === 'xlink:href') && value)) {
+    return absoluteToDoc(doc, value);
+  } else if (
+    name === 'background' &&
+    value &&
+    (tagName === 'table' || tagName === 'td' || tagName === 'th')
+  ) {
     return absoluteToDoc(doc, value);
   } else if (name === 'srcset' && value) {
     return getAbsoluteSrcsetString(doc, value);
@@ -183,17 +191,66 @@ export function _isBlockedElement(
       return true;
     }
   } else {
-    element.classList.forEach((className) => {
+    // tslint:disable-next-line: prefer-for-of
+    for (let eIndex = 0; eIndex < element.classList.length; eIndex++) {
+      const className = element.classList[eIndex];
       if (blockClass.test(className)) {
         return true;
       }
-    });
+    }
   }
   if (blockSelector) {
     return element.matches(blockSelector);
   }
 
   return false;
+}
+
+// https://stackoverflow.com/a/36155560
+function onceIframeLoaded(
+  iframeEl: HTMLIFrameElement,
+  listener: () => unknown,
+  iframeLoadTimeout: number,
+) {
+  const win = iframeEl.contentWindow;
+  if (!win) {
+    return;
+  }
+  // document is loading
+  let fired = false;
+
+  let readyState: DocumentReadyState;
+  try {
+    readyState = win.document.readyState;
+  } catch (error) {
+    return;
+  }
+  if (readyState !== 'complete') {
+    const timer = setTimeout(() => {
+      if (!fired) {
+        listener();
+        fired = true;
+      }
+    }, iframeLoadTimeout);
+    iframeEl.addEventListener('load', () => {
+      clearTimeout(timer);
+      fired = true;
+      listener();
+    });
+    return;
+  }
+  // check blank frame for Chrome
+  const blankUrl = 'about:blank';
+  if (
+    win.location.href !== blankUrl ||
+    iframeEl.src === blankUrl ||
+    iframeEl.src === ''
+  ) {
+    listener();
+    return;
+  }
+  // use default listener
+  iframeEl.addEventListener('load', listener);
 }
 
 function serializeNode(
@@ -218,11 +275,18 @@ function serializeNode(
     enableStrictPrivacy,
   } = options;
 
+  // Only record root id when document object is not the base document
+  let rootId: number | undefined;
+  if (((doc as unknown) as INode).__sn) {
+    const docId = ((doc as unknown) as INode).__sn.id;
+    rootId = docId === 1 ? undefined : docId;
+  }
   switch (n.nodeType) {
     case n.DOCUMENT_NODE:
       return {
         type: NodeType.Document,
         childNodes: [],
+        rootId,
       };
     case n.DOCUMENT_TYPE_NODE:
       return {
@@ -230,6 +294,7 @@ function serializeNode(
         name: (n as DocumentType).name,
         publicId: (n as DocumentType).publicId,
         systemId: (n as DocumentType).systemId,
+        rootId,
       };
     case n.ELEMENT_NODE:
       let needBlock = _isBlockedElement(
@@ -240,7 +305,7 @@ function serializeNode(
       const tagName = getValidTagName(n as HTMLElement);
       let attributes: attributes = {};
       for (const { name, value } of Array.from((n as HTMLElement).attributes)) {
-        attributes[name] = transformAttribute(doc, name, value);
+        attributes[name] = transformAttribute(doc, tagName, name, value);
       }
       // remote css
       if (tagName === 'link' && inlineStylesheet) {
@@ -322,6 +387,7 @@ function serializeNode(
       if ((n as HTMLElement).scrollTop) {
         attributes.rr_scrollTop = (n as HTMLElement).scrollTop;
       }
+      // block element
       if (needBlock || (tagName === 'img' && enableStrictPrivacy)) {
         const { width, height } = (n as HTMLElement).getBoundingClientRect();
         attributes = {
@@ -329,7 +395,10 @@ function serializeNode(
           rr_width: `${width}px`,
           rr_height: `${height}px`,
         };
-        needBlock = true;
+      }
+      // iframe
+      if (tagName === 'iframe') {
+        delete attributes.src;
       }
       return {
         type: NodeType.Element,
@@ -338,6 +407,7 @@ function serializeNode(
         childNodes: [],
         isSVG: isSVGElement(n as Element) || undefined,
         needBlock,
+        rootId,
       };
     case n.TEXT_NODE:
       // The parent node may not be a html element which has a tagName attribute.
@@ -383,16 +453,19 @@ function serializeNode(
         type: NodeType.Text,
         textContent: textContent || '',
         isStyle,
+        rootId,
       };
     case n.CDATA_SECTION_NODE:
       return {
         type: NodeType.CDATA,
         textContent: '',
+        rootId,
       };
     case n.COMMENT_NODE:
       return {
         type: NodeType.Comment,
         textContent: (n as Comment).textContent || '',
+        rootId,
       };
     default:
       return false;
@@ -505,6 +578,9 @@ export function serializeNodeWithId(
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
     enableStrictPrivacy: boolean;
+    onSerialize?: (n: INode) => unknown;
+    onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
+    iframeLoadTimeout?: number;
   },
 ): serializedNodeWithId | null {
   const {
@@ -518,6 +594,9 @@ export function serializeNodeWithId(
     slimDOMOptions,
     recordCanvas = false,
     enableStrictPrivacy,
+    onSerialize,
+    onIframeLoad,
+    iframeLoadTimeout = 5000,
   } = options;
   let { preserveWhiteSpace = true } = options;
   const _serializedNode = serializeNode(n, {
@@ -556,6 +635,9 @@ export function serializeNodeWithId(
     return null; // slimDOM
   }
   map[id] = n as INode;
+  if (onSerialize) {
+    onSerialize(n as INode);
+  }
   let recordChild = !skipChild;
   if (serializedNode.type === NodeType.Element) {
     recordChild = recordChild && !serializedNode.needBlock;
@@ -585,25 +667,80 @@ export function serializeNodeWithId(
     ) {
       preserveWhiteSpace = false;
     }
+    const bypassOptions = {
+      doc,
+      map,
+      blockClass,
+      blockSelector,
+      skipChild,
+      inlineStylesheet,
+      maskInputOptions,
+      slimDOMOptions,
+      recordCanvas,
+      preserveWhiteSpace,
+      enableStrictPrivacy,
+      onSerialize,
+      onIframeLoad,
+      iframeLoadTimeout,
+    };
     for (const childN of Array.from(n.childNodes)) {
-      const serializedChildNode = serializeNodeWithId(childN, {
-        doc,
-        map,
-        blockClass,
-        blockSelector,
-        skipChild,
-        inlineStylesheet,
-        maskInputOptions,
-        slimDOMOptions,
-        recordCanvas,
-        preserveWhiteSpace,
-        enableStrictPrivacy,
-      });
+      const serializedChildNode = serializeNodeWithId(childN, bypassOptions);
       if (serializedChildNode) {
         serializedNode.childNodes.push(serializedChildNode);
       }
     }
+
+    if (isElement(n) && n.shadowRoot) {
+      serializedNode.isShadowHost = true;
+      for (const childN of Array.from(n.shadowRoot.childNodes)) {
+        const serializedChildNode = serializeNodeWithId(childN, bypassOptions);
+        if (serializedChildNode) {
+          serializedChildNode.isShadow = true;
+          serializedNode.childNodes.push(serializedChildNode);
+        }
+      }
+    }
   }
+
+  if (n.parentNode && isShadowRoot(n.parentNode)) {
+    serializedNode.isShadow = true;
+  }
+
+  if (
+    serializedNode.type === NodeType.Element &&
+    serializedNode.tagName === 'iframe'
+  ) {
+    onceIframeLoaded(
+      n as HTMLIFrameElement,
+      () => {
+        const iframeDoc = (n as HTMLIFrameElement).contentDocument;
+        if (iframeDoc && onIframeLoad) {
+          const serializedIframeNode = serializeNodeWithId(iframeDoc, {
+            doc: iframeDoc,
+            map,
+            blockClass,
+            blockSelector,
+            skipChild: false,
+            inlineStylesheet,
+            maskInputOptions,
+            slimDOMOptions,
+            recordCanvas,
+            preserveWhiteSpace,
+            onSerialize,
+            onIframeLoad,
+            iframeLoadTimeout,
+            enableStrictPrivacy,
+          });
+
+          if (serializedIframeNode) {
+            onIframeLoad(n as INode, serializedIframeNode);
+          }
+        }
+      },
+      iframeLoadTimeout,
+    );
+  }
+
   return serializedNode;
 }
 
@@ -617,6 +754,10 @@ function snapshot(
     recordCanvas?: boolean;
     blockSelector?: string | null;
     enableStrictPrivacy: boolean;
+    preserveWhiteSpace?: boolean;
+    onSerialize?: (n: INode) => unknown;
+    onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
+    iframeLoadTimeout?: number;
   },
 ): [serializedNodeWithId | null, idNodeMap] {
   const {
@@ -627,6 +768,10 @@ function snapshot(
     maskAllInputs = false,
     slimDOM = false,
     enableStrictPrivacy = false,
+    preserveWhiteSpace,
+    onSerialize,
+    onIframeLoad,
+    iframeLoadTimeout,
   } = options || {};
   const idNodeMap: idNodeMap = {};
   const maskInputOptions: MaskInputOptions =
@@ -681,6 +826,10 @@ function snapshot(
       slimDOMOptions,
       recordCanvas,
       enableStrictPrivacy,
+      preserveWhiteSpace,
+      onSerialize,
+      onIframeLoad,
+      iframeLoadTimeout,
     }),
     idNodeMap,
   ];
