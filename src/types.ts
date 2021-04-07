@@ -592,3 +592,13 @@ export type LogRecordOptions = {
   stringifyOptions?: StringifyOptions;
   logger?: Logger;
 };
+
+export interface HighlightConfiguration {
+  enableOnHoverClass?: boolean;
+}
+
+declare global {
+  interface Window {
+    HIG_CONFIGURATION: HighlightConfiguration;
+  }
+}

@@ -58,6 +58,9 @@ function getTagName(n: elementNode): string {
 
 const HOVER_SELECTOR = /([^\\]):hover/g;
 export function addHoverClass(cssText: string): string {
+  if (!window.HIG_CONFIGURATION.enableOnHoverClass) {
+    return cssText;
+  }
   const ast = parse(cssText, { silent: true });
   if (!ast.stylesheet) {
     return cssText;

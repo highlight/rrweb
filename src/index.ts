@@ -8,6 +8,7 @@ export {
   IncrementalSource,
   MouseInteractions,
   ReplayerEvents,
+  HighlightConfiguration,
 } from './types';
 
 const { addCustomEvent } = record;
