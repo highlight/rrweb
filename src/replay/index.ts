@@ -114,6 +114,8 @@ export class Replayer {
   private elementStateMap!: Map<INode, ElementState>;
 
   private imageMap: Map<eventWithTime, HTMLImageElement> = new Map();
+  /** The first time the player is playing. */
+  private firstPlay = false;
 
   constructor(
     events: Array<eventWithTime | string>,
@@ -238,7 +240,6 @@ export class Replayer {
       }, 0);
     }
     if (firstFullsnapshot) {
-      (firstFullsnapshot as fullSnapshotEvent).isFirstFullSnapshot = true;
       setTimeout(() => {
         this.rebuildFullSnapshot(
           firstFullsnapshot as fullSnapshotEvent & { timestamp: number },
@@ -545,10 +546,13 @@ export class Replayer {
         break;
       case EventType.FullSnapshot:
         castFn = () => {
-          if (!event.isFirstFullSnapshot) {
-            this.rebuildFullSnapshot(event, isSync);
-            this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
+          // Don't build a full snapshot during the first play through since we've already built it when the player was mounted.
+          if (this.firstPlay) {
+            this.firstPlay = false;
+            return;
           }
+          this.rebuildFullSnapshot(event, isSync);
+          this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
           this.handleInactivity(event.timestamp);
         };
         break;
