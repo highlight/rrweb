@@ -44,7 +44,7 @@ import './styles/style.css';
 
 const SKIP_TIME_THRESHOLD = 10 * 1000;
 const SKIP_TIME_INTERVAL = 2 * 1000;
-const SKIP_TIME_MIN = 0.5 * 1000;
+const SKIP_TIME_MIN = 1 * 1000;
 const SKIP_DURATION_LIMIT = 60 * 60 * 1000;
 
 // https://github.com/rollup/rollup/issues/1267#issuecomment-296395734
@@ -295,14 +295,16 @@ export class Replayer {
       // Preprocessing to get all active/inactive segments in a session
       const allIntervals: Array<SessionInterval> = [];
       const metadata = this.getMetaData();
-      const allEvents = [
+      const userInteractionEvents = [
         { timestamp: metadata.startTime },
-        ...this.service.state.context.events,
+        ...this.service.state.context.events.filter((ev) =>
+          this.isUserInteraction(ev),
+        ),
         { timestamp: metadata.endTime },
       ];
-      for (let i = 1; i < allEvents.length; i++) {
-        const currentInterval = allEvents[i - 1];
-        const _event = allEvents[i];
+      for (let i = 1; i < userInteractionEvents.length; i++) {
+        const currentInterval = userInteractionEvents[i - 1];
+        const _event = userInteractionEvents[i];
         if (
           _event.timestamp! - currentInterval.timestamp! >
           SKIP_TIME_THRESHOLD
@@ -532,7 +534,6 @@ export class Replayer {
            * This will add more value to the custom event and allows the client to react for custom-event.
            */
           this.emitter.emit(ReplayerEvents.CustomEvent, event);
-          this.handleInactivity(event.timestamp);
         };
         break;
       case EventType.Meta:
@@ -541,7 +542,6 @@ export class Replayer {
             width: event.data.width,
             height: event.data.height,
           });
-          this.handleInactivity(event.timestamp);
         };
         break;
       case EventType.FullSnapshot:
@@ -553,7 +553,6 @@ export class Replayer {
           }
           this.rebuildFullSnapshot(event, isSync);
           this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
-          this.handleInactivity(event.timestamp);
         };
         break;
       case EventType.IncrementalSnapshot:
