@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb",
-  "version": "0.11.3",
+  "version": "0.12.0",
   "description": "record and replay the web",
   "scripts": {
     "test": "npm run bundle:browser && cross-env TS_NODE_CACHE=false TS_NODE_FILES=true mocha -r ts-node/register test/**/*.test.ts",
@@ -11,7 +11,8 @@
     "bundle:dev": "rollup --config --watch",
     "typings": "tsc -d --declarationDir typings",
     "dev": "webpack --watch",
-    "bundle:highlight": "webpack"
+    "bundle:highlight": "webpack --mode=production",
+    "analyze": "mkdir -p dist && webpack --mode=production --profile --json > dist/stats.json && yarn webpack-bundle-analyzer dist/stats.json"
   },
   "repository": {
     "type": "git",
@@ -58,6 +59,7 @@
     "tslint": "^4.5.1",
     "typescript": "^3.9.5",
     "webpack": "^5.10.1",
+    "webpack-bundle-analyzer": "^4.4.2",
     "webpack-cli": "^4.2.0",
     "webpack-dev-server": "^3.11.0",
     "webpack-merge": "^5.7.0"
