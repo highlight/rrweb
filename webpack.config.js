@@ -23,8 +23,6 @@ module.exports = {
     headers: {
       'Access-Control-Allow-Origin': '*',
     },
-  },
-  devServer: {
     contentBase: path.join(__dirname, 'dist'),
     port: 8083,
   },
