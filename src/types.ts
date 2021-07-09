@@ -577,3 +577,9 @@ export type KeepIframeSrcFn = (src: string) => boolean;
 export interface HighlightConfiguration {
   enableOnHoverClass?: boolean;
 }
+
+declare global {
+  interface Window {
+    HIG_CONFIGURATION: HighlightConfiguration;
+  }
+}
