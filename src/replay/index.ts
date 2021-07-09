@@ -11,7 +11,7 @@ import {
   MouseInteractions,
   playerConfig,
   playerMetaData,
-  viewportResizeDimention,
+  viewportResizeDimension,
   missingNodeMap,
   addedNodeMutation,
   missingNode,
@@ -26,18 +26,20 @@ import {
   scrollData,
   inputData,
   canvasMutationData,
+  Mirror,
   ElementState,
-  LogReplayConfig,
-  logData,
-  ReplayLogger,
   SessionInterval,
 } from '../types';
 import {
-  mirror,
+  createMirror,
   polyfill,
   TreeIndex,
   queueToResolveTrees,
   iterateResolveTree,
+  AppendedIframe,
+  isIframeINode,
+  getBaseDimension,
+  hasShadowRoot,
 } from '../utils';
 import getInjectStyleRules from './styles/inject-style';
 import './styles/style.css';
@@ -66,31 +68,6 @@ const defaultMouseTailConfig = {
   lineWidth: 3,
   strokeStyle: 'red',
 } as const;
-
-const defaultLogConfig: LogReplayConfig = {
-  level: [
-    'assert',
-    'clear',
-    'count',
-    'countReset',
-    'debug',
-    'dir',
-    'dirxml',
-    'error',
-    'group',
-    'groupCollapsed',
-    'groupEnd',
-    'info',
-    'log',
-    'table',
-    'time',
-    'timeEnd',
-    'timeLog',
-    'trace',
-    'warn',
-  ],
-  replayLogger: undefined,
-};
 
 export class Replayer {
   public wrapper: HTMLDivElement;
@@ -124,7 +101,13 @@ export class Replayer {
 
   private imageMap: Map<eventWithTime, HTMLImageElement> = new Map();
   /** The first time the player is playing. */
-  private firstPlay = true;
+  private nextUserInteractionEvent: eventWithTime | null;
+
+  private mirror: Mirror = createMirror();
+
+  private firstFullSnapshot: eventWithTime | true | null = null;
+
+  private newDocumentQueue: addedNodeMutation[] = [];
 
   constructor(
     events: Array<eventWithTime | string>,
@@ -135,6 +118,7 @@ export class Replayer {
     }
     const defaultConfig: playerConfig = {
       speed: 1,
+      maxSpeed: 360,
       root: document.body,
       loadTimeout: 0,
       skipInactive: false,
@@ -146,14 +130,12 @@ export class Replayer {
       triggerFocus: true,
       UNSAFE_replayCanvas: false,
       pauseAnimation: true,
+      userTriggeredOnInput: true,
       mouseTail: defaultMouseTailConfig,
-      logConfig: defaultLogConfig,
       inactiveThreshold: 0.02,
       inactiveSkipTime: SKIP_TIME_INTERVAL,
     };
     this.config = Object.assign({}, defaultConfig, config);
-    if (!this.config.logConfig.replayLogger)
-      this.config.logConfig.replayLogger = this.getConsoleLogger();
 
     this.handleResize = this.handleResize.bind(this);
     this.getCastFn = this.getCastFn.bind(this);
@@ -165,25 +147,16 @@ export class Replayer {
     this.fragmentParentMap = new Map<INode, INode>();
     this.elementStateMap = new Map<INode, ElementState>();
     this.virtualStyleRulesMap = new Map();
+
     this.emitter.on(ReplayerEvents.Flush, () => {
       const { scrollMap, inputMap } = this.treeIndex.flush();
 
-      for (const [frag, parent] of this.fragmentParentMap.entries()) {
-        mirror.map[parent.__sn.id] = parent;
-        /**
-         * If we have already set value attribute on textarea,
-         * then we could not apply text content as default value any more.
-         */
-        if (
-          parent.__sn.type === NodeType.Element &&
-          parent.__sn.tagName === 'textarea' &&
-          frag.textContent
-        ) {
-          (parent as unknown as HTMLTextAreaElement).value = frag.textContent;
-        }
-        parent.appendChild(frag);
-        // restore state of elements after they are mounted
-        this.restoreState(parent);
+      this.fragmentParentMap.forEach((parent, frag) =>
+        this.restoreRealParent(frag, parent),
+      );
+      for (const node of this.virtualStyleRulesMap.keys()) {
+        // restore css rules of style elements after they are mounted
+        this.restoreNodeSheet(node);
       }
       this.fragmentParentMap.clear();
       this.elementStateMap.clear();
@@ -196,16 +169,22 @@ export class Replayer {
         this.applyInput(d);
       }
     });
+    this.emitter.on(ReplayerEvents.PlayBack, () => {
+      this.firstFullSnapshot = null;
+      this.mirror.reset();
+    });
 
     const timer = new Timer([], config?.speed || defaultConfig.speed);
     this.service = createPlayerService(
       {
-        events: events.map((e) => {
-          if (config && config.unpackFn) {
-            return config.unpackFn(e as string);
-          }
-          return e as eventWithTime;
-        }),
+        events: events
+          .map((e) => {
+            if (config && config.unpackFn) {
+              return config.unpackFn(e as string);
+            }
+            return e as eventWithTime;
+          })
+          .sort((a1, a2) => a1.timestamp - a2.timestamp),
         timer,
         timeOffset: 0,
         baselineTime: 0,
@@ -252,6 +231,12 @@ export class Replayer {
     }
     if (firstFullsnapshot) {
       setTimeout(() => {
+        // when something has been played, there is no need to rebuild poster
+        if (this.firstFullSnapshot) {
+          // true if any other fullSnapshot has been executed by Timer already
+          return;
+        }
+        this.firstFullSnapshot = firstFullsnapshot;
         this.rebuildFullSnapshot(
           firstFullsnapshot as fullSnapshotEvent & { timestamp: number },
         );
@@ -264,6 +249,11 @@ export class Replayer {
 
   public on(event: string, handler: Handler) {
     this.emitter.on(event, handler);
+    return this;
+  }
+
+  public off(event: string, handler: Handler) {
+    this.emitter.off(event, handler);
     return this;
   }
 
@@ -417,6 +407,10 @@ export class Replayer {
     return baselineTime - events[0].timestamp;
   }
 
+  public getMirror(): Mirror {
+    return this.mirror;
+  }
+
   /**
    * This API was designed to be used as play at any time offset.
    * Since we minimized the data collected from recorder, we do not
@@ -521,7 +515,7 @@ export class Replayer {
     }
   }
 
-  private handleResize(dimension: viewportResizeDimention) {
+  private handleResize(dimension: viewportResizeDimension) {
     this.iframe.style.display = 'inherit';
     for (const el of [this.mouseTail, this.iframe]) {
       if (!el) {
@@ -558,10 +552,15 @@ export class Replayer {
         break;
       case EventType.FullSnapshot:
         castFn = () => {
-          // Don't build a full snapshot during the first play through since we've already built it when the player was mounted.
-          if (this.firstPlay) {
-            this.firstPlay = false;
-            return;
+          if (this.firstFullSnapshot) {
+            if (this.firstFullSnapshot === event) {
+              // we've already built this exact FullSnapshot when the player was mounted, and haven't built any other FullSnapshot since
+              this.firstFullSnapshot = true; // forget as we might need to re-execute this FullSnapshot later e.g. to rebuild after scrubbing
+              return;
+            }
+          } else {
+            // Timer (requestAnimationFrame) can be faster than setTimeout(..., 1)
+            this.firstFullSnapshot = true;
           }
           this.rebuildFullSnapshot(event, isSync);
           this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
@@ -575,6 +574,39 @@ export class Replayer {
             return;
           }
           this.handleInactivity(event.timestamp);
+          if (event === this.nextUserInteractionEvent) {
+            this.nextUserInteractionEvent = null;
+            this.backToNormal();
+          }
+          if (this.config.skipInactive && !this.nextUserInteractionEvent) {
+            for (const _event of this.service.state.context.events) {
+              if (_event.timestamp! <= event.timestamp!) {
+                continue;
+              }
+              if (this.isUserInteraction(_event)) {
+                if (
+                  _event.delay! - event.delay! >
+                  SKIP_TIME_THRESHOLD *
+                    this.speedService.state.context.timer.speed
+                ) {
+                  this.nextUserInteractionEvent = _event;
+                }
+                break;
+              }
+            }
+            if (this.nextUserInteractionEvent) {
+              const skipTime =
+                this.nextUserInteractionEvent.delay! - event.delay!;
+              const payload = {
+                speed: Math.min(
+                  Math.round(skipTime / SKIP_TIME_INTERVAL),
+                  this.config.maxSpeed,
+                ),
+              };
+              this.speedService.send({ type: 'FAST_FORWARD', payload });
+              this.emitter.emit(ReplayerEvents.SkipStart, payload);
+            }
+          }
         };
         break;
       default:
@@ -583,14 +615,21 @@ export class Replayer {
       if (castFn) {
         castFn();
       }
+
+      for (const plugin of this.config.plugins || []) {
+        plugin.handler(event, isSync, { replayer: this });
+      }
+
       this.service.send({ type: 'CAST_EVENT', payload: { event } });
-      if (
-        event ===
-        this.service.state.context.events[
-          this.service.state.context.events.length - 1
-        ]
-      ) {
+
+      // events are kept sorted by timestamp, check if this is the last event
+      let last_index = this.service.state.context.events.length - 1;
+      if (event === this.service.state.context.events[last_index]) {
         const finish = () => {
+          if (last_index < this.service.state.context.events.length - 1) {
+            // more events have been added since the setTimeout
+            return;
+          }
           this.backToNormal();
           this.service.send('END');
           this.emitter.emit(ReplayerEvents.Finish);
@@ -660,11 +699,44 @@ export class Replayer {
       );
     }
     this.legacy_missingNodeRetryMap = {};
-    mirror.map = rebuild(event.data.node, {
+    const collected: AppendedIframe[] = [];
+    this.mirror.map = rebuild(event.data.node, {
       doc: this.iframe.contentDocument,
+      afterAppend: (builtNode) => {
+        this.collectIframeAndAttachDocument(collected, builtNode);
+      },
     })[1];
-    const styleEl = document.createElement('style');
+    for (const { mutationInQueue, builtNode } of collected) {
+      this.attachDocumentToIframe(mutationInQueue, builtNode);
+      this.newDocumentQueue = this.newDocumentQueue.filter(
+        (m) => m !== mutationInQueue,
+      );
+      if (builtNode.contentDocument) {
+        const { documentElement, head } = builtNode.contentDocument;
+        this.insertStyleRules(documentElement, head);
+      }
+    }
     const { documentElement, head } = this.iframe.contentDocument;
+    this.insertStyleRules(documentElement, head);
+    if (!this.service.state.matches('playing')) {
+      this.iframe.contentDocument
+        .getElementsByTagName('html')[0]
+        .classList.add('rrweb-paused');
+    }
+    this.emitter.emit(ReplayerEvents.FullsnapshotRebuilded, event);
+    if (!isSync) {
+      this.waitForStylesheetLoad();
+    }
+    if (this.config.UNSAFE_replayCanvas) {
+      this.preloadAllImages();
+    }
+  }
+
+  private insertStyleRules(
+    documentElement: HTMLElement,
+    head: HTMLHeadElement,
+  ) {
+    const styleEl = document.createElement('style');
     documentElement!.insertBefore(styleEl, head);
     const injectStylesRules = getInjectStyleRules(
       this.config.blockClass,
@@ -674,20 +746,62 @@ export class Replayer {
         'html.rrweb-paused * { animation-play-state: paused !important; }',
       );
     }
-    if (!this.service.state.matches('playing')) {
-      this.iframe.contentDocument
-        .getElementsByTagName('html')[0]
-        .classList.add('rrweb-paused');
-    }
     for (let idx = 0; idx < injectStylesRules.length; idx++) {
       (styleEl.sheet! as CSSStyleSheet).insertRule(injectStylesRules[idx], idx);
     }
-    this.emitter.emit(ReplayerEvents.FullsnapshotRebuilded, event);
-    if (!isSync) {
-      this.waitForStylesheetLoad();
+  }
+
+  private attachDocumentToIframe(
+    mutation: addedNodeMutation,
+    iframeEl: HTMLIFrameElement,
+  ) {
+    const collected: AppendedIframe[] = [];
+    // If iframeEl is detached from dom, iframeEl.contentDocument is null.
+    if (!iframeEl.contentDocument) {
+      let parent = iframeEl.parentNode;
+      while (parent) {
+        // The parent of iframeEl is virtual parent and we need to mount it on the dom.
+        if (this.fragmentParentMap.has((parent as unknown) as INode)) {
+          const frag = (parent as unknown) as INode;
+          const realParent = this.fragmentParentMap.get(frag)!;
+          this.restoreRealParent(frag, realParent);
+          break;
+        }
+        parent = parent.parentNode;
+      }
     }
-    if (this.config.UNSAFE_replayCanvas) {
-      this.preloadAllImages();
+    buildNodeWithSN(mutation.node, {
+      doc: iframeEl.contentDocument!,
+      map: this.mirror.map,
+      hackCss: true,
+      skipChild: false,
+      afterAppend: (builtNode) => {
+        this.collectIframeAndAttachDocument(collected, builtNode);
+      },
+    });
+    for (const { mutationInQueue, builtNode } of collected) {
+      this.attachDocumentToIframe(mutationInQueue, builtNode);
+      this.newDocumentQueue = this.newDocumentQueue.filter(
+        (m) => m !== mutationInQueue,
+      );
+      if (builtNode.contentDocument) {
+        const { documentElement, head } = builtNode.contentDocument;
+        this.insertStyleRules(documentElement, head);
+      }
+    }
+  }
+
+  private collectIframeAndAttachDocument(
+    collected: AppendedIframe[],
+    builtNode: INode,
+  ) {
+    if (isIframeINode(builtNode)) {
+      const mutationInQueue = this.newDocumentQueue.find(
+        (m) => m.parentId === builtNode.__sn.id,
+      );
+      if (mutationInQueue) {
+        collected.push({ mutationInQueue, builtNode });
+      }
     }
   }
 
@@ -757,10 +871,6 @@ export class Replayer {
     };
     this.emitter.on(ReplayerEvents.Start, stateHandler);
     this.emitter.on(ReplayerEvents.Pause, stateHandler);
-    const unsubscribe = () => {
-      this.emitter.off(ReplayerEvents.Start, stateHandler);
-      this.emitter.off(ReplayerEvents.Pause, stateHandler);
-    };
     let count = 0;
     let resolved = 0;
     for (const event of this.service.state.context.events) {
@@ -772,18 +882,12 @@ export class Replayer {
         !this.imageMap.has(event)
       ) {
         count++;
-        const image = document.createElement('img');
-        image.src = event.data.args[0];
-        this.imageMap.set(event, image);
-        image.onload = () => {
-          resolved++;
-          if (resolved === count) {
-            if (beforeLoadState.matches('playing')) {
-              this.play(this.getCurrentTime());
-            }
-            unsubscribe();
-          }
-        };
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const imgd = ctx?.createImageData(canvas.width, canvas.height);
+        let d = imgd?.data;
+        d = JSON.parse(event.data.args[0]);
+        ctx?.putImageData(imgd!, 0, 0);
       }
     }
     if (count !== resolved) {
@@ -802,11 +906,13 @@ export class Replayer {
           d.adds.forEach((m) => this.treeIndex.add(m));
           d.texts.forEach((m) => this.treeIndex.text(m));
           d.attributes.forEach((m) => this.treeIndex.attribute(m));
-          d.removes.forEach((m) => this.treeIndex.remove(m));
+          d.removes.forEach((m) => this.treeIndex.remove(m, this.mirror));
         }
         this.applyMutation(d, isSync);
         break;
       }
+      case IncrementalSource.Drag:
+      case IncrementalSource.TouchMove:
       case IncrementalSource.MouseMove:
         if (isSync) {
           const lastPosition = d.positions[d.positions.length - 1];
@@ -839,7 +945,7 @@ export class Replayer {
           break;
         }
         const event = new Event(MouseInteractions[d.type].toLowerCase());
-        const target = mirror.getNode(d.id);
+        const target = this.mirror.getNode(d.id);
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
@@ -922,23 +1028,24 @@ export class Replayer {
         break;
       }
       case IncrementalSource.MediaInteraction: {
-        const target = mirror.getNode(d.id);
+        const target = this.mirror.getNode(d.id);
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
         const mediaEl = target as Node as HTMLMediaElement;
         try {
+          if (d.currentTime) {
+            mediaEl.currentTime = d.currentTime;
+          }
           if (d.type === MediaInteractions.Pause) {
             mediaEl.pause();
           }
           if (d.type === MediaInteractions.Play) {
-            if (mediaEl.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-              mediaEl.play();
-            } else {
-              mediaEl.addEventListener('canplay', () => {
-                mediaEl.play();
-              });
-            }
+            // remove listener for 'canplay' event because play() is async and returns a promise
+            // i.e. media will evntualy start to play when data is loaded
+            // 'canplay' event fires even when currentTime attribute changes which may lead to
+            // unexpeted behavior
+            mediaEl.play();
           }
         } catch (error) {
           if (this.config.showWarning) {
@@ -950,7 +1057,7 @@ export class Replayer {
         break;
       }
       case IncrementalSource.StyleSheetRule: {
-        const target = mirror.getNode(d.id);
+        const target = this.mirror.getNode(d.id);
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
@@ -1025,14 +1132,13 @@ export class Replayer {
             }
           });
         }
-
         break;
       }
       case IncrementalSource.CanvasMutation: {
         if (!this.config.UNSAFE_replayCanvas) {
           return;
         }
-        const target = mirror.getNode(d.id);
+        const target = this.mirror.getNode(d.id);
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
@@ -1081,36 +1187,30 @@ export class Replayer {
         }
         break;
       }
-      case IncrementalSource.Log: {
-        try {
-          const logData = e.data as logData;
-          const replayLogger = this.config.logConfig.replayLogger!;
-          if (typeof replayLogger[logData.level] === 'function')
-            replayLogger[logData.level]!(logData);
-        } catch (error) {
-          if (this.config.showWarning) {
-            console.warn(error);
-          }
-        }
-      }
       default:
     }
   }
 
   private applyMutation(d: mutationData, useVirtualParent: boolean) {
     d.removes.forEach((mutation) => {
-      const target = mirror.getNode(mutation.id);
+      const target = this.mirror.getNode(mutation.id);
       if (!target) {
         return this.warnNodeNotFound(d, mutation.id);
       }
-      const parent = mirror.getNode(mutation.parentId);
+      let parent: INode | null | ShadowRoot = this.mirror.getNode(
+        mutation.parentId,
+      );
       if (!parent) {
         return this.warnNodeNotFound(d, mutation.parentId);
       }
+      if (mutation.isShadow && hasShadowRoot(parent)) {
+        parent = parent.shadowRoot;
+      }
       // target may be removed with its parents before
-      mirror.removeNodeFromMap(target);
+      this.mirror.removeNodeFromMap(target);
       if (parent) {
-        const realParent = this.fragmentParentMap.get(parent);
+        const realParent =
+          '__sn' in parent ? this.fragmentParentMap.get(parent) : undefined;
         if (realParent && realParent.contains(target)) {
           realParent.removeChild(target);
         } else if (this.fragmentParentMap.has(target)) {
@@ -1134,10 +1234,10 @@ export class Replayer {
     const queue: addedNodeMutation[] = [];
 
     // next not present at this moment
-    function nextNotInDOM(mutation: addedNodeMutation) {
+    const nextNotInDOM = (mutation: addedNodeMutation) => {
       let next: Node | null = null;
       if (mutation.nextId) {
-        next = mirror.getNode(mutation.nextId) as Node;
+        next = this.mirror.getNode(mutation.nextId) as Node;
       }
       // next not present at this moment
       if (
@@ -1149,14 +1249,20 @@ export class Replayer {
         return true;
       }
       return false;
-    }
+    };
 
     const appendNode = (mutation: addedNodeMutation) => {
       if (!this.iframe.contentDocument) {
         return console.warn('Looks like your replayer has been destroyed.');
       }
-      let parent = mirror.getNode(mutation.parentId);
+      let parent: INode | null | ShadowRoot = this.mirror.getNode(
+        mutation.parentId,
+      );
       if (!parent) {
+        if (mutation.node.type === NodeType.Document) {
+          // is newly added document, maybe the document node of an iframe
+          return this.newDocumentQueue.push(mutation);
+        }
         return queue.push(mutation);
       }
 
@@ -1169,10 +1275,21 @@ export class Replayer {
         parentInDocument = this.iframe.contentDocument.body.contains(parent);
       }
 
-      if (useVirtualParent && parentInDocument) {
-        const virtualParent =
-          document.createDocumentFragment() as unknown as INode;
-        mirror.map[mutation.parentId] = virtualParent;
+      const hasIframeChild =
+        ((parent as unknown) as HTMLElement).getElementsByTagName?.('iframe')
+          .length > 0;
+      /**
+       * Why !isIframeINode(parent)? If parent element is an iframe, iframe document can't be appended to virtual parent.
+       * Why !hasIframeChild? If we move iframe elements from dom to fragment document, we will lose the contentDocument of iframe. So we need to disable the virtual dom optimization if a parent node contains iframe elements.
+       */
+      if (
+        useVirtualParent &&
+        parentInDocument &&
+        !isIframeINode(parent) &&
+        !hasIframeChild
+      ) {
+        const virtualParent = (document.createDocumentFragment() as unknown) as INode;
+        this.mirror.map[mutation.parentId] = virtualParent;
         this.fragmentParentMap.set(virtualParent, parent);
 
         // store the state, like scroll position, of child nodes before they are unmounted from dom
@@ -1184,24 +1301,39 @@ export class Replayer {
         parent = virtualParent;
       }
 
+      if (mutation.node.isShadow && hasShadowRoot(parent)) {
+        parent = parent.shadowRoot;
+      }
+
       let previous: Node | null = null;
       let next: Node | null = null;
       if (mutation.previousId) {
-        previous = mirror.getNode(mutation.previousId) as Node;
+        previous = this.mirror.getNode(mutation.previousId) as Node;
       }
       if (mutation.nextId) {
-        next = mirror.getNode(mutation.nextId) as Node;
+        next = this.mirror.getNode(mutation.nextId) as Node;
       }
       if (nextNotInDOM(mutation)) {
         return queue.push(mutation);
       }
 
+      if (mutation.node.rootId && !this.mirror.getNode(mutation.node.rootId)) {
+        return;
+      }
+
+      const targetDoc = mutation.node.rootId
+        ? this.mirror.getNode(mutation.node.rootId)
+        : this.iframe.contentDocument;
+      if (isIframeINode(parent)) {
+        this.attachDocumentToIframe(mutation, parent);
+        return;
+      }
       const target = buildNodeWithSN(mutation.node, {
-        doc: this.iframe.contentDocument,
-        map: mirror.map,
+        doc: targetDoc as Document,
+        map: this.mirror.map,
         skipChild: true,
         hackCss: true,
-      }) as Node;
+      }) as INode;
 
       // legacy data, we should not have -1 siblings any more
       if (mutation.previousId === -1 || mutation.nextId === -1) {
@@ -1221,7 +1353,32 @@ export class Replayer {
           ? parent.insertBefore(target, next)
           : parent.insertBefore(target, null);
       } else {
+        /**
+         * Sometimes the document changes and the MutationObserver is disconnected, so the removal of child elements can't be detected and recorded. After the change of document, we may get another mutation which adds a new html element, while the old html element still exists in the dom, and we need to remove the old html element first to avoid collision.
+         */
+        if (parent === targetDoc) {
+          while (targetDoc.firstChild) {
+            targetDoc.removeChild(targetDoc.firstChild);
+          }
+        }
+
         parent.appendChild(target);
+      }
+
+      if (isIframeINode(target)) {
+        const mutationInQueue = this.newDocumentQueue.find(
+          (m) => m.parentId === target.__sn.id,
+        );
+        if (mutationInQueue) {
+          this.attachDocumentToIframe(mutationInQueue, target);
+          this.newDocumentQueue = this.newDocumentQueue.filter(
+            (m) => m !== mutationInQueue,
+          );
+        }
+        if (target.contentDocument) {
+          const { documentElement, head } = target.contentDocument;
+          this.insertStyleRules(documentElement, head);
+        }
       }
 
       if (mutation.previousId || mutation.nextId) {
@@ -1251,7 +1408,7 @@ export class Replayer {
         break;
       }
       for (const tree of resolveTrees) {
-        let parent = mirror.getNode(tree.value.parentId);
+        let parent = this.mirror.getNode(tree.value.parentId);
         if (!parent) {
           this.debug(
             'Drop resolve tree since there is no parent for the root node.',
@@ -1270,7 +1427,7 @@ export class Replayer {
     }
 
     d.texts.forEach((mutation) => {
-      let target = mirror.getNode(mutation.id);
+      let target = this.mirror.getNode(mutation.id);
       if (!target) {
         return this.warnNodeNotFound(d, mutation.id);
       }
@@ -1283,7 +1440,7 @@ export class Replayer {
       target.textContent = mutation.value;
     });
     d.attributes.forEach((mutation) => {
-      let target = mirror.getNode(mutation.id);
+      let target = this.mirror.getNode(mutation.id);
       if (!target) {
         return this.warnNodeNotFound(d, mutation.id);
       }
@@ -1313,7 +1470,7 @@ export class Replayer {
   }
 
   private applyScroll(d: scrollData) {
-    const target = mirror.getNode(d.id);
+    const target = this.mirror.getNode(d.id);
     if (!target) {
       return this.debugNodeNotFound(d, d.id);
     }
@@ -1337,7 +1494,7 @@ export class Replayer {
   }
 
   private applyInput(d: inputData) {
-    const target = mirror.getNode(d.id);
+    const target = this.mirror.getNode(d.id);
     if (!target) {
       return this.debugNodeNotFound(d, d.id);
     }
@@ -1347,48 +1504,6 @@ export class Replayer {
     } catch (error) {
       // for safe
     }
-  }
-
-  /**
-   * format the trace data to a string
-   * @param data the log data
-   */
-  private formatMessage(data: logData): string {
-    if (data.trace.length === 0) return '';
-    const stackPrefix = '\n\tat ';
-    let result = stackPrefix;
-    result += data.trace.join(stackPrefix);
-    return result;
-  }
-
-  /**
-   * generate a console log replayer which implement the interface ReplayLogger
-   */
-  private getConsoleLogger(): ReplayLogger {
-    const rrwebOriginal = '__rrweb_original__';
-    const replayLogger: ReplayLogger = {};
-    for (const level of this.config.logConfig.level!)
-      if (level === 'trace')
-        replayLogger[level] = (data: logData) => {
-          const logger = (console.log as any)[rrwebOriginal]
-            ? (console.log as any)[rrwebOriginal]
-            : console.log;
-          logger(
-            ...data.payload.map((s) => JSON.parse(s)),
-            this.formatMessage(data),
-          );
-        };
-      else
-        replayLogger[level] = (data: logData) => {
-          const logger = (console[level] as any)[rrwebOriginal]
-            ? (console[level] as any)[rrwebOriginal]
-            : console[level];
-          logger(
-            ...data.payload.map((s) => JSON.parse(s)),
-            this.formatMessage(data),
-          );
-        };
-    return replayLogger;
   }
 
   private legacy_resolveMissingNode(
@@ -1421,15 +1536,19 @@ export class Replayer {
   }
 
   private moveAndHover(d: incrementalData, x: number, y: number, id: number) {
-    this.mouse.style.left = `${x}px`;
-    this.mouse.style.top = `${y}px`;
-    this.drawMouseTail({ x, y });
-
-    const target = mirror.getNode(id);
+    const target = this.mirror.getNode(id);
     if (!target) {
       return this.debugNodeNotFound(d, id);
     }
-    this.hoverElements(target as Node as Element);
+
+    const base = getBaseDimension(target, this.iframe);
+    const _x = x * base.absoluteScale + base.x;
+    const _y = y * base.absoluteScale + base.y;
+
+    this.mouse.style.left = `${_x}px`;
+    this.mouse.style.top = `${_y}px`;
+    this.drawMouseTail({ x: _x, y: _y });
+    this.hoverElements((target as Node) as Element);
   }
 
   private drawMouseTail(position: { x: number; y: number }) {
@@ -1505,6 +1624,29 @@ export class Replayer {
   }
 
   /**
+   * Replace the virtual parent with the real parent.
+   * @param frag fragment document, the virtual parent
+   * @param parent real parent element
+   */
+  private restoreRealParent(frag: INode, parent: INode) {
+    this.mirror.map[parent.__sn.id] = parent;
+    /**
+     * If we have already set value attribute on textarea,
+     * then we could not apply text content as default value any more.
+     */
+    if (
+      parent.__sn.type === NodeType.Element &&
+      parent.__sn.tagName === 'textarea' &&
+      frag.textContent
+    ) {
+      ((parent as unknown) as HTMLTextAreaElement).value = frag.textContent;
+    }
+    parent.appendChild(frag);
+    // restore state of elements after they are mounted
+    this.restoreState(parent);
+  }
+
+  /**
    * store state of elements before unmounted from dom recursively
    * the state should be restored in the handler of event ReplayerEvents.Flush
    * e.g. browser would lose scroll position after the process that we add children of parent node to Fragment Document as virtual dom
@@ -1561,7 +1703,7 @@ export class Replayer {
 
     if (!storedRules) return;
 
-    const styleNode = node as unknown as HTMLStyleElement;
+    const styleNode = (node as unknown) as HTMLStyleElement;
 
     applyVirtualStyleRulesToNode(storedRules, styleNode);
   }

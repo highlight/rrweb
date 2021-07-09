@@ -7,6 +7,7 @@ import {
   idNodeMap,
   INode,
 } from './types';
+import { isElement } from './utils';
 
 const tagMap: tagMap = {
   script: 'noscript',
@@ -56,26 +57,53 @@ function getTagName(n: elementNode): string {
   return tagName;
 }
 
-const HOVER_SELECTOR = /([^\\]):hover/g;
+// based on https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#escaping
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
+const HOVER_SELECTOR = /([^\\]):hover/;
+const HOVER_SELECTOR_GLOBAL = new RegExp(HOVER_SELECTOR, 'g');
 export function addHoverClass(cssText: string): string {
   if (!window.HIG_CONFIGURATION?.enableOnHoverClass) {
     return cssText;
   }
-  const ast = parse(cssText, { silent: true });
+  const ast = parse(cssText, {
+    silent: true,
+  });
+
   if (!ast.stylesheet) {
     return cssText;
   }
+
+  const selectors: string[] = [];
   ast.stylesheet.rules.forEach((rule) => {
     if ('selectors' in rule) {
       (rule.selectors || []).forEach((selector: string) => {
         if (HOVER_SELECTOR.test(selector)) {
-          const newSelector = selector.replace(HOVER_SELECTOR, '$1.\\:hover');
-          cssText = cssText.replace(selector, `${selector}, ${newSelector}`);
+          selectors.push(selector);
         }
       });
     }
   });
-  return cssText;
+
+  if (selectors.length === 0) return cssText;
+
+  const selectorMatcher = new RegExp(
+    selectors
+      .filter((selector, index) => selectors.indexOf(selector) === index)
+      .sort((a, b) => b.length - a.length)
+      .map((selector) => {
+        return escapeRegExp(selector);
+      })
+      .join('|'),
+    'g',
+  );
+
+  return cssText.replace(selectorMatcher, (selector) => {
+    const newSelector = selector.replace(HOVER_SELECTOR_GLOBAL, '$1.\\:hover');
+    return `${selector}, ${newSelector}`;
+  });
 }
 
 function buildNode(
@@ -129,9 +157,7 @@ function buildNode(
             node.appendChild(child);
             continue;
           }
-          if (tagName === 'iframe' && name === 'src') {
-            continue;
-          }
+
           try {
             if (n.isSVG && name === 'xlink:href') {
               node.setAttributeNS('http://www.w3.org/1999/xlink', name, value);
@@ -144,6 +170,15 @@ function buildNode(
               // as setting them triggers a console.error (which shows up despite the try/catch)
               // Assumption: these attributes are not used to css
               node.setAttribute('_' + name, value);
+            } else if (
+              tagName === 'meta' &&
+              n.attributes['http-equiv'] === 'Content-Security-Policy' &&
+              name == 'content'
+            ) {
+              // If CSP contains style-src and inline-style is disabled, there will be an error "Refused to apply inline style because it violates the following Content Security Policy directive: style-src '*'".
+              // And the function insertStyleRules in rrweb replayer will throw an error "Uncaught TypeError: Cannot read property 'insertRule' of null".
+              node.setAttribute('csp-content', value);
+              continue;
             } else {
               node.setAttribute(name, value);
             }
@@ -168,15 +203,41 @@ function buildNode(
           if (name === 'rr_height') {
             (node as HTMLElement).style.height = value;
           }
+          if (name === 'rr_mediaCurrentTime') {
+            (node as HTMLMediaElement).currentTime = n.attributes
+              .rr_mediaCurrentTime as number;
+          }
           if (name === 'rr_mediaState') {
             switch (value) {
               case 'played':
-                (node as HTMLMediaElement).play();
+                (node as HTMLMediaElement)
+                  .play()
+                  .catch((e) => console.warn('media playback error', e));
+                break;
               case 'paused':
                 (node as HTMLMediaElement).pause();
                 break;
               default:
             }
+          }
+        }
+      }
+      if (n.isShadowHost) {
+        /**
+         * Since node is newly rebuilt, it should be a normal element
+         * without shadowRoot.
+         * But if there are some weird situations that has defined
+         * custom element in the scope before we rebuild node, it may
+         * register the shadowRoot earlier.
+         * The logic in the 'else' block is just a try-my-best solution
+         * for the corner case, please let we know if it is wrong and
+         * we can remove it.
+         */
+        if (!node.shadowRoot) {
+          node.attachShadow({ mode: 'open' });
+        } else {
+          while (node.shadowRoot.firstChild) {
+            node.shadowRoot.removeChild(node.shadowRoot.firstChild);
           }
         }
       }
@@ -201,12 +262,19 @@ export function buildNodeWithSN(
     map: idNodeMap;
     skipChild?: boolean;
     hackCss: boolean;
+    afterAppend?: (n: INode) => unknown;
   },
 ): INode | null {
-  const { doc, map, skipChild = false, hackCss = true } = options;
+  const { doc, map, skipChild = false, hackCss = true, afterAppend } = options;
   let node = buildNode(n, { doc, hackCss });
   if (!node) {
     return null;
+  }
+  if (n.rootId) {
+    console.assert(
+      (map[n.rootId] as unknown as Document) === doc,
+      'Target document should has the same root id.',
+    );
   }
   // use target document as root document
   if (n.type === NodeType.Document) {
@@ -218,6 +286,7 @@ export function buildNodeWithSN(
 
   (node as INode).__sn = n;
   map[n.id] = node as INode;
+
   if (
     (n.type === NodeType.Document || n.type === NodeType.Element) &&
     !skipChild
@@ -228,14 +297,24 @@ export function buildNodeWithSN(
         map,
         skipChild: false,
         hackCss,
+        afterAppend,
       });
       if (!childNode) {
         console.warn('Failed to rebuild', childN);
+        continue;
+      }
+
+      if (childN.isShadow && isElement(node) && node.shadowRoot) {
+        node.shadowRoot.appendChild(childNode);
       } else {
         node.appendChild(childNode);
       }
+      if (afterAppend) {
+        afterAppend(childNode);
+      }
     }
   }
+
   return node as INode;
 }
 
@@ -256,7 +335,7 @@ function handleScroll(node: INode) {
   if (n.type !== NodeType.Element) {
     return;
   }
-  const el = (node as Node) as HTMLElement;
+  const el = node as Node as HTMLElement;
   for (const name in n.attributes) {
     if (!(n.attributes.hasOwnProperty(name) && name.startsWith('rr_'))) {
       continue;
@@ -277,15 +356,17 @@ function rebuild(
     doc: Document;
     onVisit?: (node: INode) => unknown;
     hackCss?: boolean;
+    afterAppend?: (n: INode) => unknown;
   },
 ): [Node | null, idNodeMap] {
-  const { doc, onVisit, hackCss = true } = options;
+  const { doc, onVisit, hackCss = true, afterAppend } = options;
   const idNodeMap: idNodeMap = {};
   const node = buildNodeWithSN(n, {
     doc,
     map: idNodeMap,
     skipChild: false,
     hackCss,
+    afterAppend,
   });
   visit(idNodeMap, (visitedNode) => {
     if (onVisit) {

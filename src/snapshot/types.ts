@@ -47,13 +47,18 @@ export type commentNode = {
   textContent: string;
 };
 
-export type serializedNode =
+export type serializedNode = (
   | documentNode
   | documentTypeNode
   | elementNode
   | textNode
   | cdataNode
-  | commentNode;
+  | commentNode
+) & {
+  rootId?: number;
+  isShadowHost?: boolean;
+  isShadow?: boolean;
+};
 
 export type serializedNodeWithId = serializedNode & { id: number };
 
@@ -86,6 +91,7 @@ export type MaskInputOptions = Partial<{
   // unify textarea and select element with text input
   textarea: boolean;
   select: boolean;
+  password: boolean;
 }>;
 
 export type SlimDOMOptions = Partial<{
@@ -100,3 +106,8 @@ export type SlimDOMOptions = Partial<{
   headMetaAuthorship: boolean;
   headMetaVerification: boolean;
 }>;
+
+export type MaskTextFn = (text: string) => string;
+export type MaskInputFn = (text: string) => string;
+
+export type KeepIframeSrcFn = (src: string) => boolean;

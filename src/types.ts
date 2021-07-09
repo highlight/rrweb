@@ -4,9 +4,14 @@ import {
   INode,
   MaskInputOptions,
   SlimDOMOptions,
+  MaskInputFn,
+  MaskTextFn,
 } from './snapshot';
 import { PackFn, UnpackFn } from './packer/base';
 import { FontFaceDescriptors } from 'css-font-loading-module';
+import { IframeManager } from './record/iframe-manager';
+import { ShadowDomManager } from './record/shadow-dom-manager';
+import type { Replayer } from './replay';
 
 export enum EventType {
   DomContentLoaded,
@@ -15,6 +20,7 @@ export enum EventType {
   IncrementalSnapshot,
   Meta,
   Custom,
+  Plugin,
 }
 
 export type SessionInterval = {
@@ -59,15 +65,18 @@ export type metaEvent = {
   };
 };
 
-export type logEvent = {
-  type: EventType.IncrementalSnapshot;
-  data: incrementalData;
-};
-
 export type customEvent<T = unknown> = {
   type: EventType.Custom;
   data: {
     tag: string;
+    payload: T;
+  };
+};
+
+export type pluginEvent<T = unknown> = {
+  type: EventType.Plugin;
+  data: {
+    plugin: string;
     payload: T;
   };
 };
@@ -87,6 +96,7 @@ export enum IncrementalSource {
   CanvasMutation,
   Font,
   Log,
+  Drag,
 }
 
 export type mutationData = {
@@ -94,7 +104,10 @@ export type mutationData = {
 } & mutationCallbackParam;
 
 export type mousemoveData = {
-  source: IncrementalSource.MouseMove | IncrementalSource.TouchMove;
+  source:
+    | IncrementalSource.MouseMove
+    | IncrementalSource.TouchMove
+    | IncrementalSource.Drag;
   positions: mousePosition[];
 };
 
@@ -108,7 +121,7 @@ export type scrollData = {
 
 export type viewportResizeData = {
   source: IncrementalSource.ViewportResize;
-} & viewportResizeDimention;
+} & viewportResizeDimension;
 
 export type inputData = {
   source: IncrementalSource.Input;
@@ -131,10 +144,6 @@ export type fontData = {
   source: IncrementalSource.Font;
 } & fontParam;
 
-export type logData = {
-  source: IncrementalSource.Log;
-} & LogParam;
-
 export type incrementalData =
   | mutationData
   | mousemoveData
@@ -145,8 +154,7 @@ export type incrementalData =
   | mediaInteractionData
   | styleSheetRuleData
   | canvasMutationData
-  | fontData
-  | logData;
+  | fontData;
 
 export type event =
   | domContentLoadedEvent
@@ -154,8 +162,8 @@ export type event =
   | fullSnapshotEvent
   | incrementalSnapshotEvent
   | metaEvent
-  | logEvent
-  | customEvent;
+  | customEvent
+  | pluginEvent;
 
 export type eventWithTime = event & {
   timestamp: number;
@@ -164,12 +172,18 @@ export type eventWithTime = event & {
 
 export type blockClass = string | RegExp;
 
+export type maskTextClass = string | RegExp;
+
 export type SamplingStrategy = Partial<{
   /**
    * false means not to record mouse/touch move events
    * number is the throttle threshold of recording mouse/touch move
    */
   mousemove: boolean | number;
+  /**
+   * number is the throttle threshold of mouse/touch move callback
+   */
+  mousemoveCallback: number;
   /**
    * false means not to record mouse interaction events
    * can also specify record some kinds of mouse interactions
@@ -186,6 +200,12 @@ export type SamplingStrategy = Partial<{
   input: 'all' | 'last';
 }>;
 
+export type RecordPlugin<TOptions = unknown> = {
+  name: string;
+  observer: (cb: Function, options: TOptions) => listenerHandler;
+  options: TOptions;
+};
+
 export type recordOptions<T> = {
   emit?: (e: T, isCheckout?: boolean) => void;
   checkoutEveryNth?: number;
@@ -193,24 +213,24 @@ export type recordOptions<T> = {
   blockClass?: blockClass;
   blockSelector?: string;
   ignoreClass?: string;
+  maskTextClass?: maskTextClass;
+  maskTextSelector?: string;
   maskAllInputs?: boolean;
   maskInputOptions?: MaskInputOptions;
   maskInputFn?: MaskInputFn;
+  maskTextFn?: MaskTextFn;
   slimDOMOptions?: SlimDOMOptions | 'all' | true;
   inlineStylesheet?: boolean;
   hooks?: hooksParam;
   packFn?: PackFn;
   sampling?: SamplingStrategy;
   recordCanvas?: boolean;
+  userTriggeredOnInput?: boolean;
   collectFonts?: boolean;
+  plugins?: RecordPlugin[];
   // departed, please use sampling options
   mousemoveWait?: number;
-  recordLog?: boolean | LogRecordOptions;
-  debug?: boolean;
-  /**
-   * Enabling this will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
-   * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
-   */
+  keepIframeSrcFn?: KeepIframeSrcFn;
   enableStrictPrivacy?: boolean;
 };
 
@@ -225,18 +245,29 @@ export type observerParam = {
   blockClass: blockClass;
   blockSelector: string | null;
   ignoreClass: string;
+  maskTextClass: maskTextClass;
+  maskTextSelector: string | null;
   maskInputOptions: MaskInputOptions;
   maskInputFn?: MaskInputFn;
+  maskTextFn?: MaskTextFn;
   inlineStylesheet: boolean;
   styleSheetRuleCb: styleSheetRuleCallback;
   canvasMutationCb: canvasMutationCallback;
   fontCb: fontCallback;
-  logCb: logCallback;
-  logOptions: LogRecordOptions;
   sampling: SamplingStrategy;
   recordCanvas: boolean;
+  userTriggeredOnInput: boolean;
   collectFonts: boolean;
   slimDOMOptions: SlimDOMOptions;
+  doc: Document;
+  mirror: Mirror;
+  iframeManager: IframeManager;
+  shadowDomManager: ShadowDomManager;
+  plugins: Array<{
+    observer: Function;
+    callback: Function;
+    options: unknown;
+  }>;
   enableStrictPrivacy: boolean;
 };
 
@@ -251,7 +282,6 @@ export type hooksParam = {
   styleSheetRule?: styleSheetRuleCallback;
   canvasMutation?: canvasMutationCallback;
   font?: fontCallback;
-  log?: logCallback;
 };
 
 // https://dom.spec.whatwg.org/#interface-mutationrecord
@@ -289,6 +319,7 @@ export type attributeMutation = {
 export type removedNodeMutation = {
   parentId: number;
   id: number;
+  isShadow?: boolean;
 };
 
 export type addedNodeMutation = {
@@ -299,18 +330,22 @@ export type addedNodeMutation = {
   node: serializedNodeWithId;
 };
 
-type mutationCallbackParam = {
+export type mutationCallbackParam = {
   texts: textMutation[];
   attributes: attributeMutation[];
   removes: removedNodeMutation[];
   adds: addedNodeMutation[];
+  isAttachIframe?: true;
 };
 
 export type mutationCallBack = (m: mutationCallbackParam) => void;
 
 export type mousemoveCallBack = (
   p: mousePosition[],
-  source: IncrementalSource.MouseMove | IncrementalSource.TouchMove,
+  source:
+    | IncrementalSource.MouseMove
+    | IncrementalSource.TouchMove
+    | IncrementalSource.Drag,
 ) => void;
 
 export type mousePosition = {
@@ -383,77 +418,24 @@ export type fontParam = {
   descriptors?: FontFaceDescriptors;
 };
 
-export type LogLevel =
-  | 'assert'
-  | 'clear'
-  | 'count'
-  | 'countReset'
-  | 'debug'
-  | 'dir'
-  | 'dirxml'
-  | 'error'
-  | 'group'
-  | 'groupCollapsed'
-  | 'groupEnd'
-  | 'info'
-  | 'log'
-  | 'table'
-  | 'time'
-  | 'timeEnd'
-  | 'timeLog'
-  | 'trace'
-  | 'warn';
-
-/* fork from interface Console */
-// all kinds of console functions
-export type Logger = {
-  assert?: (value: any, message?: string, ...optionalParams: any[]) => void;
-  clear?: () => void;
-  count?: (label?: string) => void;
-  countReset?: (label?: string) => void;
-  debug?: (message?: any, ...optionalParams: any[]) => void;
-  dir?: (obj: any, options?: NodeJS.InspectOptions) => void;
-  dirxml?: (...data: any[]) => void;
-  error?: (message?: any, ...optionalParams: any[]) => void;
-  group?: (...label: any[]) => void;
-  groupCollapsed?: (label?: any[]) => void;
-  groupEnd?: () => void;
-  info?: (message?: any, ...optionalParams: any[]) => void;
-  log?: (message?: any, ...optionalParams: any[]) => void;
-  table?: (tabularData: any, properties?: ReadonlyArray<string>) => void;
-  time?: (label?: string) => void;
-  timeEnd?: (label?: string) => void;
-  timeLog?: (label?: string, ...data: any[]) => void;
-  trace?: (message?: any, ...optionalParams: any[]) => void;
-  warn?: (message?: any, ...optionalParams: any[]) => void;
-};
-
-/**
- * define an interface to replay log records
- * (data: logData) => void> function to display the log data
- */
-export type ReplayLogger = Partial<Record<LogLevel, (data: logData) => void>>;
-
-export type LogParam = {
-  level: LogLevel;
-  trace: Array<string>;
-  payload: Array<string>;
-};
-
 export type fontCallback = (p: fontParam) => void;
 
-export type logCallback = (p: LogParam) => void;
-
-export type viewportResizeDimention = {
+export type viewportResizeDimension = {
   width: number;
   height: number;
 };
 
-export type viewportResizeCallback = (d: viewportResizeDimention) => void;
+export type viewportResizeCallback = (d: viewportResizeDimension) => void;
 
 export type inputValue = {
   text: string;
   isChecked: boolean;
+
+  // `userTriggered` indicates if this event was triggered directly by user (userTriggered: true)
+  // or was triggered indirectly (userTriggered: false)
+  // Example of `userTriggered` in action:
+  // User clicks on radio element (userTriggered: true) which triggers the other radio element to change (userTriggered: false)
+  userTriggered?: boolean;
 };
 
 export type inputCallback = (v: inputValue & { id: number }) => void;
@@ -461,14 +443,25 @@ export type inputCallback = (v: inputValue & { id: number }) => void;
 export const enum MediaInteractions {
   Play,
   Pause,
+  Seeked,
 }
 
 export type mediaInteractionParam = {
   type: MediaInteractions;
   id: number;
+  currentTime?: number;
 };
 
 export type mediaInteractionCallback = (p: mediaInteractionParam) => void;
+
+export type DocumentDimension = {
+  x: number;
+  y: number;
+  // scale value relative to its parent iframe
+  relativeScale: number;
+  // scale value relative to the root iframe
+  absoluteScale: number;
+};
 
 export type Mirror = {
   map: idNodeMap;
@@ -476,6 +469,7 @@ export type Mirror = {
   getNode: (id: number) => INode | null;
   removeNodeFromMap: (n: INode) => void;
   has: (id: number) => boolean;
+  reset: () => void;
 };
 
 export type throttleOptions = {
@@ -486,8 +480,16 @@ export type throttleOptions = {
 export type listenerHandler = () => void;
 export type hookResetter = () => void;
 
+export type ReplayPlugin = {
+  handler: (
+    event: eventWithTime,
+    isSync: boolean,
+    context: { replayer: Replayer },
+  ) => void;
+};
 export type playerConfig = {
   speed: number;
+  maxSpeed: number;
   root: Element;
   loadTimeout: number;
   skipInactive: boolean;
@@ -499,6 +501,7 @@ export type playerConfig = {
   triggerFocus: boolean;
   UNSAFE_replayCanvas: boolean;
   pauseAnimation?: boolean;
+  userTriggeredOnInput: boolean;
   mouseTail:
     | boolean
     | {
@@ -508,14 +511,9 @@ export type playerConfig = {
         strokeStyle?: string;
       };
   unpackFn?: UnpackFn;
-  logConfig: LogReplayConfig;
+  plugins?: ReplayPlugin[];
   inactiveThreshold: number;
   inactiveSkipTime: number;
-};
-
-export type LogReplayConfig = {
-  level?: Array<LogLevel> | undefined;
-  replayLogger: ReplayLogger | undefined;
 };
 
 export type playerMetaData = {
@@ -565,9 +563,8 @@ export enum ReplayerEvents {
   CustomEvent = 'custom-event',
   Flush = 'flush',
   StateChange = 'state-change',
+  PlayBack = 'play-back',
 }
-
-export type MaskInputFn = (text: string) => string;
 
 // store the state that would be changed during the process(unmount from dom and mount again)
 export type ElementState = {
@@ -575,22 +572,7 @@ export type ElementState = {
   scroll?: [number, number];
 };
 
-export type StringifyOptions = {
-  // limit of string length
-  stringLengthLimit?: number;
-  /**
-   * limit of number of keys in an object
-   * if an object contains more keys than this limit, we would call its toString function directly
-   */
-  numOfKeysLimit: number;
-};
-
-export type LogRecordOptions = {
-  level?: Array<LogLevel> | undefined;
-  lengthThreshold?: number;
-  stringifyOptions?: StringifyOptions;
-  logger?: Logger;
-};
+export type KeepIframeSrcFn = (src: string) => boolean;
 
 export interface HighlightConfiguration {
   enableOnHoverClass?: boolean;
