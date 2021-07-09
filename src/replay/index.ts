@@ -41,6 +41,13 @@ import {
 } from '../utils';
 import getInjectStyleRules from './styles/inject-style';
 import './styles/style.css';
+import {
+  applyVirtualStyleRulesToNode,
+  storeCSSRules,
+  StyleRuleType,
+  VirtualStyleRules,
+  VirtualStyleRulesMap,
+} from './virtual-styles';
 
 const SKIP_TIME_THRESHOLD = 10 * 1000;
 const SKIP_TIME_INTERVAL = 2 * 1000;
@@ -112,6 +119,8 @@ export class Replayer {
   private treeIndex!: TreeIndex;
   private fragmentParentMap!: Map<INode, INode>;
   private elementStateMap!: Map<INode, ElementState>;
+  // Hold the list of CSSRules for in-memory state restoration
+  private virtualStyleRulesMap!: VirtualStyleRulesMap;
 
   private imageMap: Map<eventWithTime, HTMLImageElement> = new Map();
   /** The first time the player is playing. */
@@ -155,6 +164,7 @@ export class Replayer {
     this.treeIndex = new TreeIndex();
     this.fragmentParentMap = new Map<INode, INode>();
     this.elementStateMap = new Map<INode, ElementState>();
+    this.virtualStyleRulesMap = new Map();
     this.emitter.on(ReplayerEvents.Flush, () => {
       const { scrollMap, inputMap } = this.treeIndex.flush();
 
@@ -169,7 +179,7 @@ export class Replayer {
           parent.__sn.tagName === 'textarea' &&
           frag.textContent
         ) {
-          ((parent as unknown) as HTMLTextAreaElement).value = frag.textContent;
+          (parent as unknown as HTMLTextAreaElement).value = frag.textContent;
         }
         parent.appendChild(frag);
         // restore state of elements after they are mounted
@@ -177,6 +187,7 @@ export class Replayer {
       }
       this.fragmentParentMap.clear();
       this.elementStateMap.clear();
+      this.virtualStyleRulesMap.clear();
 
       for (const d of scrollMap.values()) {
         this.applyScroll(d);
@@ -386,9 +397,10 @@ export class Replayer {
 
   public getMetaData(): playerMetaData {
     const firstEvent = this.service.state.context.events[0];
-    const lastEvent = this.service.state.context.events[
-      this.service.state.context.events.length - 1
-    ];
+    const lastEvent =
+      this.service.state.context.events[
+        this.service.state.context.events.length - 1
+      ];
     return {
       startTime: firstEvent.timestamp,
       endTime: lastEvent.timestamp,
@@ -838,13 +850,13 @@ export class Replayer {
         const { triggerFocus } = this.config;
         switch (d.type) {
           case MouseInteractions.Blur:
-            if ('blur' in ((target as Node) as HTMLElement)) {
-              ((target as Node) as HTMLElement).blur();
+            if ('blur' in (target as Node as HTMLElement)) {
+              (target as Node as HTMLElement).blur();
             }
             break;
           case MouseInteractions.Focus:
-            if (triggerFocus && ((target as Node) as HTMLElement).focus) {
-              ((target as Node) as HTMLElement).focus({
+            if (triggerFocus && (target as Node as HTMLElement).focus) {
+              (target as Node as HTMLElement).focus({
                 preventScroll: true,
               });
             }
@@ -914,7 +926,7 @@ export class Replayer {
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
-        const mediaEl = (target as Node) as HTMLMediaElement;
+        const mediaEl = target as Node as HTMLMediaElement;
         try {
           if (d.type === MediaInteractions.Pause) {
             mediaEl.pause();
@@ -943,65 +955,75 @@ export class Replayer {
           return this.debugNodeNotFound(d, d.id);
         }
 
-        const styleEl = (target as Node) as HTMLStyleElement;
-        const parent = (target.parentNode as unknown) as INode;
+        const styleEl = target as Node as HTMLStyleElement;
+        const parent = target.parentNode as unknown as INode;
         const usingVirtualParent = this.fragmentParentMap.has(parent);
-        let placeholderNode;
 
-        if (usingVirtualParent) {
+        /**
+         * Always use existing DOM node, when it's there.
+         * In in-memory replay, there is virtual node, but it's `sheet` is inaccessible.
+         * Hence, we buffer all style changes in virtualStyleRulesMap.
+         */
+        const styleSheet = usingVirtualParent ? null : styleEl.sheet;
+        let rules: VirtualStyleRules;
+
+        if (!styleSheet) {
           /**
            * styleEl.sheet is only accessible if the styleEl is part of the
-           * dom. This doesn't work on DocumentFragments so we have to re-add
-           * it to the dom temporarily.
+           * dom. This doesn't work on DocumentFragments so we have to add the
+           * style mutations to the virtualStyleRulesMap.
            */
-          const domParent = this.fragmentParentMap.get(
-            (target.parentNode as unknown) as INode,
-          );
-          placeholderNode = document.createTextNode('');
-          parent.replaceChild(placeholderNode, target);
-          domParent!.appendChild(target);
-        }
 
-        const styleSheet: CSSStyleSheet = styleEl.sheet!;
+          if (this.virtualStyleRulesMap.has(target)) {
+            rules = this.virtualStyleRulesMap.get(target) as VirtualStyleRules;
+          } else {
+            rules = [];
+            this.virtualStyleRulesMap.set(target, rules);
+          }
+        }
 
         if (d.adds) {
           d.adds.forEach(({ rule, index }) => {
-            try {
-              const _index =
-                index === undefined
-                  ? undefined
-                  : Math.min(index, styleSheet.rules.length);
+            if (styleSheet) {
               try {
-                styleSheet.insertRule(rule, _index);
+                const _index =
+                  index === undefined
+                    ? undefined
+                    : Math.min(index, styleSheet.cssRules.length);
+                try {
+                  styleSheet.insertRule(rule, _index);
+                } catch (e) {
+                  /**
+                   * sometimes we may capture rules with browser prefix
+                   * insert rule with prefixs in other browsers may cause Error
+                   */
+                }
               } catch (e) {
                 /**
-                 * sometimes we may capture rules with browser prefix
-                 * insert rule with prefixs in other browsers may cause Error
+                 * accessing styleSheet rules may cause SecurityError
+                 * for specific access control settings
                  */
               }
-            } catch (e) {
-              /**
-               * accessing styleSheet rules may cause SecurityError
-               * for specific access control settings
-               */
+            } else {
+              rules?.push({ cssText: rule, index, type: StyleRuleType.Insert });
             }
           });
         }
 
         if (d.removes) {
           d.removes.forEach(({ index }) => {
-            try {
-              styleSheet.deleteRule(index);
-            } catch (e) {
-              /**
-               * same as insertRule
-               */
+            if (usingVirtualParent) {
+              rules?.push({ index, type: StyleRuleType.Remove });
+            } else {
+              try {
+                styleSheet?.deleteRule(index);
+              } catch (e) {
+                /**
+                 * same as insertRule
+                 */
+              }
             }
           });
-        }
-
-        if (usingVirtualParent && placeholderNode) {
-          parent.replaceChild(target, placeholderNode);
         }
 
         break;
@@ -1015,7 +1037,7 @@ export class Replayer {
           return this.debugNodeNotFound(d, d.id);
         }
         try {
-          const ctx = ((target as unknown) as HTMLCanvasElement).getContext(
+          const ctx = (target as unknown as HTMLCanvasElement).getContext(
             '2d',
           )!;
           if (d.setter) {
@@ -1148,7 +1170,8 @@ export class Replayer {
       }
 
       if (useVirtualParent && parentInDocument) {
-        const virtualParent = (document.createDocumentFragment() as unknown) as INode;
+        const virtualParent =
+          document.createDocumentFragment() as unknown as INode;
         mirror.map[mutation.parentId] = virtualParent;
         this.fragmentParentMap.set(virtualParent, parent);
 
@@ -1272,9 +1295,9 @@ export class Replayer {
           const value = mutation.attributes[attributeName];
           try {
             if (value !== null) {
-              ((target as Node) as Element).setAttribute(attributeName, value);
+              (target as Node as Element).setAttribute(attributeName, value);
             } else {
-              ((target as Node) as Element).removeAttribute(attributeName);
+              (target as Node as Element).removeAttribute(attributeName);
             }
           } catch (error) {
             if (this.config.showWarning) {
@@ -1302,8 +1325,8 @@ export class Replayer {
       });
     } else {
       try {
-        ((target as Node) as Element).scrollTop = d.y;
-        ((target as Node) as Element).scrollLeft = d.x;
+        (target as Node as Element).scrollTop = d.y;
+        (target as Node as Element).scrollLeft = d.x;
       } catch (error) {
         /**
          * Seldomly we may found scroll target was removed before
@@ -1319,8 +1342,8 @@ export class Replayer {
       return this.debugNodeNotFound(d, d.id);
     }
     try {
-      ((target as Node) as HTMLInputElement).checked = d.isChecked;
-      ((target as Node) as HTMLInputElement).value = d.text;
+      (target as Node as HTMLInputElement).checked = d.isChecked;
+      (target as Node as HTMLInputElement).value = d.text;
     } catch (error) {
       // for safe
     }
@@ -1406,7 +1429,7 @@ export class Replayer {
     if (!target) {
       return this.debugNodeNotFound(d, id);
     }
-    this.hoverElements((target as Node) as Element);
+    this.hoverElements(target as Node as Element);
   }
 
   private drawMouseTail(position: { x: number; y: number }) {
@@ -1489,16 +1512,21 @@ export class Replayer {
   private storeState(parent: INode) {
     if (parent) {
       if (parent.nodeType === parent.ELEMENT_NODE) {
-        const parentElement = (parent as unknown) as HTMLElement;
+        const parentElement = parent as unknown as HTMLElement;
         if (parentElement.scrollLeft || parentElement.scrollTop) {
           // store scroll position state
           this.elementStateMap.set(parent, {
             scroll: [parentElement.scrollLeft, parentElement.scrollTop],
           });
         }
+        if (parentElement.tagName === 'STYLE')
+          storeCSSRules(
+            parentElement as HTMLStyleElement,
+            this.virtualStyleRulesMap,
+          );
         const children = parentElement.children;
         for (const child of Array.from(children)) {
-          this.storeState((child as unknown) as INode);
+          this.storeState(child as unknown as INode);
         }
       }
     }
@@ -1510,7 +1538,7 @@ export class Replayer {
    */
   private restoreState(parent: INode) {
     if (parent.nodeType === parent.ELEMENT_NODE) {
-      const parentElement = (parent as unknown) as HTMLElement;
+      const parentElement = parent as unknown as HTMLElement;
       if (this.elementStateMap.has(parent)) {
         const storedState = this.elementStateMap.get(parent)!;
         // restore scroll position
@@ -1522,9 +1550,20 @@ export class Replayer {
       }
       const children = parentElement.children;
       for (const child of Array.from(children)) {
-        this.restoreState((child as unknown) as INode);
+        this.restoreState(child as unknown as INode);
       }
     }
+  }
+
+  private restoreNodeSheet(node: INode) {
+    const storedRules = this.virtualStyleRulesMap.get(node);
+    if (node.nodeName !== 'STYLE') return;
+
+    if (!storedRules) return;
+
+    const styleNode = node as unknown as HTMLStyleElement;
+
+    applyVirtualStyleRulesToNode(storedRules, styleNode);
   }
 
   private warnNodeNotFound(d: incrementalData, id: number) {
