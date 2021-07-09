@@ -9,3 +9,7 @@ es
 lib
 
 temp
+
+*.log
+
+.env

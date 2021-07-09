@@ -104,7 +104,7 @@ export function storeCSSRules(
     const cssTexts = Array.from(
       (parentElement as HTMLStyleElement).sheet?.cssRules || [],
     ).map((rule) => rule.cssText);
-    virtualStyleRulesMap.set(parentElement as unknown as INode, [
+    virtualStyleRulesMap.set((parentElement as unknown) as INode, [
       {
         type: StyleRuleType.Snapshot,
         cssTexts,
