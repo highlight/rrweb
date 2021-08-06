@@ -273,7 +273,10 @@ export default class MutationBuffer {
       const shadowHost: Element | null = n.getRootNode
         ? (n.getRootNode() as ShadowRoot)?.host
         : null;
-      const notInDoc = !this.doc.contains(n) && !this.doc.contains(shadowHost);
+      // ensure shadowHost is a Node, or doc.contains will throw an error
+      const notInDoc =
+        !this.doc.contains(n) &&
+        (!(shadowHost instanceof Node) || !this.doc.contains(shadowHost));
       if (!n.parentNode || notInDoc) {
         return;
       }
@@ -298,7 +301,7 @@ export default class MutationBuffer {
         maskInputFn: this.maskInputFn,
         slimDOMOptions: this.slimDOMOptions,
         recordCanvas: this.recordCanvas,
-	enableStrictPrivacy: this.enableStrictPrivacy,
+        enableStrictPrivacy: this.enableStrictPrivacy,
         onSerialize: (currentN) => {
           if (isIframeINode(currentN)) {
             this.iframeManager.addIframe(currentN);
@@ -362,13 +365,16 @@ export default class MutationBuffer {
       if (!node) {
         for (let index = addList.length - 1; index >= 0; index--) {
           const _node = addList.get(index)!;
-          const parentId = this.mirror.getId(
-            (_node.value.parentNode as Node) as INode,
-          );
-          const nextId = getNextId(_node.value);
-          if (parentId !== -1 && nextId !== -1) {
-            node = _node;
-            break;
+          // ensure _node is defined before attempting to find value
+          if (_node) {
+            const parentId = this.mirror.getId(
+              (_node.value.parentNode as Node) as INode,
+            );
+            const nextId = getNextId(_node.value);
+            if (parentId !== -1 && nextId !== -1) {
+              node = _node;
+              break;
+            }
           }
         }
       }
