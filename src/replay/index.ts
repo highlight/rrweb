@@ -1093,10 +1093,16 @@ export class Replayer {
           d.adds.forEach(({ rule, index }) => {
             if (styleSheet) {
               try {
-                const _index =
+                let _index;
+                if (Array.isArray(index)) {
+                  const positions = [...index];
+                  _index = positions.pop();
+                } else {
+                  _index =
                   index === undefined
                     ? undefined
                     : Math.min(index, styleSheet.cssRules.length);
+                }
                 try {
                   styleSheet.insertRule(rule, _index);
                 } catch (e) {
@@ -1123,7 +1129,15 @@ export class Replayer {
               rules?.push({ index, type: StyleRuleType.Remove });
             } else {
               try {
+                if (Array.isArray(index)) {
+                  const positions = [...index];
+                  const _index = positions.pop();
+                  if (_index) {
+                    styleSheet?.deleteRule(_index);
+                  }
+                } else {
                 styleSheet?.deleteRule(index);
+                }
               } catch (e) {
                 /**
                  * same as insertRule
