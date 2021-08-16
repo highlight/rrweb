@@ -9,11 +9,11 @@ export enum StyleRuleType {
 type InsertRule = {
   cssText: string;
   type: StyleRuleType.Insert;
-  index?: number | number[];
+  index?: number;
 };
 type RemoveRule = {
   type: StyleRuleType.Remove;
-  index: number | number[];
+  index: number;
 };
 type SnapshotRule = {
   type: StyleRuleType.Snapshot;
@@ -23,22 +23,6 @@ type SnapshotRule = {
 export type VirtualStyleRules = Array<InsertRule | RemoveRule | SnapshotRule>;
 export type VirtualStyleRulesMap = Map<INode, VirtualStyleRules>;
 
-function getNestedRule(
-  rules: CSSRuleList,
-  position: number[],
-): CSSGroupingRule {
-  const rule = rules[position[0]] as CSSGroupingRule;
-  if (position.length === 1) {
-    return rule;
-  } else {
-    return getNestedRule(
-      ((rule as CSSGroupingRule).cssRules[position[1]] as CSSGroupingRule)
-        .cssRules,
-      position.slice(2),
-    );
-  }
-}
-
 export function applyVirtualStyleRulesToNode(
   storedRules: VirtualStyleRules,
   styleNode: HTMLStyleElement,
@@ -46,17 +30,7 @@ export function applyVirtualStyleRulesToNode(
   storedRules.forEach((rule) => {
     if (rule.type === StyleRuleType.Insert) {
       try {
-        if (Array.isArray(rule.index)) {
-          const positions = [...rule.index];
-          const insertAt = positions.pop();
-          const nestedRule = getNestedRule(
-            styleNode.sheet!.cssRules,
-            positions,
-          );
-          nestedRule.insertRule(rule.cssText, insertAt);
-        } else {
-          styleNode.sheet?.insertRule(rule.cssText, rule.index);
-        }
+        styleNode.sheet?.insertRule(rule.cssText, rule.index);
       } catch (e) {
         /**
          * sometimes we may capture rules with browser prefix
@@ -65,17 +39,7 @@ export function applyVirtualStyleRulesToNode(
       }
     } else if (rule.type === StyleRuleType.Remove) {
       try {
-        if (Array.isArray(rule.index)) {
-          const positions = [...rule.index];
-          const deleteAt = positions.pop();
-          const nestedRule = getNestedRule(
-            styleNode.sheet!.cssRules,
-            positions,
-          );
-          nestedRule.deleteRule(deleteAt || 0);
-        } else {
-          styleNode.sheet?.deleteRule(rule.index);
-        }
+        styleNode.sheet?.deleteRule(rule.index);
       } catch (e) {
         /**
          * accessing styleSheet rules may cause SecurityError
