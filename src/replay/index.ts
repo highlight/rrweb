@@ -45,6 +45,7 @@ import getInjectStyleRules from './styles/inject-style';
 import './styles/style.css';
 import {
   applyVirtualStyleRulesToNode,
+  getNestedRule,
   storeCSSRules,
   StyleRuleType,
   VirtualStyleRules,
@@ -387,10 +388,9 @@ export class Replayer {
 
   public getMetaData(): playerMetaData {
     const firstEvent = this.service.state.context.events[0];
-    const lastEvent =
-      this.service.state.context.events[
-        this.service.state.context.events.length - 1
-      ];
+    const lastEvent = this.service.state.context.events[
+      this.service.state.context.events.length - 1
+    ];
     return {
       startTime: firstEvent.timestamp,
       endTime: lastEvent.timestamp,
@@ -956,13 +956,13 @@ export class Replayer {
         const { triggerFocus } = this.config;
         switch (d.type) {
           case MouseInteractions.Blur:
-            if ('blur' in (target as Node as HTMLElement)) {
-              (target as Node as HTMLElement).blur();
+            if ('blur' in ((target as Node) as HTMLElement)) {
+              ((target as Node) as HTMLElement).blur();
             }
             break;
           case MouseInteractions.Focus:
-            if (triggerFocus && (target as Node as HTMLElement).focus) {
-              (target as Node as HTMLElement).focus({
+            if (triggerFocus && ((target as Node) as HTMLElement).focus) {
+              ((target as Node) as HTMLElement).focus({
                 preventScroll: true,
               });
             }
@@ -1032,7 +1032,7 @@ export class Replayer {
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
-        const mediaEl = target as Node as HTMLMediaElement;
+        const mediaEl = (target as Node) as HTMLMediaElement;
         try {
           if (d.currentTime) {
             mediaEl.currentTime = d.currentTime;
@@ -1062,8 +1062,8 @@ export class Replayer {
           return this.debugNodeNotFound(d, d.id);
         }
 
-        const styleEl = target as Node as HTMLStyleElement;
-        const parent = target.parentNode as unknown as INode;
+        const styleEl = (target as Node) as HTMLStyleElement;
+        const parent = (target.parentNode as unknown) as INode;
         const usingVirtualParent = this.fragmentParentMap.has(parent);
 
         /**
@@ -1093,19 +1093,26 @@ export class Replayer {
           d.adds.forEach(({ rule, index }) => {
             if (styleSheet) {
               try {
-                const _index =
-                  index === undefined
-                    ? undefined
-                    : Math.min(index, styleSheet.cssRules.length);
-                try {
+                if (Array.isArray(index)) {
+                  const positions = [...index];
+                  const insertAt = positions.pop();
+                  const nestedRule = getNestedRule(
+                    styleSheet.cssRules,
+                    positions,
+                  );
+                  nestedRule.insertRule(rule, insertAt);
+                } else {
+                  const _index =
+                    index === undefined
+                      ? undefined
+                      : Math.min(index, styleSheet.cssRules.length);
                   styleSheet.insertRule(rule, _index);
-                } catch (e) {
-                  /**
-                   * sometimes we may capture rules with browser prefix
-                   * insert rule with prefixs in other browsers may cause Error
-                   */
                 }
               } catch (e) {
+                /**
+                 * sometimes we may capture rules with browser prefix
+                 * insert rule with prefixs in other browsers may cause Error
+                 */
                 /**
                  * accessing styleSheet rules may cause SecurityError
                  * for specific access control settings
@@ -1123,7 +1130,17 @@ export class Replayer {
               rules?.push({ index, type: StyleRuleType.Remove });
             } else {
               try {
-                styleSheet?.deleteRule(index);
+                if (Array.isArray(index)) {
+                  const positions = [...index];
+                  const deleteAt = positions.pop();
+                  const nestedRule = getNestedRule(
+                    styleSheet!.cssRules,
+                    positions,
+                  );
+                  nestedRule.deleteRule(deleteAt || 0);
+                } else {
+                  styleSheet?.deleteRule(index);
+                }
               } catch (e) {
                 /**
                  * same as insertRule
@@ -1143,7 +1160,7 @@ export class Replayer {
           return this.debugNodeNotFound(d, d.id);
         }
         try {
-          const ctx = (target as unknown as HTMLCanvasElement).getContext(
+          const ctx = ((target as unknown) as HTMLCanvasElement).getContext(
             '2d',
           )!;
           if (d.setter) {
@@ -1452,9 +1469,9 @@ export class Replayer {
           const value = mutation.attributes[attributeName];
           try {
             if (value !== null) {
-              (target as Node as Element).setAttribute(attributeName, value);
+              ((target as Node) as Element).setAttribute(attributeName, value);
             } else {
-              (target as Node as Element).removeAttribute(attributeName);
+              ((target as Node) as Element).removeAttribute(attributeName);
             }
           } catch (error) {
             if (this.config.showWarning) {
@@ -1482,8 +1499,8 @@ export class Replayer {
       });
     } else {
       try {
-        (target as Node as Element).scrollTop = d.y;
-        (target as Node as Element).scrollLeft = d.x;
+        ((target as Node) as Element).scrollTop = d.y;
+        ((target as Node) as Element).scrollLeft = d.x;
       } catch (error) {
         /**
          * Seldomly we may found scroll target was removed before
@@ -1499,8 +1516,8 @@ export class Replayer {
       return this.debugNodeNotFound(d, d.id);
     }
     try {
-      (target as Node as HTMLInputElement).checked = d.isChecked;
-      (target as Node as HTMLInputElement).value = d.text;
+      ((target as Node) as HTMLInputElement).checked = d.isChecked;
+      ((target as Node) as HTMLInputElement).value = d.text;
     } catch (error) {
       // for safe
     }
@@ -1654,7 +1671,7 @@ export class Replayer {
   private storeState(parent: INode) {
     if (parent) {
       if (parent.nodeType === parent.ELEMENT_NODE) {
-        const parentElement = parent as unknown as HTMLElement;
+        const parentElement = (parent as unknown) as HTMLElement;
         if (parentElement.scrollLeft || parentElement.scrollTop) {
           // store scroll position state
           this.elementStateMap.set(parent, {
@@ -1668,7 +1685,7 @@ export class Replayer {
           );
         const children = parentElement.children;
         for (const child of Array.from(children)) {
-          this.storeState(child as unknown as INode);
+          this.storeState((child as unknown) as INode);
         }
       }
     }
@@ -1680,7 +1697,7 @@ export class Replayer {
    */
   private restoreState(parent: INode) {
     if (parent.nodeType === parent.ELEMENT_NODE) {
-      const parentElement = parent as unknown as HTMLElement;
+      const parentElement = (parent as unknown) as HTMLElement;
       if (this.elementStateMap.has(parent)) {
         const storedState = this.elementStateMap.get(parent)!;
         // restore scroll position
@@ -1692,7 +1709,7 @@ export class Replayer {
       }
       const children = parentElement.children;
       for (const child of Array.from(children)) {
-        this.restoreState(child as unknown as INode);
+        this.restoreState((child as unknown) as INode);
       }
     }
   }

@@ -387,11 +387,11 @@ export type scrollCallback = (p: scrollPosition) => void;
 
 export type styleSheetAddRule = {
   rule: string;
-  index?: number;
+  index?: number | number[];
 };
 
 export type styleSheetDeleteRule = {
-  index: number;
+  index: number | number[];
 };
 
 export type styleSheetRuleParam = {
