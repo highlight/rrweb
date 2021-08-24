@@ -363,6 +363,13 @@ export type mousePosition = {
   timeOffset: number;
 };
 
+export type mouseMovePos = {
+  x: number;
+  y: number;
+  id: number;
+  debugData: incrementalData;
+};
+
 export enum MouseInteractions {
   MouseUp,
   MouseDown,
@@ -374,6 +381,7 @@ export enum MouseInteractions {
   TouchStart,
   TouchMove_Departed, // we will start a separate observer for touch move event
   TouchEnd,
+  TouchCancel,
 }
 
 type mouseInteractionParam = {
