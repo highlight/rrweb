@@ -84,11 +84,12 @@
   position: absolute;
   width: 20px;
   height: 20px;
-  transition: 0.05s linear;
+  transition: left 0.05s linear, top 0.05s linear;
   background-size: contain;
   background-position: center center;
   background-repeat: no-repeat;
   background-image: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyMi4wLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCINCgkgdmlld0JveD0iMCAwIDMwMCAzMDAiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDMwMCAzMDA7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+DQoJLnN0MHtmaWxsOiNGRkZGRkY7fQ0KCS5zdDF7c3Ryb2tlOiMwMDAwMDA7c3Ryb2tlLXdpZHRoOjg7c3Ryb2tlLW1pdGVybGltaXQ6MTA7fQ0KPC9zdHlsZT4NCjxnIGlkPSJMYXllcl8yIj4NCgk8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjE0LDE3IDk4LjMsMjY0IDE3NCwxOTIgMjYxLjcsMjc5LjUgMjc5LjUsMjYxLjcgMTkyLDE3NCAyNjQsOTguMyAJIi8+DQo8L2c+DQo8ZyBpZD0iTGF5ZXJfMSI+DQoJPHRpdGxlPkRlc2lnbl90bnA8L3RpdGxlPg0KCTxwYXRoIGNsYXNzPSJzdDEiIGQ9Ik0yOTIuMywyNTcuNWwtODcuOC04Ny43TDI2NiwxMDhjMi4zLTIuNCwyLjItNi4yLTAuMi04LjVjLTAuNS0wLjUtMS4xLTAuOS0xLjgtMS4yTDE0LjEsNi40DQoJCUMxMSw1LjIsNy41LDYuNyw2LjQsOS44Yy0wLjUsMS40LTAuNSwyLjksMCw0LjNsOTIsMjQ5LjljMS4xLDMuMSw0LjYsNC43LDcuNywzLjZjMC44LTAuMywxLjYtMC44LDIuMi0xLjRsNjEuNS02MS43bDg3LjcsODcuOA0KCQljMi4zLDIuMyw2LjEsMi4zLDguNSwwbDI2LjMtMjYuM0MyOTQuNiwyNjMuNywyOTQuNiwyNTkuOSwyOTIuMywyNTcuNUMyOTIuMywyNTcuNSwyOTIuMywyNTcuNSwyOTIuMywyNTcuNXogTTI2MS43LDI3OS41TDE3NCwxOTINCgkJYy0yLjMtMi4zLTYuMS0yLjMtOC41LDBsLTU5LjEsNTkuMWwtODQuMy0yMjlsMjI4LjcsODRMMTkyLDE2NS41Yy0yLjQsMi4zLTIuNCw2LjEsMCw4LjVjMCwwLDAsMCwwLDBsODcuNSw4Ny43TDI2MS43LDI3OS41eiIvPg0KPC9nPg0KPC9zdmc+DQo=');
+  border-color: transparent; /* otherwise we transition from black when .touch-device class is added */
 }
 .replayer-mouse::after {
   content: '';
@@ -97,11 +98,38 @@
   height: 20px;
   border-radius: 10px;
   background: rgb(73, 80, 246);
-  transform: translate(-10px, -10px);
+  border-radius: 100%;
+  transform: translate(-50%, -50%);
   opacity: 0.3;
 }
 .replayer-mouse.active::after {
   animation: click 0.2s ease-in-out 1;
+}
+.replayer-mouse.touch-device {
+  background-image: none; /* there's no passive cursor on touch-only screens */
+  width: 25px;
+  height: 25px;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 100%;
+  margin-left: -37px;
+  margin-top: -37px;
+  border-color: rgba(255, 255, 255, 0%);
+  background-color: rgba(0, 0, 0, 0%);
+  transition: left 0s linear, top 0s linear, border-color 0.2s ease-in-out,
+    background-color 0.2s ease-in-out;
+}
+.replayer-mouse.touch-device.touch-active {
+  border-color: rgba(255, 255, 255, 25%);
+  background-color: rgba(0, 0, 0, 45%);
+  transition: left 0.25s linear, top 0.25s linear, border-color 0.2s ease-in-out,
+    background-color 0.2s ease-in-out;
+}
+.replayer-mouse.touch-device::after {
+  opacity: 0; /* there's no passive cursor on touch-only screens */
+}
+.replayer-mouse.touch-device.active::after {
+  animation: touch-click 0.2s ease-in-out 1;
 }
 .replayer-mouse-tail {
   position: absolute;
@@ -112,17 +140,26 @@
     opacity: 0.3;
     width: 20px;
     height: 20px;
-    border-radius: 10px;
-    transform: translate(-10px, -10px);
   }
   50% {
     opacity: 0.5;
     width: 10px;
     height: 10px;
-    border-radius: 5px;
-    transform: translate(-5px, -5px);
   }
 }
+@keyframes touch-click {
+  0% {
+    opacity: 0;
+    width: 20px;
+    height: 20px;
+  }
+  50% {
+    opacity: 0.5;
+    width: 10px;
+    height: 10px;
+  }
+}
+
 .rr-player {
   position: relative;
   background: white;
