@@ -4,6 +4,8 @@ export enum StyleRuleType {
   Insert,
   Remove,
   Snapshot,
+  SetProperty,
+  RemoveProperty,
 }
 
 type InsertRule = {
@@ -20,7 +22,22 @@ type SnapshotRule = {
   cssTexts: string[];
 };
 
-export type VirtualStyleRules = Array<InsertRule | RemoveRule | SnapshotRule>;
+type SetPropertyRule = {
+  type: StyleRuleType.SetProperty;
+  index: number[];
+  property: string;
+  value: string | null;
+  priority: string | undefined;
+};
+type RemovePropertyRule = {
+  type: StyleRuleType.RemoveProperty;
+  index: number[];
+  property: string;
+};
+
+export type VirtualStyleRules = Array<
+  InsertRule | RemoveRule | SnapshotRule | SetPropertyRule | RemovePropertyRule
+>;
 export type VirtualStyleRulesMap = Map<INode, VirtualStyleRules>;
 
 export function getNestedRule(
@@ -88,6 +105,18 @@ export function applyVirtualStyleRulesToNode(
       }
     } else if (rule.type === StyleRuleType.Snapshot) {
       restoreSnapshotOfStyleRulesToNode(rule.cssTexts, styleNode);
+    } else if (rule.type === StyleRuleType.SetProperty) {
+      const nativeRule = (getNestedRule(
+        styleNode.sheet!.cssRules,
+        rule.index,
+      ) as unknown) as CSSStyleRule;
+      nativeRule.style.setProperty(rule.property, rule.value, rule.priority);
+    } else if (rule.type === StyleRuleType.RemoveProperty) {
+      const nativeRule = (getNestedRule(
+        styleNode.sheet!.cssRules,
+        rule.index,
+      ) as unknown) as CSSStyleRule;
+      nativeRule.style.removeProperty(rule.property);
     }
   });
 }

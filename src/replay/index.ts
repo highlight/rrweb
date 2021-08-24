@@ -1158,6 +1158,62 @@ export class Replayer {
         }
         break;
       }
+      case IncrementalSource.StyleDeclaration: {
+        // same with StyleSheetRule
+        const target = this.mirror.getNode(d.id);
+        if (!target) {
+          return this.debugNodeNotFound(d, d.id);
+        }
+
+        const styleEl = (target as Node) as HTMLStyleElement;
+        const parent = (target.parentNode as unknown) as INode;
+        const usingVirtualParent = this.fragmentParentMap.has(parent);
+
+        const styleSheet = usingVirtualParent ? null : styleEl.sheet;
+        let rules: VirtualStyleRules = [];
+
+        if (!styleSheet) {
+          if (this.virtualStyleRulesMap.has(target)) {
+            rules = this.virtualStyleRulesMap.get(target) as VirtualStyleRules;
+          } else {
+            rules = [];
+            this.virtualStyleRulesMap.set(target, rules);
+          }
+        }
+
+        if (d.set) {
+          if (styleSheet) {
+            const rule = (getNestedRule(
+              styleSheet.rules,
+              d.index,
+            ) as unknown) as CSSStyleRule;
+            rule.style.setProperty(d.set.property, d.set.value, d.set.priority);
+          } else {
+            rules.push({
+              type: StyleRuleType.SetProperty,
+              index: d.index,
+              ...d.set,
+            });
+          }
+        }
+
+        if (d.remove) {
+          if (styleSheet) {
+            const rule = (getNestedRule(
+              styleSheet.rules,
+              d.index,
+            ) as unknown) as CSSStyleRule;
+            rule.style.removeProperty(d.remove.property);
+          } else {
+            rules.push({
+              type: StyleRuleType.RemoveProperty,
+              index: d.index,
+              ...d.remove,
+            });
+          }
+        }
+        break;
+      }
       case IncrementalSource.CanvasMutation: {
         if (!this.config.UNSAFE_replayCanvas) {
           return;

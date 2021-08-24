@@ -201,7 +201,7 @@ function record<T = eventWithTime>(
       sampling,
       slimDOMOptions,
       iframeManager,
-      enableStrictPrivacy
+      enableStrictPrivacy,
     },
     mirror,
   });
@@ -355,6 +355,16 @@ function record<T = eventWithTime>(
                 },
               }),
             ),
+          styleDeclarationCb: (r) =>
+            wrappedEmit(
+              wrapEvent({
+                type: EventType.IncrementalSnapshot,
+                data: {
+                  source: IncrementalSource.StyleDeclaration,
+                  ...r,
+                },
+              }),
+            ),
           canvasMutationCb: (p) =>
             wrappedEmit(
               wrapEvent({
@@ -408,7 +418,7 @@ function record<T = eventWithTime>(
                   }),
                 ),
             })) || [],
-	    enableStrictPrivacy
+          enableStrictPrivacy,
         },
         hooks,
       );
