@@ -555,7 +555,12 @@ function serializeNode(
           'BODY',
           'NOSCRIPT',
         ]);
-        if (!IGNORE_TAG_NAMES.has(parentTagName)) {
+        if (!IGNORE_TAG_NAMES.has(parentTagName) && textContent) {
+          // We remove non-printing characters.
+          // For example: '&zwnj;' is a character that isn't shown visibly or takes up layout space on the screen. However if you take the length of the string, it's counted as 1.
+          // For example: "&zwnj;1"'s length is 2 but visually it's only taking up 1 character width.
+          // If we don't filter does out, our string obfuscation could have more characters than what was originally presented.
+          textContent = textContent.replace(/[^ -~]+/g, '');
           textContent =
             textContent
               ?.split(' ')
