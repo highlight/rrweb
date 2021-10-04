@@ -877,7 +877,7 @@ export class Replayer {
     const head = this.iframe.contentDocument?.head;
     if (head) {
       const unloadSheets: Set<HTMLLinkElement> = new Set();
-      let timer: number;
+      let timer: ReturnType<typeof setTimeout> | -1;
       let beforeLoadState = this.service.state;
       const stateHandler = () => {
         beforeLoadState = this.service.state;
@@ -902,7 +902,7 @@ export class Replayer {
                 }
                 this.emitter.emit(ReplayerEvents.LoadStylesheetEnd);
                 if (timer) {
-                  window.clearTimeout(timer);
+                  clearTimeout(timer);
                 }
                 unsubscribe();
               }
@@ -914,7 +914,7 @@ export class Replayer {
         // find some unload sheets after iterate
         this.service.send({ type: 'PAUSE' });
         this.emitter.emit(ReplayerEvents.LoadStylesheetStart);
-        timer = window.setTimeout(() => {
+        timer = setTimeout(() => {
           if (beforeLoadState.matches('playing')) {
             this.play(this.getCurrentTime());
           }

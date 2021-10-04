@@ -5,6 +5,7 @@ import {
   maskInputValue,
   MaskInputFn,
   MaskTextFn,
+  documentNode,
 } from '../snapshot';
 import { FontFaceDescriptors, FontFaceSet } from 'css-font-loading-module';
 import {
@@ -61,6 +62,9 @@ type WindowWithAngularZone = Window & {
 export const mutationBuffers: MutationBuffer[] = [];
 
 const isCSSGroupingRuleSupported = typeof CSSGroupingRule !== 'undefined';
+const isCSSMediaRuleSupported = typeof CSSMediaRule !== 'undefined';
+const isCSSSupportsRuleSupported = typeof CSSSupportsRule !== 'undefined';
+const isCSSConditionRuleSupported = typeof CSSConditionRule !== 'undefined';
 
 function getEventTarget(event: Event): EventTarget | null {
   try {
@@ -499,6 +503,17 @@ function initInputObserver(
   };
 }
 
+type GroupingCSSRule =
+  | CSSGroupingRule
+  | CSSMediaRule
+  | CSSSupportsRule
+  | CSSConditionRule;
+type GroupingCSSRuleTypes =
+  | typeof CSSGroupingRule
+  | typeof CSSMediaRule
+  | typeof CSSSupportsRule
+  | typeof CSSConditionRule;
+
 function getNestedCSSRulePositions(rule: CSSRule): number[] {
   const positions: number[] = [];
   function recurse(childRule: CSSRule, pos: number[]) {
@@ -523,10 +538,14 @@ function getNestedCSSRulePositions(rule: CSSRule): number[] {
 
 function initStyleSheetObserver(
   cb: styleSheetRuleCallback,
+  win: Window,
   mirror: Mirror,
 ): listenerHandler {
-  const insertRule = CSSStyleSheet.prototype.insertRule;
-  CSSStyleSheet.prototype.insertRule = function (rule: string, index?: number) {
+  const insertRule = (win as any).CSSStyleSheet.prototype.insertRule;
+  (win as any).CSSStyleSheet.prototype.insertRule = function (
+    rule: string,
+    index?: number,
+  ) {
     const id = mirror.getId(this.ownerNode as INode);
     if (id !== -1) {
       cb({
@@ -537,8 +556,8 @@ function initStyleSheetObserver(
     return insertRule.apply(this, arguments);
   };
 
-  const deleteRule = CSSStyleSheet.prototype.deleteRule;
-  CSSStyleSheet.prototype.deleteRule = function (index: number) {
+  const deleteRule = (win as any).CSSStyleSheet.prototype.deleteRule;
+  (win as any).CSSStyleSheet.prototype.deleteRule = function (index: number) {
     const id = mirror.getId(this.ownerNode as INode);
     if (id !== -1) {
       cb({
@@ -549,66 +568,98 @@ function initStyleSheetObserver(
     return deleteRule.apply(this, arguments);
   };
 
-  if (!isCSSGroupingRuleSupported) {
-    return () => {
-      CSSStyleSheet.prototype.insertRule = insertRule;
-      CSSStyleSheet.prototype.deleteRule = deleteRule;
-    };
+  const supportedNestedCSSRuleTypes: {
+    [key: string]: GroupingCSSRuleTypes;
+  } = {};
+  if (isCSSGroupingRuleSupported) {
+    supportedNestedCSSRuleTypes[
+      'CSSGroupingRule'
+    ] = (win as any).CSSGroupingRule;
+  } else {
+    // Some browsers (Safari) don't support CSSGroupingRule
+    // https://caniuse.com/?search=cssgroupingrule
+    // fall back to monkey patching classes that would have inherited from CSSGroupingRule
+
+    if (isCSSMediaRuleSupported) {
+      supportedNestedCSSRuleTypes['CSSMediaRule'] = (win as any).CSSMediaRule;
+    }
+    if (isCSSConditionRuleSupported) {
+      supportedNestedCSSRuleTypes[
+        'CSSConditionRule'
+      ] = (win as any).CSSConditionRule;
+    }
+    if (isCSSSupportsRuleSupported) {
+      supportedNestedCSSRuleTypes[
+        'CSSSupportsRule'
+      ] = (win as any).CSSSupportsRule;
+    }
   }
 
-  const groupingInsertRule = CSSGroupingRule.prototype.insertRule;
-  CSSGroupingRule.prototype.insertRule = function (
-    rule: string,
-    index?: number,
-  ) {
-    const id = mirror.getId(this.parentStyleSheet.ownerNode as INode);
-    if (id !== -1) {
-      cb({
-        id,
-        adds: [
-          {
-            rule,
-            index: [
-              ...getNestedCSSRulePositions(this),
-              index || 0, // defaults to 0
-            ],
-          },
-        ],
-      });
-    }
-    return groupingInsertRule.apply(this, arguments);
-  };
+  const unmodifiedFunctions: {
+    [key: string]: {
+      insertRule: (rule: string, index?: number) => number;
+      deleteRule: (index: number) => void;
+    };
+  } = {};
 
-  const groupingDeleteRule = CSSGroupingRule.prototype.deleteRule;
-  CSSGroupingRule.prototype.deleteRule = function (index: number) {
-    const id = mirror.getId(this.parentStyleSheet.ownerNode as INode);
-    if (id !== -1) {
-      cb({
-        id,
-        removes: [{ index: [...getNestedCSSRulePositions(this), index] }],
-      });
-    }
-    return groupingDeleteRule.apply(this, arguments);
-  };
+  Object.entries(supportedNestedCSSRuleTypes).forEach(([typeKey, type]) => {
+    unmodifiedFunctions[typeKey] = {
+      insertRule: (type as GroupingCSSRuleTypes).prototype.insertRule,
+      deleteRule: (type as GroupingCSSRuleTypes).prototype.deleteRule,
+    };
+
+    type.prototype.insertRule = function (rule: string, index?: number) {
+      const id = mirror.getId(this.parentStyleSheet.ownerNode as INode);
+      if (id !== -1) {
+        cb({
+          id,
+          adds: [
+            {
+              rule,
+              index: [
+                ...getNestedCSSRulePositions(this),
+                index || 0, // defaults to 0
+              ],
+            },
+          ],
+        });
+      }
+      return unmodifiedFunctions[typeKey].insertRule.apply(this, arguments);
+    };
+
+    type.prototype.deleteRule = function (index: number) {
+      const id = mirror.getId(this.parentStyleSheet.ownerNode as INode);
+      if (id !== -1) {
+        cb({
+          id,
+          removes: [{ index: [...getNestedCSSRulePositions(this), index] }],
+        });
+      }
+      return unmodifiedFunctions[typeKey].deleteRule.apply(this, arguments);
+    };
+  });
 
   return () => {
-    CSSStyleSheet.prototype.insertRule = insertRule;
-    CSSStyleSheet.prototype.deleteRule = deleteRule;
-    CSSGroupingRule.prototype.insertRule = groupingInsertRule;
-    CSSGroupingRule.prototype.deleteRule = groupingDeleteRule;
+    (win as any).CSSStyleSheet.prototype.insertRule = insertRule;
+    (win as any).CSSStyleSheet.prototype.deleteRule = deleteRule;
+    Object.entries(supportedNestedCSSRuleTypes).forEach(([typeKey, type]) => {
+      type.prototype.insertRule = unmodifiedFunctions[typeKey].insertRule;
+      type.prototype.deleteRule = unmodifiedFunctions[typeKey].deleteRule;
+    });
   };
 }
 
 function initStyleDeclarationObserver(
   cb: styleDeclarationCallback,
+  win: Window,
   mirror: Mirror,
 ): listenerHandler {
-  const setProperty = CSSStyleDeclaration.prototype.setProperty;
-  CSSStyleDeclaration.prototype.setProperty = function (
+  const setProperty = (win as any).CSSStyleDeclaration.prototype.setProperty;
+  (win as any).CSSStyleDeclaration.prototype.setProperty = function (
     this: CSSStyleDeclaration,
-    property,
-    value,
-    priority,
+    property: string,
+    value: string,
+    priority: string,
   ) {
     const id = mirror.getId(
       (this.parentRule?.parentStyleSheet?.ownerNode as unknown) as INode,
@@ -627,10 +678,11 @@ function initStyleDeclarationObserver(
     return setProperty.apply(this, arguments);
   };
 
-  const removeProperty = CSSStyleDeclaration.prototype.removeProperty;
-  CSSStyleDeclaration.prototype.removeProperty = function (
+  const removeProperty = (win as any).CSSStyleDeclaration.prototype
+    .removeProperty;
+  (win as any).CSSStyleDeclaration.prototype.removeProperty = function (
     this: CSSStyleDeclaration,
-    property,
+    property: string,
   ) {
     const id = mirror.getId(
       (this.parentRule?.parentStyleSheet?.ownerNode as unknown) as INode,
@@ -648,8 +700,8 @@ function initStyleDeclarationObserver(
   };
 
   return () => {
-    CSSStyleDeclaration.prototype.setProperty = setProperty;
-    CSSStyleDeclaration.prototype.removeProperty = removeProperty;
+    (win as any).CSSStyleDeclaration.prototype.setProperty = setProperty;
+    (win as any).CSSStyleDeclaration.prototype.removeProperty = removeProperty;
   };
 }
 
@@ -681,22 +733,25 @@ function initMediaInteractionObserver(
 
 function initCanvasMutationObserver(
   cb: canvasMutationCallback,
+  win: Window,
   blockClass: blockClass,
   mirror: Mirror,
 ): listenerHandler {
-  const props = Object.getOwnPropertyNames(CanvasRenderingContext2D.prototype);
+  const props = Object.getOwnPropertyNames(
+    (win as any).CanvasRenderingContext2D.prototype,
+  );
   const handlers: listenerHandler[] = [];
   for (const prop of props) {
     try {
       if (
-        typeof CanvasRenderingContext2D.prototype[
+        typeof (win as any).CanvasRenderingContext2D.prototype[
           prop as keyof CanvasRenderingContext2D
         ] !== 'function'
       ) {
         continue;
       }
       const restoreHandler = patch(
-        CanvasRenderingContext2D.prototype,
+        (win as any).CanvasRenderingContext2D.prototype,
         prop,
         function (original) {
           return function (
@@ -737,7 +792,7 @@ function initCanvasMutationObserver(
       handlers.push(restoreHandler);
     } catch {
       const hookHandler = hookSetter<CanvasRenderingContext2D>(
-        CanvasRenderingContext2D.prototype,
+        (win as any).CanvasRenderingContext2D.prototype,
         prop,
         {
           set(v) {
@@ -758,14 +813,15 @@ function initCanvasMutationObserver(
   };
 }
 
-function initFontObserver(cb: fontCallback): listenerHandler {
+function initFontObserver(cb: fontCallback, doc: Document): listenerHandler {
+  const win = doc.defaultView;
   const handlers: listenerHandler[] = [];
 
   const fontMap = new WeakMap<FontFace, fontParam>();
 
-  const originalFontFace = FontFace;
+  const originalFontFace = (win as any).FontFace;
   // tslint:disable-next-line: no-any
-  (window as any).FontFace = function FontFace(
+  (win as any).FontFace = function FontFace(
     family: string,
     source: string | ArrayBufferView,
     descriptors?: FontFaceDescriptors,
@@ -784,7 +840,7 @@ function initFontObserver(cb: fontCallback): listenerHandler {
     return fontFace;
   };
 
-  const restoreHandler = patch(document.fonts, 'add', function (original) {
+  const restoreHandler = patch(doc.fonts, 'add', function (original) {
     return function (this: FontFaceSet, fontFace: FontFace) {
       setTimeout(() => {
         const p = fontMap.get(fontFace);
@@ -799,7 +855,7 @@ function initFontObserver(cb: fontCallback): listenerHandler {
 
   handlers.push(() => {
     // tslint:disable-next-line: no-any
-    (window as any).FonFace = originalFontFace;
+    (win as any).FonFace = originalFontFace;
   });
   handlers.push(restoreHandler);
 
@@ -951,22 +1007,36 @@ export function initObservers(
     o.blockClass,
     o.mirror,
   );
+
+  const currentWindow = o.doc.defaultView as Window; // basically document.window
+
   const styleSheetObserver = initStyleSheetObserver(
     o.styleSheetRuleCb,
+    currentWindow,
     o.mirror,
   );
   const styleDeclarationObserver = initStyleDeclarationObserver(
     o.styleDeclarationCb,
+    currentWindow,
     o.mirror,
   );
   const canvasMutationObserver = o.recordCanvas
-    ? initCanvasMutationObserver(o.canvasMutationCb, o.blockClass, o.mirror)
+    ? initCanvasMutationObserver(
+        o.canvasMutationCb,
+        currentWindow,
+        o.blockClass,
+        o.mirror,
+      )
     : () => {};
-  const fontObserver = o.collectFonts ? initFontObserver(o.fontCb) : () => {};
+  const fontObserver = o.collectFonts
+    ? initFontObserver(o.fontCb, o.doc)
+    : () => {};
   // plugins
   const pluginHandlers: listenerHandler[] = [];
   for (const plugin of o.plugins) {
-    pluginHandlers.push(plugin.observer(plugin.callback, plugin.options));
+    pluginHandlers.push(
+      plugin.observer(plugin.callback, currentWindow, plugin.options),
+    );
   }
 
   return () => {

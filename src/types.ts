@@ -208,7 +208,7 @@ export type SamplingStrategy = Partial<{
 
 export type RecordPlugin<TOptions = unknown> = {
   name: string;
-  observer: (cb: Function, options: TOptions) => listenerHandler;
+  observer: (cb: Function, win: Window, options: TOptions) => listenerHandler;
   options: TOptions;
 };
 

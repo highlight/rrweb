@@ -17,7 +17,7 @@ type LogRecordOptions = {
   level?: LogLevel[] | undefined;
   lengthThreshold?: number;
   stringifyOptions?: StringifyOptions;
-  logger?: Logger;
+  logger?: Logger | string;
 };
 
 const defaultLogOptions: LogRecordOptions = {
@@ -43,7 +43,7 @@ const defaultLogOptions: LogRecordOptions = {
     'warn',
   ],
   lengthThreshold: 1000,
-  logger: console,
+  logger: 'console',
 };
 
 export type LogData = {
@@ -101,11 +101,18 @@ export type Logger = {
 
 function initLogObserver(
   cb: logCallback,
+  win: Window, // top window or in an iframe
   logOptions: LogRecordOptions,
 ): listenerHandler {
-  const logger = logOptions.logger;
-  if (!logger) {
+  const loggerType = logOptions.logger;
+  if (!loggerType) {
     return () => {};
+  }
+  let logger: Logger;
+  if (typeof loggerType === 'string') {
+    logger = (win as any)[loggerType];
+  } else {
+    logger = loggerType;
   }
   let logCount = 0;
   const cancelHandlers: listenerHandler[] = [];
