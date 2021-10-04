@@ -1378,6 +1378,9 @@ export class Replayer {
       if (!target) {
         return this.warnNodeNotFound(d, mutation.id);
       }
+      if (this.virtualStyleRulesMap.has(target)) {
+        this.virtualStyleRulesMap.delete(target);
+      }
       let parent: INode | null | ShadowRoot = this.mirror.getNode(
         mutation.parentId,
       );
