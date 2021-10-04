@@ -146,7 +146,7 @@ function initLogObserver(
     }
   }
   for (const levelType of logOptions.level!) {
-    cancelHandlers.push(replace(loggerType, levelType));
+    cancelHandlers.push(replace(logger, levelType));
   }
   return () => {
     cancelHandlers.forEach((h) => h());
