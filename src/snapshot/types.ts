@@ -10,6 +10,7 @@ export enum NodeType {
 export type documentNode = {
   type: NodeType.Document;
   childNodes: serializedNodeWithId[];
+  compatMode?: string;
 };
 
 export type documentTypeNode = {
@@ -111,3 +112,7 @@ export type MaskTextFn = (text: string) => string;
 export type MaskInputFn = (text: string) => string;
 
 export type KeepIframeSrcFn = (src: string) => boolean;
+
+export type BuildCache = {
+  stylesWithHoverClass: Map<string, string>;
+};

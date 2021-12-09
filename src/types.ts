@@ -311,16 +311,22 @@ export type textMutation = {
   value: string | null;
 };
 
+export type styleAttributeValue = {
+  [key: string]: styleValueWithPriority | string | false;
+};
+
+export type styleValueWithPriority = [string, string];
+
 export type attributeCursor = {
   node: Node;
   attributes: {
-    [key: string]: string | null;
+    [key: string]: string | styleAttributeValue | null;
   };
 };
 export type attributeMutation = {
   id: number;
   attributes: {
-    [key: string]: string | null;
+    [key: string]: string | styleAttributeValue | null;
   };
 };
 
@@ -532,7 +538,6 @@ export type playerConfig = {
   triggerFocus: boolean;
   UNSAFE_replayCanvas: boolean;
   pauseAnimation?: boolean;
-  userTriggeredOnInput: boolean;
   mouseTail:
     | boolean
     | {
@@ -612,5 +617,8 @@ export interface HighlightConfiguration {
 declare global {
   interface Window {
     HIG_CONFIGURATION: HighlightConfiguration;
+    FontFace: typeof FontFace;
   }
 }
+
+export type IWindow = Window & typeof globalThis;

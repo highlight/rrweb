@@ -21,6 +21,7 @@ import {
   removedNodeMutation,
   addedNodeMutation,
   Mirror,
+  styleAttributeValue,
 } from '../types';
 import {
   isBlocked,
@@ -456,6 +457,7 @@ export default class MutationBuffer {
         break;
       }
       case 'attributes': {
+        const target = m.target as HTMLElement;
         let value = (m.target as HTMLElement).getAttribute(m.attributeName!);
         if (m.attributeName === 'value') {
           value = maskInputValue({

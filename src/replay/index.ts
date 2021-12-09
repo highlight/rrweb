@@ -1,4 +1,11 @@
-import { rebuild, buildNodeWithSN, INode, NodeType } from '../snapshot';
+import {
+  rebuild,
+  buildNodeWithSN,
+  INode,
+  NodeType,
+  BuildCache,
+  createCache,
+} from '../snapshot';
 import * as mittProxy from 'mitt';
 import { polyfill as smoothscrollPolyfill } from './smoothscroll';
 import { Timer } from './timer';
@@ -30,6 +37,8 @@ import {
   ElementState,
   SessionInterval,
   mouseMovePos,
+  styleAttributeValue,
+  styleValueWithPriority,
 } from '../types';
 import {
   createMirror,
@@ -111,6 +120,9 @@ export class Replayer {
   // Hold the list of CSSRules for in-memory state restoration
   private virtualStyleRulesMap!: VirtualStyleRulesMap;
 
+  // The replayer uses the cache to speed up replay and scrubbing.
+  private cache: BuildCache = createCache();
+
   private imageMap: Map<eventWithTime, HTMLImageElement> = new Map();
   /** The first time the player is playing. */
   private nextUserInteractionEvent: eventWithTime | null;
@@ -145,7 +157,6 @@ export class Replayer {
       triggerFocus: true,
       UNSAFE_replayCanvas: false,
       pauseAnimation: true,
-      userTriggeredOnInput: true,
       mouseTail: defaultMouseTailConfig,
       inactiveThreshold: 0.02,
       inactiveSkipTime: SKIP_TIME_INTERVAL,
@@ -501,6 +512,14 @@ export class Replayer {
     this.iframe.style.pointerEvents = 'none';
   }
 
+  /**
+   * Empties the replayer's cache and reclaims memory.
+   * The replayer will use this cache to speed up the playback.
+   */
+  public resetCache() {
+    this.cache = createCache();
+  }
+
   private setupDom() {
     this.wrapper = document.createElement('div');
     this.wrapper.classList.add('replayer-wrapper');
@@ -770,6 +789,7 @@ export class Replayer {
       afterAppend: (builtNode) => {
         this.collectIframeAndAttachDocument(collected, builtNode);
       },
+      cache: this.cache,
     })[1];
     for (const { mutationInQueue, builtNode } of collected) {
       this.attachDocumentToIframe(mutationInQueue, builtNode);
@@ -843,6 +863,7 @@ export class Replayer {
       afterAppend: (builtNode) => {
         this.collectIframeAndAttachDocument(collected, builtNode);
       },
+      cache: this.cache,
     });
     for (const { mutationInQueue, builtNode } of collected) {
       this.attachDocumentToIframe(mutationInQueue, builtNode);
@@ -973,7 +994,11 @@ export class Replayer {
           d.attributes.forEach((m) => this.treeIndex.attribute(m));
           d.removes.forEach((m) => this.treeIndex.remove(m, this.mirror));
         }
-        this.applyMutation(d, isSync);
+        try {
+          this.applyMutation(d, isSync);
+        } catch (error) {
+          this.warn(`Exception in mutation ${error.message || error}`, d);
+        }
         break;
       }
       case IncrementalSource.Drag:
@@ -1053,7 +1078,6 @@ export class Replayer {
                 debugData: d,
               };
             } else {
-              console.log(d.type);
               if (d.type === MouseInteractions.TouchStart) {
                 // don't draw a trail as user has lifted finger and is placing at a new point
                 this.tailPositions.length = 0;
@@ -1374,8 +1398,12 @@ export class Replayer {
 
   private applyMutation(d: mutationData, useVirtualParent: boolean) {
     d.removes.forEach((mutation) => {
-      const target = this.mirror.getNode(mutation.id);
+      let target = this.mirror.getNode(mutation.id);
       if (!target) {
+        if (d.removes.find((r) => r.id === mutation.parentId)) {
+          // no need to warn, parent was already removed
+          return;
+        }
         return this.warnNodeNotFound(d, mutation.id);
       }
       if (this.virtualStyleRulesMap.has(target)) {
@@ -1393,20 +1421,35 @@ export class Replayer {
       // target may be removed with its parents before
       this.mirror.removeNodeFromMap(target);
       if (parent) {
+        let realTarget = null;
         const realParent =
           '__sn' in parent ? this.fragmentParentMap.get(parent) : undefined;
         if (realParent && realParent.contains(target)) {
-          realParent.removeChild(target);
+          parent = realParent;
         } else if (this.fragmentParentMap.has(target)) {
           /**
            * the target itself is a fragment document and it's not in the dom
            * so we should remove the real target from its parent
            */
-          const realTarget = this.fragmentParentMap.get(target)!;
-          parent.removeChild(realTarget);
+          realTarget = this.fragmentParentMap.get(target)!;
           this.fragmentParentMap.delete(target);
-        } else {
+          target = realTarget;
+        }
+        try {
           parent.removeChild(target);
+        } catch (error) {
+          if (error instanceof DOMException) {
+            this.warn(
+              'parent could not remove child in mutation',
+              parent,
+              realParent,
+              target,
+              realTarget,
+              d,
+            );
+          } else {
+            throw error;
+          }
         }
       }
     });
@@ -1517,6 +1560,7 @@ export class Replayer {
         map: this.mirror.map,
         skipChild: true,
         hackCss: true,
+        cache: this.cache,
       }) as INode;
 
       // legacy data, we should not have -1 siblings any more
@@ -1613,6 +1657,10 @@ export class Replayer {
     d.texts.forEach((mutation) => {
       let target = this.mirror.getNode(mutation.id);
       if (!target) {
+        if (d.removes.find((r) => r.id === mutation.id)) {
+          // no need to warn, element was already removed
+          return;
+        }
         return this.warnNodeNotFound(d, mutation.id);
       }
       /**
@@ -1626,6 +1674,10 @@ export class Replayer {
     d.attributes.forEach((mutation) => {
       let target = this.mirror.getNode(mutation.id);
       if (!target) {
+        if (d.removes.find((r) => r.id === mutation.id)) {
+          // no need to warn, element was already removed
+          return;
+        }
         return this.warnNodeNotFound(d, mutation.id);
       }
       if (this.fragmentParentMap.has(target)) {
@@ -1634,18 +1686,32 @@ export class Replayer {
       for (const attributeName in mutation.attributes) {
         if (typeof attributeName === 'string') {
           const value = mutation.attributes[attributeName];
-          try {
-            if (value !== null) {
+          if (value === null) {
+            ((target as Node) as Element).removeAttribute(attributeName);
+          } else if (typeof value === 'string') {
+            try {
               ((target as Node) as Element).setAttribute(attributeName, value);
-            } else {
-              ((target as Node) as Element).removeAttribute(attributeName);
+            } catch (error) {
+              if (this.config.showWarning) {
+                console.warn(
+                  'An error occurred may due to the checkout feature.',
+                  error,
+                );
+              }
             }
-          } catch (error) {
-            if (this.config.showWarning) {
-              console.warn(
-                'An error occurred may due to the checkout feature.',
-                error,
-              );
+          } else if (attributeName === 'style') {
+            let styleValues = value as styleAttributeValue;
+            const targetEl = (target as Node) as HTMLElement;
+            for (var s in styleValues) {
+              if (styleValues[s] === false) {
+                targetEl.style.removeProperty(s);
+              } else if (styleValues[s] instanceof Array) {
+                const svp = styleValues[s] as styleValueWithPriority;
+                targetEl.style.setProperty(s, svp[0], svp[1]);
+              } else {
+                const svs = styleValues[s] as string;
+                targetEl.style.setProperty(s, svs);
+              }
             }
           }
         }
@@ -1901,7 +1967,11 @@ export class Replayer {
   }
 
   private warnNodeNotFound(d: incrementalData, id: number) {
-    this.warn(`Node with id '${id}' not found in`, d);
+    if (this.treeIndex.idRemoved(id)) {
+      this.warn(`Node with id '${id}' was previously removed. `, d);
+    } else {
+      this.warn(`Node with id '${id}' not found. `, d);
+    }
   }
 
   private warnCanvasMutationFailed(
@@ -1919,7 +1989,15 @@ export class Replayer {
      * is microtask, so events fired on a removed DOM may emit
      * snapshots in the reverse order.
      */
-    this.debug(REPLAY_CONSOLE_PREFIX, `Node with id '${id}' not found in`, d);
+    if (this.treeIndex.idRemoved(id)) {
+      this.debug(
+        REPLAY_CONSOLE_PREFIX,
+        `Node with id '${id}' was previously removed. `,
+        d,
+      );
+    } else {
+      this.debug(REPLAY_CONSOLE_PREFIX, `Node with id '${id}' not found. `, d);
+    }
   }
 
   private warn(...args: Parameters<typeof console.warn>) {

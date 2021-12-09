@@ -14,7 +14,7 @@ import {
 import { isElement, isShadowRoot, maskInputValue } from './utils';
 
 let _id = 1;
-const tagNameRegex = RegExp('[^a-z0-9-_:]');
+const tagNameRegex = new RegExp('[^a-z0-9-_:]');
 
 export const IGNORED_NODE = -2;
 
@@ -49,9 +49,13 @@ function getCssRulesString(s: CSSStyleSheet): string | null {
 }
 
 function getCssRuleString(rule: CSSRule): string {
-  return isCSSImportRule(rule)
-    ? getCssRulesString(rule.styleSheet) || ''
-    : rule.cssText;
+  let cssStringified = rule.cssText;
+  if (isCSSImportRule(rule)) {
+    try {
+      cssStringified = getCssRulesString(rule.styleSheet) || cssStringified;
+    } catch {}
+  }
+  return cssStringified;
 }
 
 function isCSSImportRule(rule: CSSRule): rule is CSSImportRule {
@@ -373,17 +377,26 @@ function serializeNode(
   } = options;
   // Only record root id when document object is not the base document
   let rootId: number | undefined;
-  if ((doc as unknown as INode).__sn) {
-    const docId = (doc as unknown as INode).__sn.id;
+  if (((doc as unknown) as INode).__sn) {
+    const docId = ((doc as unknown) as INode).__sn.id;
     rootId = docId === 1 ? undefined : docId;
   }
   switch (n.nodeType) {
     case n.DOCUMENT_NODE:
-      return {
-        type: NodeType.Document,
-        childNodes: [],
-        rootId,
-      };
+      if ((n as HTMLDocument).compatMode !== 'CSS1Compat') {
+        return {
+          type: NodeType.Document,
+          childNodes: [],
+          compatMode: (n as HTMLDocument).compatMode, // probably "BackCompat"
+          rootId,
+        };
+      } else {
+        return {
+          type: NodeType.Document,
+          childNodes: [],
+          rootId,
+        };
+      }
     case n.DOCUMENT_TYPE_NODE:
       return {
         type: NodeType.DocumentType,
@@ -466,9 +479,12 @@ function serializeNode(
         }
       }
       if (tagName === 'option') {
-        const selectValue = (n as HTMLOptionElement).parentElement;
-        if (attributes.value === (selectValue as HTMLSelectElement).value) {
-          attributes.selected = (n as HTMLOptionElement).selected;
+        if ((n as HTMLOptionElement).selected) {
+          attributes.selected = true;
+        } else {
+          // ignore the html attribute (which corresponds to DOM (n as HTMLOptionElement).defaultSelected)
+          // if it's already been changed
+          delete attributes.selected;
         }
       }
       // canvas image data
@@ -501,7 +517,12 @@ function serializeNode(
       }
       // iframe
       if (tagName === 'iframe' && !keepIframeSrcFn(attributes.src as string)) {
-        delete attributes.src;
+        if (!(n as HTMLIFrameElement).contentDocument) {
+          // we can't record it directly as we can't see into it
+          // preserve the src attribute so a decision can be taken at replay time
+          attributes.rr_src = attributes.src;
+        }
+        delete attributes.src; // prevent auto loading
       }
       return {
         type: NodeType.Element,
@@ -780,7 +801,7 @@ export function serializeNodeWithId(
     // Remove the image's src if enableStrictPrivacy.
     if (serializedNode.needBlock && serializedNode.tagName === 'img') {
       const clone = n.cloneNode();
-      (clone as unknown as HTMLImageElement).src = '';
+      ((clone as unknown) as HTMLImageElement).src = '';
       map[id] = clone as INode;
     }
     /** Highlight Code End */

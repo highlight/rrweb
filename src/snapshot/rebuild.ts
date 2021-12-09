@@ -6,6 +6,7 @@ import {
   elementNode,
   idNodeMap,
   INode,
+  BuildCache,
 } from './types';
 import { isElement } from './utils';
 
@@ -63,11 +64,13 @@ function escapeRegExp(string: string) {
 }
 
 const HOVER_SELECTOR = /([^\\]):hover/;
-const HOVER_SELECTOR_GLOBAL = new RegExp(HOVER_SELECTOR, 'g');
-export function addHoverClass(cssText: string): string {
+const HOVER_SELECTOR_GLOBAL = new RegExp(HOVER_SELECTOR.source, 'g');
+export function addHoverClass(cssText: string, cache: BuildCache): string {
   if (!window.HIG_CONFIGURATION?.enableOnHoverClass) {
     return cssText;
   }
+  const cachedStyle = cache?.stylesWithHoverClass.get(cssText);
+  if (cachedStyle) return cachedStyle;
   const ast = parse(cssText, {
     silent: true,
   });
@@ -100,10 +103,19 @@ export function addHoverClass(cssText: string): string {
     'g',
   );
 
-  return cssText.replace(selectorMatcher, (selector) => {
+  const result = cssText.replace(selectorMatcher, (selector) => {
     const newSelector = selector.replace(HOVER_SELECTOR_GLOBAL, '$1.\\:hover');
     return `${selector}, ${newSelector}`;
   });
+  cache?.stylesWithHoverClass.set(cssText, result);
+  return result;
+}
+
+export function createCache(): BuildCache {
+  const stylesWithHoverClass: Map<string, string> = new Map();
+  return {
+    stylesWithHoverClass,
+  };
 }
 
 function buildNode(
@@ -111,9 +123,10 @@ function buildNode(
   options: {
     doc: Document;
     hackCss: boolean;
+    cache: BuildCache;
   },
 ): Node | null {
-  const { doc, hackCss } = options;
+  const { doc, hackCss, cache } = options;
   switch (n.type) {
     case NodeType.Document:
       return doc.implementation.createDocument(null, '', null);
@@ -136,6 +149,10 @@ function buildNode(
           continue;
         }
         let value = n.attributes[name];
+        if (tagName === 'option' && name === 'selected' && value === false) {
+          // legacy fix (TODO: if `value === false` can be generated for other attrs, should we also omit those other attrs from build?)
+          continue;
+        }
         value =
           typeof value === 'boolean' || typeof value === 'number' ? '' : value;
         // attribute names start with rr_ are internal attributes added by rrweb
@@ -144,7 +161,7 @@ function buildNode(
           const isRemoteOrDynamicCss =
             tagName === 'style' && name === '_cssText';
           if (isRemoteOrDynamicCss && hackCss) {
-            value = addHoverClass(value);
+            value = addHoverClass(value, cache);
           }
           if (isTextarea || isRemoteOrDynamicCss) {
             const child = doc.createTextNode(value);
@@ -244,7 +261,9 @@ function buildNode(
       return node;
     case NodeType.Text:
       return doc.createTextNode(
-        n.isStyle && hackCss ? addHoverClass(n.textContent) : n.textContent,
+        n.isStyle && hackCss
+          ? addHoverClass(n.textContent, cache)
+          : n.textContent,
       );
     case NodeType.CDATA:
       return doc.createCDATASection(n.textContent);
@@ -263,16 +282,24 @@ export function buildNodeWithSN(
     skipChild?: boolean;
     hackCss: boolean;
     afterAppend?: (n: INode) => unknown;
+    cache: BuildCache;
   },
 ): INode | null {
-  const { doc, map, skipChild = false, hackCss = true, afterAppend } = options;
-  let node = buildNode(n, { doc, hackCss });
+  const {
+    doc,
+    map,
+    skipChild = false,
+    hackCss = true,
+    afterAppend,
+    cache,
+  } = options;
+  let node = buildNode(n, { doc, hackCss, cache });
   if (!node) {
     return null;
   }
   if (n.rootId) {
     console.assert(
-      (map[n.rootId] as unknown as Document) === doc,
+      ((map[n.rootId] as unknown) as Document) === doc,
       'Target document should has the same root id.',
     );
   }
@@ -281,6 +308,28 @@ export function buildNodeWithSN(
     // close before open to make sure document was closed
     doc.close();
     doc.open();
+    if (
+      n.compatMode === 'BackCompat' &&
+      n.childNodes &&
+      n.childNodes[0].type !== NodeType.DocumentType // there isn't one already defined
+    ) {
+      // Trigger compatMode in the iframe
+      // this is needed as document.createElement('iframe') otherwise inherits a CSS1Compat mode from the parent replayer environment
+      if (
+        n.childNodes[0].type === NodeType.Element &&
+        'xmlns' in n.childNodes[0].attributes &&
+        n.childNodes[0].attributes.xmlns === 'http://www.w3.org/1999/xhtml'
+      ) {
+        // might as well use an xhtml doctype if we've got an xhtml namespace
+        doc.write(
+          '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "">',
+        );
+      } else {
+        doc.write(
+          '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "">',
+        );
+      }
+    }
     node = doc;
   }
 
@@ -298,6 +347,7 @@ export function buildNodeWithSN(
         skipChild: false,
         hackCss,
         afterAppend,
+        cache,
       });
       if (!childNode) {
         console.warn('Failed to rebuild', childN);
@@ -335,7 +385,7 @@ function handleScroll(node: INode) {
   if (n.type !== NodeType.Element) {
     return;
   }
-  const el = node as Node as HTMLElement;
+  const el = (node as Node) as HTMLElement;
   for (const name in n.attributes) {
     if (!(n.attributes.hasOwnProperty(name) && name.startsWith('rr_'))) {
       continue;
@@ -357,9 +407,10 @@ function rebuild(
     onVisit?: (node: INode) => unknown;
     hackCss?: boolean;
     afterAppend?: (n: INode) => unknown;
+    cache: BuildCache;
   },
 ): [Node | null, idNodeMap] {
-  const { doc, onVisit, hackCss = true, afterAppend } = options;
+  const { doc, onVisit, hackCss = true, afterAppend, cache } = options;
   const idNodeMap: idNodeMap = {};
   const node = buildNodeWithSN(n, {
     doc,
@@ -367,6 +418,7 @@ function rebuild(
     skipChild: false,
     hackCss,
     afterAppend,
+    cache,
   });
   visit(idNodeMap, (visitedNode) => {
     if (onVisit) {
