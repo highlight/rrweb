@@ -147,7 +147,6 @@ export class Replayer {
       triggerFocus: true,
       UNSAFE_replayCanvas: false,
       pauseAnimation: true,
-      userTriggeredOnInput: true,
       mouseTail: defaultMouseTailConfig,
       inactiveThreshold: 0.02,
       inactiveSkipTime: SKIP_TIME_INTERVAL,
