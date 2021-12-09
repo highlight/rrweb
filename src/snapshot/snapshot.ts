@@ -373,8 +373,8 @@ function serializeNode(
   } = options;
   // Only record root id when document object is not the base document
   let rootId: number | undefined;
-  if ((doc as unknown as INode).__sn) {
-    const docId = (doc as unknown as INode).__sn.id;
+  if (((doc as unknown) as INode).__sn) {
+    const docId = ((doc as unknown) as INode).__sn.id;
     rootId = docId === 1 ? undefined : docId;
   }
   switch (n.nodeType) {
@@ -466,9 +466,12 @@ function serializeNode(
         }
       }
       if (tagName === 'option') {
-        const selectValue = (n as HTMLOptionElement).parentElement;
-        if (attributes.value === (selectValue as HTMLSelectElement).value) {
-          attributes.selected = (n as HTMLOptionElement).selected;
+        if ((n as HTMLOptionElement).selected) {
+          attributes.selected = true;
+        } else {
+          // ignore the html attribute (which corresponds to DOM (n as HTMLOptionElement).defaultSelected)
+          // if it's already been changed
+          delete attributes.selected;
         }
       }
       // canvas image data
@@ -780,7 +783,7 @@ export function serializeNodeWithId(
     // Remove the image's src if enableStrictPrivacy.
     if (serializedNode.needBlock && serializedNode.tagName === 'img') {
       const clone = n.cloneNode();
-      (clone as unknown as HTMLImageElement).src = '';
+      ((clone as unknown) as HTMLImageElement).src = '';
       map[id] = clone as INode;
     }
     /** Highlight Code End */
