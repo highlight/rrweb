@@ -1078,7 +1078,6 @@ export class Replayer {
                 debugData: d,
               };
             } else {
-              console.log(d.type);
               if (d.type === MouseInteractions.TouchStart) {
                 // don't draw a trail as user has lifted finger and is placing at a new point
                 this.tailPositions.length = 0;
