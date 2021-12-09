@@ -481,47 +481,21 @@ export default class MutationBuffer {
           };
           this.attributes.push(item);
         }
-        if (m.attributeName === 'style') {
-          const old = this.doc.createElement('span');
-          if (m.oldValue) {
-            old.setAttribute('style', m.oldValue);
+        const tagName = (m.target as HTMLElement).tagName;
+        if (tagName === 'INPUT') {
+          const node = m.target as HTMLInputElement;
+          if (node.type === 'password') {
+            item.attributes['value'] = '*'.repeat(node.value.length);
+            break;
           }
-          if (
-            item.attributes.style === undefined ||
-            item.attributes.style === null
-          ) {
-            item.attributes.style = {};
-          }
-          const styleObj = item.attributes.style as styleAttributeValue;
-          for (const pname of Array.from(target.style)) {
-            const newValue = target.style.getPropertyValue(pname);
-            const newPriority = target.style.getPropertyPriority(pname);
-            if (
-              newValue !== old.style.getPropertyValue(pname) ||
-              newPriority !== old.style.getPropertyPriority(pname)
-            ) {
-              if (newPriority === '') {
-                styleObj[pname] = newValue;
-              } else {
-                styleObj[pname] = [newValue, newPriority];
-              }
-            }
-          }
-          for (const pname of Array.from(old.style)) {
-            if (target.style.getPropertyValue(pname) === '') {
-              // "if not set, returns the empty string"
-              styleObj[pname] = false; // delete
-            }
-          }
-        } else {
-          // overwrite attribute if the mutations was triggered in same time
-          item.attributes[m.attributeName!] = transformAttribute(
-            this.doc,
-            (m.target as HTMLElement).tagName,
-            m.attributeName!,
-            value!,
-          );
         }
+        // overwrite attribute if the mutations was triggered in same time
+        item.attributes[m.attributeName!] = transformAttribute(
+          this.doc,
+          (m.target as HTMLElement).tagName,
+          m.attributeName!,
+          value!,
+        );
         break;
       }
       case 'childList': {
