@@ -792,14 +792,17 @@ function initCanvasMutationObserver(
 }
 
 function initFontObserver(cb: fontCallback, doc: Document): listenerHandler {
-  const win = doc.defaultView;
+  const win = doc.defaultView as IWindow;
+  if (!win) {
+    return () => {};
+  }
+
   const handlers: listenerHandler[] = [];
 
   const fontMap = new WeakMap<FontFace, fontParam>();
 
-  const originalFontFace = (win as any).FontFace;
-  // tslint:disable-next-line: no-any
-  (win as any).FontFace = function FontFace(
+  const originalFontFace = win.FontFace;
+  win.FontFace = (function FontFace(
     family: string,
     source: string | ArrayBufferView,
     descriptors?: FontFaceDescriptors,
@@ -816,7 +819,7 @@ function initFontObserver(cb: fontCallback, doc: Document): listenerHandler {
             JSON.stringify(Array.from(new Uint8Array(source as any))),
     });
     return fontFace;
-  };
+  } as unknown) as typeof FontFace;
 
   const restoreHandler = patch(doc.fonts, 'add', function (original) {
     return function (this: FontFaceSet, fontFace: FontFace) {
@@ -832,8 +835,7 @@ function initFontObserver(cb: fontCallback, doc: Document): listenerHandler {
   });
 
   handlers.push(() => {
-    // tslint:disable-next-line: no-any
-    (win as any).FonFace = originalFontFace;
+    win.FontFace = originalFontFace;
   });
   handlers.push(restoreHandler);
 

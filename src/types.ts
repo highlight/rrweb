@@ -617,6 +617,7 @@ export interface HighlightConfiguration {
 declare global {
   interface Window {
     HIG_CONFIGURATION: HighlightConfiguration;
+    FontFace: typeof FontFace;
   }
 }
 
