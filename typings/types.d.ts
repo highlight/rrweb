@@ -219,17 +219,22 @@ export declare type textMutation = {
     id: number;
     value: string | null;
 };
+
+export type styleAttributeValue = {
+  [key: string]: [string, string] | string | false;
+};
+
 export declare type attributeCursor = {
-    node: Node;
-    attributes: {
-        [key: string]: string | null;
-    };
+  node: Node;
+  attributes: {
+    [key: string]: string | styleAttributeValue | null;
+  };
 };
 export declare type attributeMutation = {
-    id: number;
-    attributes: {
-        [key: string]: string | null;
-    };
+  id: number;
+  attributes: {
+    [key: string]: string | styleAttributeValue | null;
+  };
 };
 export declare type removedNodeMutation = {
     parentId: number;

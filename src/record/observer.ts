@@ -225,7 +225,9 @@ function initMoveObserver(
     (evt) => {
       handleUpdatePositionEvent(evt);
       wrappedCb(
-        evt instanceof MouseEvent
+        evt instanceof DragEvent
+          ? IncrementalSource.Drag
+          : evt instanceof MouseEvent
           ? IncrementalSource.MouseMove
           : IncrementalSource.TouchMove,
       );

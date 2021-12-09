@@ -30,6 +30,8 @@ import {
   ElementState,
   SessionInterval,
   mouseMovePos,
+  styleAttributeValue,
+  styleValueWithPriority,
 } from '../types';
 import {
   createMirror,
@@ -1634,18 +1636,32 @@ export class Replayer {
       for (const attributeName in mutation.attributes) {
         if (typeof attributeName === 'string') {
           const value = mutation.attributes[attributeName];
-          try {
-            if (value !== null) {
+          if (value === null) {
+            ((target as Node) as Element).removeAttribute(attributeName);
+          } else if (typeof value === 'string') {
+            try {
               ((target as Node) as Element).setAttribute(attributeName, value);
-            } else {
-              ((target as Node) as Element).removeAttribute(attributeName);
+            } catch (error) {
+              if (this.config.showWarning) {
+                console.warn(
+                  'An error occurred may due to the checkout feature.',
+                  error,
+                );
+              }
             }
-          } catch (error) {
-            if (this.config.showWarning) {
-              console.warn(
-                'An error occurred may due to the checkout feature.',
-                error,
-              );
+          } else if (attributeName === 'style') {
+            let styleValues = value as styleAttributeValue;
+            const targetEl = (target as Node) as HTMLElement;
+            for (var s in styleValues) {
+              if (styleValues[s] === false) {
+                targetEl.style.removeProperty(s);
+              } else if (styleValues[s] instanceof Array) {
+                const svp = styleValues[s] as styleValueWithPriority;
+                targetEl.style.setProperty(s, svp[0], svp[1]);
+              } else {
+                const svs = styleValues[s] as string;
+                targetEl.style.setProperty(s, svs);
+              }
             }
           }
         }

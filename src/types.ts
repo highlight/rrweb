@@ -311,16 +311,22 @@ export type textMutation = {
   value: string | null;
 };
 
+export type styleAttributeValue = {
+  [key: string]: styleValueWithPriority | string | false;
+};
+
+export type styleValueWithPriority = [string, string];
+
 export type attributeCursor = {
   node: Node;
   attributes: {
-    [key: string]: string | null;
+    [key: string]: string | styleAttributeValue | null;
   };
 };
 export type attributeMutation = {
   id: number;
   attributes: {
-    [key: string]: string | null;
+    [key: string]: string | styleAttributeValue | null;
   };
 };
 
