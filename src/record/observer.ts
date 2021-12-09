@@ -45,15 +45,16 @@ import {
   fontParam,
   Mirror,
   styleDeclarationCallback,
+  IWindow,
 } from '../types';
 import MutationBuffer from './mutation';
 import { IframeManager } from './iframe-manager';
 import { ShadowDomManager } from './shadow-dom-manager';
 
-type WindowWithStoredMutationObserver = Window & {
+type WindowWithStoredMutationObserver = IWindow & {
   __rrMutationObserver?: MutationObserver;
 };
-type WindowWithAngularZone = Window & {
+type WindowWithAngularZone = IWindow & {
   Zone?: {
     __symbol__?: (key: string) => string;
   };
@@ -496,11 +497,17 @@ function getNestedCSSRulePositions(rule: CSSRule): number[] {
   const positions: number[] = [];
   function recurse(childRule: CSSRule, pos: number[]) {
     if (
-      isCSSGroupingRuleSupported &&
-      childRule.parentRule instanceof CSSGroupingRule
+      (isCSSGroupingRuleSupported &&
+        childRule.parentRule instanceof CSSGroupingRule) ||
+      (isCSSMediaRuleSupported &&
+        childRule.parentRule instanceof CSSMediaRule) ||
+      (isCSSSupportsRuleSupported &&
+        childRule.parentRule instanceof CSSSupportsRule) ||
+      (isCSSConditionRuleSupported &&
+        childRule.parentRule instanceof CSSConditionRule)
     ) {
       const rules = Array.from(
-        (childRule.parentRule as CSSGroupingRule).cssRules,
+        (childRule.parentRule as GroupingCSSRule).cssRules,
       );
       const index = rules.indexOf(childRule);
       pos.unshift(index);
@@ -516,11 +523,11 @@ function getNestedCSSRulePositions(rule: CSSRule): number[] {
 
 function initStyleSheetObserver(
   cb: styleSheetRuleCallback,
-  win: Window,
+  win: IWindow,
   mirror: Mirror,
 ): listenerHandler {
-  const insertRule = (win as any).CSSStyleSheet.prototype.insertRule;
-  (win as any).CSSStyleSheet.prototype.insertRule = function (
+  const insertRule = win.CSSStyleSheet.prototype.insertRule;
+  win.CSSStyleSheet.prototype.insertRule = function (
     rule: string,
     index?: number,
   ) {
@@ -534,8 +541,8 @@ function initStyleSheetObserver(
     return insertRule.apply(this, arguments);
   };
 
-  const deleteRule = (win as any).CSSStyleSheet.prototype.deleteRule;
-  (win as any).CSSStyleSheet.prototype.deleteRule = function (index: number) {
+  const deleteRule = win.CSSStyleSheet.prototype.deleteRule;
+  win.CSSStyleSheet.prototype.deleteRule = function (index: number) {
     const id = mirror.getId(this.ownerNode as INode);
     if (id !== -1) {
       cb({
@@ -550,26 +557,20 @@ function initStyleSheetObserver(
     [key: string]: GroupingCSSRuleTypes;
   } = {};
   if (isCSSGroupingRuleSupported) {
-    supportedNestedCSSRuleTypes[
-      'CSSGroupingRule'
-    ] = (win as any).CSSGroupingRule;
+    supportedNestedCSSRuleTypes.CSSGroupingRule = win.CSSGroupingRule;
   } else {
     // Some browsers (Safari) don't support CSSGroupingRule
     // https://caniuse.com/?search=cssgroupingrule
     // fall back to monkey patching classes that would have inherited from CSSGroupingRule
 
     if (isCSSMediaRuleSupported) {
-      supportedNestedCSSRuleTypes['CSSMediaRule'] = (win as any).CSSMediaRule;
+      supportedNestedCSSRuleTypes.CSSMediaRule = win.CSSMediaRule;
     }
     if (isCSSConditionRuleSupported) {
-      supportedNestedCSSRuleTypes[
-        'CSSConditionRule'
-      ] = (win as any).CSSConditionRule;
+      supportedNestedCSSRuleTypes.CSSConditionRule = win.CSSConditionRule;
     }
     if (isCSSSupportsRuleSupported) {
-      supportedNestedCSSRuleTypes[
-        'CSSSupportsRule'
-      ] = (win as any).CSSSupportsRule;
+      supportedNestedCSSRuleTypes.CSSSupportsRule = win.CSSSupportsRule;
     }
   }
 
@@ -618,8 +619,8 @@ function initStyleSheetObserver(
   });
 
   return () => {
-    (win as any).CSSStyleSheet.prototype.insertRule = insertRule;
-    (win as any).CSSStyleSheet.prototype.deleteRule = deleteRule;
+    win.CSSStyleSheet.prototype.insertRule = insertRule;
+    win.CSSStyleSheet.prototype.deleteRule = deleteRule;
     Object.entries(supportedNestedCSSRuleTypes).forEach(([typeKey, type]) => {
       type.prototype.insertRule = unmodifiedFunctions[typeKey].insertRule;
       type.prototype.deleteRule = unmodifiedFunctions[typeKey].deleteRule;
@@ -629,11 +630,11 @@ function initStyleSheetObserver(
 
 function initStyleDeclarationObserver(
   cb: styleDeclarationCallback,
-  win: Window,
+  win: IWindow,
   mirror: Mirror,
 ): listenerHandler {
-  const setProperty = (win as any).CSSStyleDeclaration.prototype.setProperty;
-  (win as any).CSSStyleDeclaration.prototype.setProperty = function (
+  const setProperty = win.CSSStyleDeclaration.prototype.setProperty;
+  win.CSSStyleDeclaration.prototype.setProperty = function (
     this: CSSStyleDeclaration,
     property: string,
     value: string,
@@ -656,9 +657,8 @@ function initStyleDeclarationObserver(
     return setProperty.apply(this, arguments);
   };
 
-  const removeProperty = (win as any).CSSStyleDeclaration.prototype
-    .removeProperty;
-  (win as any).CSSStyleDeclaration.prototype.removeProperty = function (
+  const removeProperty = win.CSSStyleDeclaration.prototype.removeProperty;
+  win.CSSStyleDeclaration.prototype.removeProperty = function (
     this: CSSStyleDeclaration,
     property: string,
   ) {
@@ -678,8 +678,8 @@ function initStyleDeclarationObserver(
   };
 
   return () => {
-    (win as any).CSSStyleDeclaration.prototype.setProperty = setProperty;
-    (win as any).CSSStyleDeclaration.prototype.removeProperty = removeProperty;
+    win.CSSStyleDeclaration.prototype.setProperty = setProperty;
+    win.CSSStyleDeclaration.prototype.removeProperty = removeProperty;
   };
 }
 
@@ -711,7 +711,7 @@ function initMediaInteractionObserver(
 
 function initCanvasMutationObserver(
   cb: canvasMutationCallback,
-  win: Window,
+  win: IWindow,
   blockClass: blockClass,
   mirror: Mirror,
 ): listenerHandler {
@@ -928,6 +928,10 @@ export function initObservers(
   o: observerParam,
   hooks: hooksParam = {},
 ): listenerHandler {
+  const currentWindow = o.doc.defaultView; // basically document.window
+  if (!currentWindow) {
+    return () => {};
+  }
   mergeHooks(o, hooks);
   const mutationObserver = initMutationObserver(
     o.mutationCb,
@@ -985,8 +989,6 @@ export function initObservers(
     o.blockClass,
     o.mirror,
   );
-
-  const currentWindow = o.doc.defaultView as Window; // basically document.window
 
   const styleSheetObserver = initStyleSheetObserver(
     o.styleSheetRuleCb,

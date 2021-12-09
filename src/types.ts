@@ -619,3 +619,5 @@ declare global {
     HIG_CONFIGURATION: HighlightConfiguration;
   }
 }
+
+export type IWindow = Window & typeof globalThis;
