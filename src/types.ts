@@ -390,6 +390,35 @@ export enum MouseInteractions {
   TouchCancel,
 }
 
+export enum CanvasContext {
+  '2D',
+  WebGL,
+  WebGL2,
+}
+
+export type SerializedWebGlArg =
+  | {
+      rr_type: 'ArrayBuffer';
+      base64: string; // base64
+    }
+  | {
+      rr_type: string;
+      src: string; // url of image
+    }
+  | {
+      rr_type: string;
+      args: Array<SerializedWebGlArg>;
+    }
+  | {
+      rr_type: string;
+      index: number;
+    }
+  | string
+  | number
+  | boolean
+  | null
+  | SerializedWebGlArg[];
+
 type mouseInteractionParam = {
   type: MouseInteractions;
   id: number;
@@ -443,9 +472,11 @@ export type canvasMutationCallback = (p: canvasMutationParam) => void;
 
 export type canvasMutationParam = {
   id: number;
+  type: CanvasContext;
   property: string;
   args: Array<unknown>;
   setter?: true;
+  newFrame?: true;
 };
 
 export type fontParam = {
@@ -569,6 +600,7 @@ export type missingNodeMap = {
 export type actionWithDelay = {
   doAction: () => void;
   delay: number;
+  newFrame: boolean;
 };
 
 export type Handler = (event?: unknown) => void;

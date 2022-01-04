@@ -50,6 +50,9 @@ import {
 import MutationBuffer from './mutation';
 import { IframeManager } from './iframe-manager';
 import { ShadowDomManager } from './shadow-dom-manager';
+import initCanvasContextObserver from './observers/canvas/canvas';
+import initCanvas2DMutationObserver from './observers/canvas/2d';
+import initCanvasWebGLMutationObserver from './observers/canvas/webgl';
 
 type WindowWithStoredMutationObserver = IWindow & {
   __rrMutationObserver?: MutationObserver;
@@ -715,79 +718,25 @@ function initCanvasMutationObserver(
   blockClass: blockClass,
   mirror: Mirror,
 ): listenerHandler {
-  const props = Object.getOwnPropertyNames(
-    (win as any).CanvasRenderingContext2D.prototype,
+  const canvasContextReset = initCanvasContextObserver(win, blockClass);
+  const canvas2DReset = initCanvas2DMutationObserver(
+    cb,
+    win,
+    blockClass,
+    mirror,
   );
-  const handlers: listenerHandler[] = [];
-  for (const prop of props) {
-    try {
-      if (
-        typeof (win as any).CanvasRenderingContext2D.prototype[
-          prop as keyof CanvasRenderingContext2D
-        ] !== 'function'
-      ) {
-        continue;
-      }
-      const restoreHandler = patch(
-        (win as any).CanvasRenderingContext2D.prototype,
-        prop,
-        function (original) {
-          return function (
-            this: CanvasRenderingContext2D,
-            ...args: Array<unknown>
-          ) {
-            if (!isBlocked(this.canvas, blockClass)) {
-              setTimeout(() => {
-                const recordArgs = [...args];
-                if (prop === 'drawImage') {
-                  if (
-                    recordArgs[0] &&
-                    recordArgs[0] instanceof HTMLCanvasElement
-                  ) {
-                    const canvas = recordArgs[0];
-                    const ctx = canvas.getContext('2d');
-                    let imgd = ctx?.getImageData(
-                      0,
-                      0,
-                      canvas.width,
-                      canvas.height,
-                    );
-                    let pix = imgd?.data;
-                    recordArgs[0] = JSON.stringify(pix);
-                  }
-                }
-                cb({
-                  id: mirror.getId((this.canvas as unknown) as INode),
-                  property: prop,
-                  args: recordArgs,
-                });
-              }, 0);
-            }
-            return original.apply(this, args);
-          };
-        },
-      );
-      handlers.push(restoreHandler);
-    } catch {
-      const hookHandler = hookSetter<CanvasRenderingContext2D>(
-        (win as any).CanvasRenderingContext2D.prototype,
-        prop,
-        {
-          set(v) {
-            cb({
-              id: mirror.getId((this.canvas as unknown) as INode),
-              property: prop,
-              args: [v],
-              setter: true,
-            });
-          },
-        },
-      );
-      handlers.push(hookHandler);
-    }
-  }
+
+  const canvasWebGL1and2Reset = initCanvasWebGLMutationObserver(
+    cb,
+    win,
+    blockClass,
+    mirror,
+  );
+
   return () => {
-    handlers.forEach((h) => h());
+    canvasContextReset();
+    canvas2DReset();
+    canvasWebGL1and2Reset();
   };
 }
 

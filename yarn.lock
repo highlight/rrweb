@@ -704,6 +704,11 @@ balanced-match@^1.0.0:
   resolved "https://registry.npmjs.org/balanced-match/-/balanced-match-1.0.0.tgz"
   integrity sha1-ibTRmasr7kneFk6gK4nORi1xt2c=
 
+base64-arraybuffer@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/base64-arraybuffer/-/base64-arraybuffer-1.0.1.tgz#87bd13525626db4a9838e00a508c2b73efcf348c"
+  integrity sha512-vFIUq7FdLtjZMhATwDul5RZWv2jpXQ09Pd6jcVEOvIsqCWTRFD/ONHNfyOS8dA/Ippi5dsIgpyKWKZaAKZltbA==
+
 base64-js@^1.3.1:
   version "1.5.1"
   resolved "https://registry.yarnpkg.com/base64-js/-/base64-js-1.5.1.tgz#1b1b440160a5bf7ad40b650f095963481903930a"
@@ -2521,10 +2526,10 @@ fsevents@^1.2.7:
     bindings "^1.5.0"
     nan "^2.12.1"
 
-fsevents@~2.1.2:
-  version "2.1.3"
-  resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.1.3.tgz#fb738703ae8d2f9fe900c33836ddebee8b97f23e"
-  integrity sha512-Auw9a4AxqWpa9GUfj370BMPzzyncfBABW8Mab7BGWBYDj4Isgq+cDKtx0i6u9jcX9pQDnswsaaOTgTmA5pEjuQ==
+fsevents@~2.3.1:
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.2.tgz#8a526f78b8fdf4623b709e0b975c52c24c02fd1a"
+  integrity sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==
 
 function-bind@^1.1.1:
   version "1.1.1"
@@ -2719,6 +2724,11 @@ handle-thing@^2.0.0:
   version "2.0.1"
   resolved "https://registry.npmjs.org/handle-thing/-/handle-thing-2.0.1.tgz"
   integrity sha512-9Qn4yBxelxoh2Ow62nP+Ka/kMnOXRi8BXnRaUwezLNhqelnN49xKz4F/dPP8OYLxLxq6JDtZb2i9XznUQbNPTg==
+
+harmony-reflect@^1.4.6:
+  version "1.6.2"
+  resolved "https://registry.yarnpkg.com/harmony-reflect/-/harmony-reflect-1.6.2.tgz#31ecbd32e648a34d030d86adb67d4d47547fe710"
+  integrity sha512-HIp/n38R9kQjDEziXyDTuW3vvoxxyxjxFzXLrBr18uB47GnSt+G9D29fqrpM5ZkspMcPICud3XsBJQ4Y2URg8g==
 
 has-ansi@^2.0.0:
   version "2.0.0"
@@ -2946,6 +2956,13 @@ icss-utils@^5.0.0, icss-utils@^5.1.0:
   version "5.1.0"
   resolved "https://registry.npmjs.org/icss-utils/-/icss-utils-5.1.0.tgz"
   integrity sha512-soFhflCVWLfRNOPU3iv5Z9VUdT44xFRbzjLsEzSr5AQmgqPMTHdU3PMT1Cf1ssx8fLNJDA1juftYl+PUcv3MqA==
+
+identity-obj-proxy@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/identity-obj-proxy/-/identity-obj-proxy-3.0.0.tgz#94d2bda96084453ef36fbc5aaec37e0f79f1fc14"
+  integrity sha1-lNK9qWCERT7zb7xarsN+D3nx/BQ=
+  dependencies:
+    harmony-reflect "^1.4.6"
 
 ieee754@^1.1.13:
   version "1.2.1"
