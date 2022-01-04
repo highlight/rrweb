@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb",
-  "version": "1.0.8",
+  "version": "1.1.0",
   "description": "record and replay the web",
   "scripts": {
     "test": "npm run bundle:browser && cross-env TS_NODE_CACHE=false TS_NODE_FILES=true mocha -r ts-node/register -r ignore-styles -r jsdom-global/register test/**.test.ts",
@@ -43,13 +43,13 @@
     "chai": "^4.2.0",
     "cross-env": "^5.2.0",
     "css-loader": "^5.0.1",
-    "mini-css-extract-plugin": "^1.3.8",
     "fast-mhtml": "^1.1.9",
     "ignore-styles": "^5.0.1",
     "inquirer": "^6.2.1",
     "jest-snapshot": "^23.6.0",
     "jsdom": "^16.6.0",
     "jsdom-global": "^3.0.2",
+    "mini-css-extract-plugin": "^1.3.8",
     "mocha": "^5.2.0",
     "node-libtidy": "^0.4.0",
     "prettier": "2.2.1",
@@ -76,7 +76,9 @@
   "dependencies": {
     "@types/css-font-loading-module": "0.0.4",
     "@xstate/fsm": "^1.4.0",
+    "base64-arraybuffer": "^1.0.1",
     "fflate": "^0.4.4",
+    "identity-obj-proxy": "^3.0.0",
     "mitt": "^1.1.3"
   }
 }

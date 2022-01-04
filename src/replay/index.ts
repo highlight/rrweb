@@ -39,6 +39,7 @@ import {
   mouseMovePos,
   styleAttributeValue,
   styleValueWithPriority,
+  CanvasContext,
 } from '../types';
 import {
   createMirror,
@@ -62,6 +63,7 @@ import {
   VirtualStyleRules,
   VirtualStyleRulesMap,
 } from './virtual-styles';
+import canvasMutation from './canvas';
 
 const SKIP_TIME_THRESHOLD = 10 * 1000;
 const SKIP_TIME_INTERVAL = 2 * 1000;
@@ -123,7 +125,8 @@ export class Replayer {
   // The replayer uses the cache to speed up replay and scrubbing.
   private cache: BuildCache = createCache();
 
-  private imageMap: Map<eventWithTime, HTMLImageElement> = new Map();
+  private imageMap: Map<eventWithTime | string, HTMLImageElement> = new Map();
+
   /** The first time the player is playing. */
   private nextUserInteractionEvent: eventWithTime | null;
 
@@ -891,6 +894,37 @@ export class Replayer {
     }
   }
 
+  private hasImageArg(args: any[]): boolean {
+    for (const arg of args) {
+      if (!arg || typeof arg !== 'object') {
+        // do nothing
+      } else if ('rr_type' in arg && 'args' in arg) {
+        if (this.hasImageArg(arg.args)) return true;
+      } else if ('rr_type' in arg && arg.rr_type === 'HTMLImageElement') {
+        return true; // has image!
+      } else if (arg instanceof Array) {
+        if (this.hasImageArg(arg)) return true;
+      }
+    }
+    return false;
+  }
+
+  private getImageArgs(args: any[]): string[] {
+    const images: string[] = [];
+    for (const arg of args) {
+      if (!arg || typeof arg !== 'object') {
+        // do nothing
+      } else if ('rr_type' in arg && 'args' in arg) {
+        images.push(...this.getImageArgs(arg.args));
+      } else if ('rr_type' in arg && arg.rr_type === 'HTMLImageElement') {
+        images.push(arg.src);
+      } else if (arg instanceof Array) {
+        images.push(...this.getImageArgs(arg));
+      }
+    }
+    return images;
+  }
+
   /**
    * pause when loading style sheet, resume when loaded all timeout exceed
    */
@@ -974,6 +1008,16 @@ export class Replayer {
         let d = imgd?.data;
         d = JSON.parse(event.data.args[0]);
         ctx?.putImageData(imgd!, 0, 0);
+      } else if (
+        event.type === EventType.IncrementalSnapshot &&
+        event.data.source === IncrementalSource.CanvasMutation &&
+        this.hasImageArg(event.data.args)
+      ) {
+        this.getImageArgs(event.data.args).forEach((url) => {
+          const image = new Image();
+          image.src = url; // this preloads the image
+          this.imageMap.set(url, image);
+        });
       }
     }
     if (count !== resolved) {
@@ -1022,6 +1066,7 @@ export class Replayer {
                 p.timeOffset +
                 e.timestamp -
                 this.service.state.context.baselineTime,
+              newFrame: false,
             };
             this.timer.addAction(action);
           });
@@ -1029,6 +1074,7 @@ export class Replayer {
           this.timer.addAction({
             doAction() {},
             delay: e.delay! - d.positions[0]?.timeOffset,
+            newFrame: false,
           });
         }
         break;
@@ -1347,34 +1393,13 @@ export class Replayer {
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
-        try {
-          const ctx = ((target as unknown) as HTMLCanvasElement).getContext(
-            '2d',
-          )!;
-          if (d.setter) {
-            // skip some read-only type checks
-            // tslint:disable-next-line:no-any
-            (ctx as any)[d.property] = d.args[0];
-            return;
-          }
-          const original = ctx[
-            d.property as keyof CanvasRenderingContext2D
-          ] as Function;
-          /**
-           * We have serialized the image source into base64 string during recording,
-           * which has been preloaded before replay.
-           * So we can get call drawImage SYNCHRONOUSLY which avoid some fragile cast.
-           */
-          if (d.property === 'drawImage' && typeof d.args[0] === 'string') {
-            const image = this.imageMap.get(e);
-            d.args[0] = image;
-            original.apply(ctx, d.args);
-          } else {
-            original.apply(ctx, d.args);
-          }
-        } catch (error) {
-          this.warnCanvasMutationFailed(d, d.id, error);
-        }
+        canvasMutation({
+          event: e,
+          mutation: d,
+          target: (target as unknown) as HTMLCanvasElement,
+          imageMap: this.imageMap,
+          errorHandler: this.warnCanvasMutationFailed.bind(this),
+        });
         break;
       }
       case IncrementalSource.Font: {
@@ -1974,12 +1999,8 @@ export class Replayer {
     }
   }
 
-  private warnCanvasMutationFailed(
-    d: canvasMutationData,
-    id: number,
-    error: unknown,
-  ) {
-    this.warn(`Has error on update canvas '${id}'`, d, error);
+  private warnCanvasMutationFailed(d: canvasMutationData, error: unknown) {
+    this.warn(`Has error on canvas update`, error, 'canvas mutation:', d);
   }
 
   private debugNodeNotFound(d: incrementalData, id: number) {
