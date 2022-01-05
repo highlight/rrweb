@@ -122,6 +122,7 @@ export function addDelay(
     event.delay = firstTimestamp - baselineTime;
     return firstTimestamp - baselineTime;
   }
+
   event.delay = event.timestamp - baselineTime;
 
   if (lastDelay) {

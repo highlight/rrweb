@@ -110,6 +110,7 @@ export class Replayer {
 
   private emitter: Emitter = mitt();
 
+  private nextUserInteractionEvent: eventWithTime | null;
   private activityIntervals: Array<SessionInterval> = [];
   private inactiveEndTimestamp: number | null;
 
@@ -126,9 +127,6 @@ export class Replayer {
   private cache: BuildCache = createCache();
 
   private imageMap: Map<eventWithTime | string, HTMLImageElement> = new Map();
-
-  /** The first time the player is playing. */
-  private nextUserInteractionEvent: eventWithTime | null;
 
   private mirror: Mirror = createMirror();
 
@@ -555,7 +553,7 @@ export class Replayer {
         this.iframe.contentDocument,
       );
 
-      polyfill(this.iframe.contentWindow as Window & typeof globalThis);
+      polyfill(this.iframe.contentWindow as IWindow);
     }
   }
 
@@ -630,12 +628,11 @@ export class Replayer {
         };
         break;
       case EventType.Meta:
-        castFn = () => {
+        castFn = () =>
           this.emitter.emit(ReplayerEvents.Resize, {
             width: event.data.width,
             height: event.data.height,
           });
-        };
         break;
       case EventType.FullSnapshot:
         castFn = () => {
@@ -894,37 +891,6 @@ export class Replayer {
     }
   }
 
-  private hasImageArg(args: any[]): boolean {
-    for (const arg of args) {
-      if (!arg || typeof arg !== 'object') {
-        // do nothing
-      } else if ('rr_type' in arg && 'args' in arg) {
-        if (this.hasImageArg(arg.args)) return true;
-      } else if ('rr_type' in arg && arg.rr_type === 'HTMLImageElement') {
-        return true; // has image!
-      } else if (arg instanceof Array) {
-        if (this.hasImageArg(arg)) return true;
-      }
-    }
-    return false;
-  }
-
-  private getImageArgs(args: any[]): string[] {
-    const images: string[] = [];
-    for (const arg of args) {
-      if (!arg || typeof arg !== 'object') {
-        // do nothing
-      } else if ('rr_type' in arg && 'args' in arg) {
-        images.push(...this.getImageArgs(arg.args));
-      } else if ('rr_type' in arg && arg.rr_type === 'HTMLImageElement') {
-        images.push(arg.src);
-      } else if (arg instanceof Array) {
-        images.push(...this.getImageArgs(arg));
-      }
-    }
-    return images;
-  }
-
   /**
    * pause when loading style sheet, resume when loaded all timeout exceed
    */
@@ -981,6 +947,37 @@ export class Replayer {
     }
   }
 
+  private hasImageArg(args: any[]): boolean {
+    for (const arg of args) {
+      if (!arg || typeof arg !== 'object') {
+        // do nothing
+      } else if ('rr_type' in arg && 'args' in arg) {
+        if (this.hasImageArg(arg.args)) return true;
+      } else if ('rr_type' in arg && arg.rr_type === 'HTMLImageElement') {
+        return true; // has image!
+      } else if (arg instanceof Array) {
+        if (this.hasImageArg(arg)) return true;
+      }
+    }
+    return false;
+  }
+
+  private getImageArgs(args: any[]): string[] {
+    const images: string[] = [];
+    for (const arg of args) {
+      if (!arg || typeof arg !== 'object') {
+        // do nothing
+      } else if ('rr_type' in arg && 'args' in arg) {
+        images.push(...this.getImageArgs(arg.args));
+      } else if ('rr_type' in arg && arg.rr_type === 'HTMLImageElement') {
+        images.push(arg.src);
+      } else if (arg instanceof Array) {
+        images.push(...this.getImageArgs(arg));
+      }
+    }
+    return images;
+  }
+
   /**
    * pause when there are some canvas drawImage args need to be loaded
    */
@@ -991,8 +988,6 @@ export class Replayer {
     };
     this.emitter.on(ReplayerEvents.Start, stateHandler);
     this.emitter.on(ReplayerEvents.Pause, stateHandler);
-    let count = 0;
-    let resolved = 0;
     for (const event of this.service.state.context.events) {
       if (
         event.type === EventType.IncrementalSnapshot &&
@@ -1001,7 +996,6 @@ export class Replayer {
         typeof event.data.args[0] === 'string' &&
         !this.imageMap.has(event)
       ) {
-        count++;
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const imgd = ctx?.createImageData(canvas.width, canvas.height);
@@ -1019,9 +1013,6 @@ export class Replayer {
           this.imageMap.set(url, image);
         });
       }
-    }
-    if (count !== resolved) {
-      this.service.send({ type: 'PAUSE' });
     }
   }
 
@@ -1393,6 +1384,7 @@ export class Replayer {
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
+
         canvasMutation({
           event: e,
           mutation: d,
@@ -1400,6 +1392,7 @@ export class Replayer {
           imageMap: this.imageMap,
           errorHandler: this.warnCanvasMutationFailed.bind(this),
         });
+
         break;
       }
       case IncrementalSource.Font: {
@@ -1597,6 +1590,21 @@ export class Replayer {
         return;
       }
 
+      if (
+        '__sn' in parent &&
+        parent.__sn.type === NodeType.Element &&
+        parent.__sn.tagName === 'textarea' &&
+        mutation.node.type === NodeType.Text
+      ) {
+        // https://github.com/rrweb-io/rrweb/issues/745
+        // parent is textarea, will only keep one child node as the value
+        for (const c of Array.from(parent.childNodes)) {
+          if (c.nodeType === parent.TEXT_NODE) {
+            parent.removeChild(c);
+          }
+        }
+      }
+
       if (previous && previous.nextSibling && previous.nextSibling.parentNode) {
         parent.insertBefore(target, previous.nextSibling);
       } else if (next && next.parentNode) {
@@ -1755,6 +1763,13 @@ export class Replayer {
         left: d.x,
         behavior: 'smooth',
       });
+    } else if (target.__sn.type === NodeType.Document) {
+      // nest iframe content document
+      ((target as unknown) as Document).defaultView!.scrollTo({
+        top: d.y,
+        left: d.x,
+        behavior: 'smooth',
+      });
     } else {
       try {
         ((target as Node) as Element).scrollTop = d.y;
@@ -1896,7 +1911,7 @@ export class Replayer {
   }
 
   private backToNormal() {
-    this.inactiveEndTimestamp = null;
+    this.nextUserInteractionEvent = null;
     if (this.speedService.state.matches('normal')) {
       return;
     }
@@ -1982,9 +1997,13 @@ export class Replayer {
 
   private restoreNodeSheet(node: INode) {
     const storedRules = this.virtualStyleRulesMap.get(node);
-    if (node.nodeName !== 'STYLE') return;
+    if (node.nodeName !== 'STYLE') {
+      return;
+    }
 
-    if (!storedRules) return;
+    if (!storedRules) {
+      return;
+    }
 
     const styleNode = (node as unknown) as HTMLStyleElement;
 
