@@ -59,8 +59,8 @@ function getTagName(n: elementNode): string {
 }
 
 // based on https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions#escaping
-function escapeRegExp(string: string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
 const HOVER_SELECTOR = /([^\\]):hover/;
@@ -71,6 +71,7 @@ export function addHoverClass(cssText: string, cache: BuildCache): string {
   }
   const cachedStyle = cache?.stylesWithHoverClass.get(cssText);
   if (cachedStyle) return cachedStyle;
+
   const ast = parse(cssText, {
     silent: true,
   });
@@ -90,7 +91,9 @@ export function addHoverClass(cssText: string, cache: BuildCache): string {
     }
   });
 
-  if (selectors.length === 0) return cssText;
+  if (selectors.length === 0) {
+    return cssText;
+  }
 
   const selectorMatcher = new RegExp(
     selectors
@@ -190,12 +193,25 @@ function buildNode(
             } else if (
               tagName === 'meta' &&
               n.attributes['http-equiv'] === 'Content-Security-Policy' &&
-              name == 'content'
+              name === 'content'
             ) {
               // If CSP contains style-src and inline-style is disabled, there will be an error "Refused to apply inline style because it violates the following Content Security Policy directive: style-src '*'".
               // And the function insertStyleRules in rrweb replayer will throw an error "Uncaught TypeError: Cannot read property 'insertRule' of null".
               node.setAttribute('csp-content', value);
               continue;
+            } else if (
+              tagName === 'link' &&
+              n.attributes.rel === 'preload' &&
+              n.attributes.as === 'script'
+            ) {
+              // ignore
+            } else if (
+              tagName === 'link' &&
+              n.attributes.rel === 'prefetch' &&
+              typeof n.attributes.href === 'string' &&
+              n.attributes.href.endsWith('.js')
+            ) {
+              // ignore
             } else {
               node.setAttribute(name, value);
             }
