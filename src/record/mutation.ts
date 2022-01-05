@@ -489,13 +489,47 @@ export default class MutationBuffer {
             break;
           }
         }
-        // overwrite attribute if the mutations was triggered in same time
-        item.attributes[m.attributeName!] = transformAttribute(
-          this.doc,
-          (m.target as HTMLElement).tagName,
-          m.attributeName!,
-          value!,
-        );
+        if (m.attributeName === 'style') {
+          const old = this.doc.createElement('span');
+          if (m.oldValue) {
+            old.setAttribute('style', m.oldValue);
+          }
+          if (
+            item.attributes.style === undefined ||
+            item.attributes.style === null
+          ) {
+            item.attributes.style = {};
+          }
+          const styleObj = item.attributes.style as styleAttributeValue;
+          for (const pname of Array.from(target.style)) {
+            const newValue = target.style.getPropertyValue(pname);
+            const newPriority = target.style.getPropertyPriority(pname);
+            if (
+              newValue !== old.style.getPropertyValue(pname) ||
+              newPriority !== old.style.getPropertyPriority(pname)
+            ) {
+              if (newPriority === '') {
+                styleObj[pname] = newValue;
+              } else {
+                styleObj[pname] = [newValue, newPriority];
+              }
+            }
+          }
+          for (const pname of Array.from(old.style)) {
+            if (target.style.getPropertyValue(pname) === '') {
+              // "if not set, returns the empty string"
+              styleObj[pname] = false; // delete
+            }
+          }
+        } else {
+          // overwrite attribute if the mutations was triggered in same time
+          item.attributes[m.attributeName!] = transformAttribute(
+            this.doc,
+            (m.target as HTMLElement).tagName,
+            m.attributeName!,
+            value!,
+          );
+        }
         break;
       }
       case 'childList': {
@@ -569,6 +603,7 @@ export default class MutationBuffer {
       this.addedSet.add(n);
       this.droppedSet.delete(n);
     }
+
     // if this node is blocked `serializeNode` will turn it into a placeholder element
     // but we have to remove it's children otherwise they will be added as placeholders too
     if (!isBlocked(n, this.blockClass))

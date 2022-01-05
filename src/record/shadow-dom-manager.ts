@@ -67,7 +67,7 @@ export class ShadowDomManager {
       this.bypassOptions.iframeManager,
       this,
       shadowRoot,
-      this.bypassOptions.enableStrictPrivacy
+      this.bypassOptions.enableStrictPrivacy,
     );
     initScrollObserver(
       this.scrollCb,

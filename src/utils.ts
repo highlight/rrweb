@@ -15,6 +15,7 @@ import {
   scrollData,
   inputData,
   DocumentDimension,
+  IWindow,
 } from './types';
 import {
   INode,
@@ -27,7 +28,7 @@ import {
 export function on(
   type: string,
   fn: EventListenerOrEventListenerObject,
-  target: Document | Window = document,
+  target: Document | IWindow = document,
 ): listenerHandler {
   const options = { capture: true, passive: true };
   target.addEventListener(type, fn, options);

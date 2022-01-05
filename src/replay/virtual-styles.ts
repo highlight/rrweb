@@ -21,7 +21,6 @@ type SnapshotRule = {
   type: StyleRuleType.Snapshot;
   cssTexts: string[];
 };
-
 type SetPropertyRule = {
   type: StyleRuleType.SetProperty;
   index: number[];

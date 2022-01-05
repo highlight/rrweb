@@ -54,7 +54,9 @@ function getCssRuleString(rule: CSSRule): string {
   if (isCSSImportRule(rule)) {
     try {
       cssStringified = getCssRulesString(rule.styleSheet) || cssStringified;
-    } catch {}
+    } catch {
+      // ignore
+    }
   }
   return cssStringified;
 }
@@ -74,7 +76,7 @@ function extractOrigin(url: string): string {
   return origin;
 }
 
-const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")([^"]*)"|([^)]*))\)/gm;
+const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
 const RELATIVE_PATH = /^(?!www\.|(?:http|ftp)s?:\/\/|[A-Za-z]:\\|\/\/|#).*/;
 const DATA_URI = /^(data:)([^,]*),(.*)/i;
 export function absoluteToStylesheet(
@@ -135,8 +137,8 @@ function getAbsoluteSrcsetString(doc: Document, attributeValue: string) {
   let pos = 0;
 
   function collectCharacters(regEx: RegExp) {
-    var chars,
-      match = regEx.exec(attributeValue.substring(pos));
+    let chars: string;
+    let match = regEx.exec(attributeValue.substring(pos));
     if (match) {
       chars = match[0];
       pos += chars.length;
@@ -218,7 +220,10 @@ export function transformAttribute(
   value: string,
 ): string {
   // relative path in attribute
-  if (name === 'src' || ((name === 'href' || name === 'xlink:href') && value)) {
+  if (name === 'src' || (name === 'href' && value)) {
+    return absoluteToDoc(doc, value);
+  } else if (name === 'xlink:href' && value && value[0] !== '#') {
+    // xlink:href starts with # is an id pointer
     return absoluteToDoc(doc, value);
   } else if (
     name === 'background' &&
@@ -230,6 +235,8 @@ export function transformAttribute(
     return getAbsoluteSrcsetString(doc, value);
   } else if (name === 'style' && value) {
     return absoluteToStylesheet(value, getHref());
+  } else if (tagName === 'object' && name === 'data' && value) {
+    return absoluteToDoc(doc, value);
   } else {
     return value;
   }
@@ -341,6 +348,14 @@ function onceIframeLoaded(
   }
   // use default listener
   iframeEl.addEventListener('load', listener);
+}
+
+function stringifyStyleSheet(sheet: CSSStyleSheet): string {
+  return sheet.cssRules
+    ? Array.from(sheet.cssRules)
+        .map((rule) => rule.cssText || '')
+        .join('')
+    : '';
 }
 
 function serializeNode(
@@ -560,6 +575,16 @@ function serializeNode(
       /** Determines if this node has been handled already. */
       let textContentHandled = false;
       if (isStyle && textContent) {
+        try {
+          // try to read style sheet
+          if ((n.parentNode as HTMLStyleElement).sheet?.cssRules) {
+            textContent = stringifyStyleSheet(
+              (n.parentNode as HTMLStyleElement).sheet!,
+            );
+          }
+        } catch {
+          // ignore error
+        }
         textContent = absoluteToStylesheet(textContent, getHref());
         textContentHandled = true;
       }
@@ -646,10 +671,17 @@ function slimDOMExcluded(
   } else if (sn.type === NodeType.Element) {
     if (
       slimDOMOptions.script &&
+      // script tag
       (sn.tagName === 'script' ||
+        // preload link
         (sn.tagName === 'link' &&
           sn.attributes.rel === 'preload' &&
-          sn.attributes.as === 'script'))
+          sn.attributes.as === 'script') ||
+        // prefetch link
+        (sn.tagName === 'link' &&
+          sn.attributes.rel === 'prefetch' &&
+          typeof sn.attributes.href === 'string' &&
+          sn.attributes.href.endsWith('.js')))
     ) {
       return true;
     } else if (
