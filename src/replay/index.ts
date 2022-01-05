@@ -40,6 +40,7 @@ import {
   styleAttributeValue,
   styleValueWithPriority,
   CanvasContext,
+  IWindow,
 } from '../types';
 import {
   createMirror,
