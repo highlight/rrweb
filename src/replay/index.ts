@@ -41,6 +41,7 @@ import {
   styleValueWithPriority,
   CanvasContext,
   IWindow,
+  canvasMutationCommand,
 } from '../types';
 import {
   createMirror,
@@ -992,28 +993,34 @@ export class Replayer {
     for (const event of this.service.state.context.events) {
       if (
         event.type === EventType.IncrementalSnapshot &&
-        event.data.source === IncrementalSource.CanvasMutation &&
-        event.data.property === 'drawImage' &&
-        typeof event.data.args[0] === 'string' &&
-        !this.imageMap.has(event)
-      ) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const imgd = ctx?.createImageData(canvas.width, canvas.height);
-        let d = imgd?.data;
-        d = JSON.parse(event.data.args[0]);
-        ctx?.putImageData(imgd!, 0, 0);
-      } else if (
-        event.type === EventType.IncrementalSnapshot &&
-        event.data.source === IncrementalSource.CanvasMutation &&
-        this.hasImageArg(event.data.args)
-      ) {
-        this.getImageArgs(event.data.args).forEach((url) => {
-          const image = new Image();
-          image.src = url; // this preloads the image
-          this.imageMap.set(url, image);
-        });
-      }
+        event.data.source === IncrementalSource.CanvasMutation
+      )
+        if ('commands' in event.data) {
+          event.data.commands.forEach((c) => this.preloadImages(c, event));
+        } else {
+          this.preloadImages(event.data, event);
+        }
+    }
+  }
+
+  private preloadImages(data: canvasMutationCommand, event: eventWithTime) {
+    if (
+      data.property === 'drawImage' &&
+      typeof data.args[0] === 'string' &&
+      !this.imageMap.has(event)
+    ) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const imgd = ctx?.createImageData(canvas.width, canvas.height);
+      let d = imgd?.data;
+      d = JSON.parse(data.args[0]);
+      ctx?.putImageData(imgd!, 0, 0);
+    } else if (this.hasImageArg(data.args)) {
+      this.getImageArgs(data.args).forEach((url) => {
+        const image = new Image();
+        image.src = url; // this preloads the image
+        this.imageMap.set(url, image);
+      });
     }
   }
 
@@ -1058,7 +1065,6 @@ export class Replayer {
                 p.timeOffset +
                 e.timestamp -
                 this.service.state.context.baselineTime,
-              newFrame: false,
             };
             this.timer.addAction(action);
           });
@@ -1066,7 +1072,6 @@ export class Replayer {
           this.timer.addAction({
             doAction() {},
             delay: e.delay! - d.positions[0]?.timeOffset,
-            newFrame: false,
           });
         }
         break;
@@ -2019,7 +2024,10 @@ export class Replayer {
     }
   }
 
-  private warnCanvasMutationFailed(d: canvasMutationData, error: unknown) {
+  private warnCanvasMutationFailed(
+    d: canvasMutationData | canvasMutationCommand,
+    error: unknown,
+  ) {
     this.warn(`Has error on canvas update`, error, 'canvas mutation:', d);
   }
 

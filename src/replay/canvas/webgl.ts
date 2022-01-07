@@ -2,17 +2,29 @@ import { decode } from 'base64-arraybuffer';
 import { Replayer } from '../';
 import {
   CanvasContext,
-  canvasMutationData,
+  canvasMutationCommand,
   SerializedWebGlArg,
 } from '../../types';
 
 // TODO: add ability to wipe this list
-const webGLVarMap: Map<string, any[]> = new Map();
-export function variableListFor(ctor: string) {
-  if (!webGLVarMap.has(ctor)) {
-    webGLVarMap.set(ctor, []);
+type GLVarMap = Map<string, any[]>;
+const webGLVarMap: Map<
+  WebGLRenderingContext | WebGL2RenderingContext,
+  GLVarMap
+> = new Map();
+export function variableListFor(
+  ctx: WebGLRenderingContext | WebGL2RenderingContext,
+  ctor: string,
+) {
+  let contextMap = webGLVarMap.get(ctx);
+  if (!contextMap) {
+    contextMap = new Map();
+    webGLVarMap.set(ctx, contextMap);
   }
-  return webGLVarMap.get(ctor) as any[];
+  if (!contextMap.has(ctor)) {
+    contextMap.set(ctor, []);
+  }
+  return contextMap.get(ctor) as any[];
 }
 
 function getContext(
@@ -21,7 +33,7 @@ function getContext(
 ): WebGLRenderingContext | WebGL2RenderingContext | null {
   // Note to whomever is going to implement support for `contextAttributes`:
   // if `preserveDrawingBuffer` is set to true,
-  // you have to do `ctx.flush()` before every `newFrame: true`
+  // you might have to do `ctx.flush()` before every webgl canvas event
   try {
     if (type === CanvasContext.WebGL) {
       return (
@@ -47,32 +59,33 @@ const WebGLVariableConstructorsNames = [
   'WebGLVertexArrayObject',
 ];
 
-function saveToWebGLVarMap(result: any) {
+function saveToWebGLVarMap(
+  ctx: WebGLRenderingContext | WebGL2RenderingContext,
+  result: any,
+) {
   if (!result?.constructor) return; // probably null or undefined
 
   const { name } = result.constructor;
   if (!WebGLVariableConstructorsNames.includes(name)) return; // not a WebGL variable
 
-  const variables = variableListFor(name);
+  const variables = variableListFor(ctx, name);
   if (!variables.includes(result)) variables.push(result);
 }
 
 export function deserializeArg(
   imageMap: Replayer['imageMap'],
+  ctx: WebGLRenderingContext | WebGL2RenderingContext,
 ): (arg: SerializedWebGlArg) => any {
   return (arg: SerializedWebGlArg): any => {
     if (arg && typeof arg === 'object' && 'rr_type' in arg) {
       if ('index' in arg) {
         const { rr_type: name, index } = arg;
-        return variableListFor(name)[index];
+        return variableListFor(ctx, name)[index];
       } else if ('args' in arg) {
         const { rr_type: name, args } = arg;
+        const ctor = window[name as keyof Window];
 
-        // @ts-ignore
-        const ctor = window[name] as unknown;
-
-        // @ts-ignore
-        return new ctor(...args.map(deserializeArg(imageMap)));
+        return new ctor(...args.map(deserializeArg(imageMap, ctx)));
       } else if ('base64' in arg) {
         return decode(arg.base64);
       } else if ('src' in arg) {
@@ -87,7 +100,7 @@ export function deserializeArg(
         }
       }
     } else if (Array.isArray(arg)) {
-      return arg.map(deserializeArg(imageMap));
+      return arg.map(deserializeArg(imageMap, ctx));
     }
     return arg;
   };
@@ -96,20 +109,22 @@ export function deserializeArg(
 export default function webglMutation({
   mutation,
   target,
+  type,
   imageMap,
   errorHandler,
 }: {
-  mutation: canvasMutationData;
+  mutation: canvasMutationCommand;
   target: HTMLCanvasElement;
+  type: CanvasContext;
   imageMap: Replayer['imageMap'];
   errorHandler: Replayer['warnCanvasMutationFailed'];
 }): void {
   try {
-    const ctx = getContext(target, mutation.type);
+    const ctx = getContext(target, type);
     if (!ctx) return;
 
     // NOTE: if `preserveDrawingBuffer` is set to true,
-    // we must flush the buffers on every newFrame: true
+    // we must flush the buffers on every new canvas event
     // if (mutation.newFrame) ctx.flush();
 
     if (mutation.setter) {
@@ -122,12 +137,12 @@ export default function webglMutation({
       mutation.property as Exclude<keyof typeof ctx, 'canvas'>
     ] as Function;
 
-    const args = mutation.args.map(deserializeArg(imageMap));
+    const args = mutation.args.map(deserializeArg(imageMap, ctx));
     const result = original.apply(ctx, args);
-    saveToWebGLVarMap(result);
+    saveToWebGLVarMap(ctx, result);
 
+    // Slows down replay considerably, only use for debugging
     const debugMode = false;
-    // const debugMode = true;
     if (debugMode) {
       if (mutation.property === 'compileShader') {
         if (!ctx.getShaderParameter(args[0], ctx.COMPILE_STATUS))

@@ -208,7 +208,7 @@ export type SamplingStrategy = Partial<{
 
 export type RecordPlugin<TOptions = unknown> = {
   name: string;
-  observer: (cb: Function, win: Window, options: TOptions) => listenerHandler;
+  observer: (cb: Function, win: IWindow, options: TOptions) => listenerHandler;
   options: TOptions;
 };
 
@@ -470,14 +470,22 @@ export type styleDeclarationCallback = (s: styleDeclarationParam) => void;
 
 export type canvasMutationCallback = (p: canvasMutationParam) => void;
 
-export type canvasMutationParam = {
-  id: number;
-  type: CanvasContext;
+export type canvasMutationCommand = {
   property: string;
   args: Array<unknown>;
   setter?: true;
-  newFrame?: true;
 };
+
+export type canvasMutationParam =
+  | {
+      id: number;
+      type: CanvasContext;
+      commands: canvasMutationCommand[];
+    }
+  | ({
+      id: number;
+      type: CanvasContext;
+    } & canvasMutationCommand);
 
 export type fontParam = {
   family: string;
@@ -600,7 +608,6 @@ export type missingNodeMap = {
 export type actionWithDelay = {
   doAction: () => void;
   delay: number;
-  newFrame: boolean;
 };
 
 export type Handler = (event?: unknown) => void;
