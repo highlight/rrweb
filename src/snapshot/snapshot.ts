@@ -59,9 +59,7 @@ function getCssRuleString(rule: CSSRule): string {
   if (isCSSImportRule(rule)) {
     try {
       cssStringified = getCssRulesString(rule.styleSheet) || cssStringified;
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
   return cssStringified;
 }
