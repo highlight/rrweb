@@ -14,6 +14,7 @@ import {
 } from '../snapshot';
 import { IframeManager } from './iframe-manager';
 import { initMutationObserver, initScrollObserver } from './observer';
+import { CanvasManager } from './observers/canvas/canvas-manager';
 
 type BypassOptions = {
   blockClass: blockClass;
@@ -28,6 +29,7 @@ type BypassOptions = {
   sampling: SamplingStrategy;
   slimDOMOptions: SlimDOMOptions;
   iframeManager: IframeManager;
+  canvasManager: CanvasManager;
   enableStrictPrivacy: boolean;
 };
 
@@ -66,6 +68,7 @@ export class ShadowDomManager {
       this.mirror,
       this.bypassOptions.iframeManager,
       this,
+      this.bypassOptions.canvasManager,
       shadowRoot,
       this.bypassOptions.enableStrictPrivacy,
     );

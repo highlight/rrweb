@@ -2,15 +2,14 @@ import { INode } from '../../../snapshot';
 import {
   blockClass,
   CanvasContext,
-  canvasMutationCallback,
+  canvasManagerMutationCallback,
   IWindow,
   listenerHandler,
   Mirror,
 } from '../../../types';
 import { hookSetter, isBlocked, patch } from '../../../utils';
-
 export default function initCanvas2DMutationObserver(
-  cb: canvasMutationCallback,
+  cb: canvasManagerMutationCallback,
   win: IWindow,
   blockClass: blockClass,
   mirror: Mirror,
@@ -37,6 +36,8 @@ export default function initCanvas2DMutationObserver(
             ...args: Array<unknown>
           ) {
             if (!isBlocked((this.canvas as unknown) as INode, blockClass)) {
+              // Using setTimeout as getImageData + JSON.stringify can be heavy
+              // and we'd rather not block the main thread
               setTimeout(() => {
                 const recordArgs = [...args];
                 if (prop === 'drawImage') {
@@ -56,8 +57,7 @@ export default function initCanvas2DMutationObserver(
                     recordArgs[0] = JSON.stringify(pix);
                   }
                 }
-                cb({
-                  id: mirror.getId((this.canvas as unknown) as INode),
+                cb(this.canvas, {
                   type: CanvasContext['2D'],
                   property: prop,
                   args: recordArgs,
@@ -75,8 +75,7 @@ export default function initCanvas2DMutationObserver(
         prop,
         {
           set(v) {
-            cb({
-              id: mirror.getId((this.canvas as unknown) as INode),
+            cb(this.canvas, {
               type: CanvasContext['2D'],
               property: prop,
               args: [v],
