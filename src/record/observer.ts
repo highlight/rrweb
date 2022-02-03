@@ -53,6 +53,7 @@ import { ShadowDomManager } from './shadow-dom-manager';
 import initCanvasContextObserver from './observers/canvas/canvas';
 import initCanvas2DMutationObserver from './observers/canvas/2d';
 import initCanvasWebGLMutationObserver from './observers/canvas/webgl';
+import { CanvasManager } from './observers/canvas/canvas-manager';
 
 type WindowWithStoredMutationObserver = IWindow & {
   __rrMutationObserver?: MutationObserver;
@@ -105,6 +106,7 @@ export function initMutationObserver(
   mirror: Mirror,
   iframeManager: IframeManager,
   shadowDomManager: ShadowDomManager,
+  canvasManager: CanvasManager,
   rootEl: Node,
   enableStrictPrivacy: boolean,
 ): MutationObserver {
@@ -127,6 +129,7 @@ export function initMutationObserver(
     mirror,
     iframeManager,
     shadowDomManager,
+    canvasManager,
     enableStrictPrivacy,
   );
   let mutationObserverCtor =
@@ -375,8 +378,14 @@ function initInputObserver(
   userTriggeredOnInput: boolean,
 ): listenerHandler {
   function eventHandler(event: Event) {
-    const target = getEventTarget(event);
+    let target = getEventTarget(event);
     const userTriggered = event.isTrusted;
+    /**
+     * If a site changes the value 'selected' of an option element, the value of its parent element, usually a select element, will be changed as well.
+     * We can treat this change as a value change of the select element the current target belongs to.
+     */
+    if (target && (target as Element).tagName === 'OPTION')
+      target = (target as Element).parentElement;
     if (
       !target ||
       !(target as Element).tagName ||
@@ -467,6 +476,7 @@ function initInputObserver(
     [HTMLTextAreaElement.prototype, 'value'],
     // Some UI library use selectedIndex to set select value
     [HTMLSelectElement.prototype, 'selectedIndex'],
+    [HTMLOptionElement.prototype, 'selected'],
   ];
   if (propertyDescriptor && propertyDescriptor.set) {
     handlers.push(
@@ -690,53 +700,31 @@ function initMediaInteractionObserver(
   mediaInteractionCb: mediaInteractionCallback,
   blockClass: blockClass,
   mirror: Mirror,
+  sampling: SamplingStrategy,
 ): listenerHandler {
-  const handler = (type: MediaInteractions) => (event: Event) => {
-    const target = getEventTarget(event);
-    if (!target || isBlocked(target as Node, blockClass)) {
-      return;
-    }
-    mediaInteractionCb({
-      type,
-      id: mirror.getId(target as INode),
-      currentTime: (target as HTMLMediaElement).currentTime,
-    });
-  };
+  const handler = (type: MediaInteractions) =>
+    throttle((event: Event) => {
+      const target = getEventTarget(event);
+      if (!target || isBlocked(target as Node, blockClass)) {
+        return;
+      }
+      const { currentTime, volume, muted } = target as HTMLMediaElement;
+      mediaInteractionCb({
+        type,
+        id: mirror.getId(target as INode),
+        currentTime,
+        volume,
+        muted,
+      });
+    }, sampling.media || 500);
   const handlers = [
     on('play', handler(MediaInteractions.Play)),
     on('pause', handler(MediaInteractions.Pause)),
     on('seeked', handler(MediaInteractions.Seeked)),
+    on('volumechange', handler(MediaInteractions.VolumeChange)),
   ];
   return () => {
     handlers.forEach((h) => h());
-  };
-}
-
-function initCanvasMutationObserver(
-  cb: canvasMutationCallback,
-  win: IWindow,
-  blockClass: blockClass,
-  mirror: Mirror,
-): listenerHandler {
-  const canvasContextReset = initCanvasContextObserver(win, blockClass);
-  const canvas2DReset = initCanvas2DMutationObserver(
-    cb,
-    win,
-    blockClass,
-    mirror,
-  );
-
-  const canvasWebGL1and2Reset = initCanvasWebGLMutationObserver(
-    cb,
-    win,
-    blockClass,
-    mirror,
-  );
-
-  return () => {
-    canvasContextReset();
-    canvas2DReset();
-    canvasWebGL1and2Reset();
   };
 }
 
@@ -900,6 +888,7 @@ export function initObservers(
     o.mirror,
     o.iframeManager,
     o.shadowDomManager,
+    o.canvasManager,
     o.doc,
     o.enableStrictPrivacy,
   );
@@ -939,6 +928,7 @@ export function initObservers(
     o.mediaInteractionCb,
     o.blockClass,
     o.mirror,
+    o.sampling,
   );
 
   const styleSheetObserver = initStyleSheetObserver(
@@ -951,14 +941,6 @@ export function initObservers(
     currentWindow,
     o.mirror,
   );
-  const canvasMutationObserver = o.recordCanvas
-    ? initCanvasMutationObserver(
-        o.canvasMutationCb,
-        currentWindow,
-        o.blockClass,
-        o.mirror,
-      )
-    : () => {};
   const fontObserver = o.collectFonts
     ? initFontObserver(o.fontCb, o.doc)
     : () => {};
@@ -971,6 +953,7 @@ export function initObservers(
   }
 
   return () => {
+    mutationBuffers.forEach((b) => b.reset());
     mutationObserver.disconnect();
     mousemoveHandler();
     mouseInteractionHandler();
@@ -980,7 +963,6 @@ export function initObservers(
     mediaInteractionHandler();
     styleSheetObserver();
     styleDeclarationObserver();
-    canvasMutationObserver();
     fontObserver();
     pluginHandlers.forEach((h) => h());
   };

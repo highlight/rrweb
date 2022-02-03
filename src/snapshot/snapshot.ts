@@ -12,7 +12,12 @@ import {
   KeepIframeSrcFn,
   ICanvas,
 } from './types';
-import { isElement, isShadowRoot, maskInputValue } from './utils';
+import {
+  is2DCanvasBlank,
+  isElement,
+  isShadowRoot,
+  maskInputValue,
+} from './utils';
 
 let _id = 1;
 const tagNameRegex = new RegExp('[^a-z0-9-_:]');
@@ -54,9 +59,7 @@ function getCssRuleString(rule: CSSRule): string {
   if (isCSSImportRule(rule)) {
     try {
       cssStringified = getCssRulesString(rule.styleSheet) || cssStringified;
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
   return cssStringified;
 }
@@ -495,7 +498,7 @@ function serializeNode(
         }
       }
       if (tagName === 'option') {
-        if ((n as HTMLOptionElement).selected) {
+        if ((n as HTMLOptionElement).selected && !maskInputOptions['select']) {
           attributes.selected = true;
         } else {
           // ignore the html attribute (which corresponds to DOM (n as HTMLOptionElement).defaultSelected)
@@ -504,22 +507,26 @@ function serializeNode(
         }
       }
       // canvas image data
-      if (
-        tagName === 'canvas' &&
-        recordCanvas &&
-        (!('__context' in n) || (n as ICanvas).__context === '2d') // only record this on 2d canvas
-      ) {
-        const canvasDataURL = (n as HTMLCanvasElement).toDataURL();
+      if (tagName === 'canvas' && recordCanvas) {
+        if ((n as ICanvas).__context === '2d') {
+          // only record this on 2d canvas
+          if (!is2DCanvasBlank(n as HTMLCanvasElement)) {
+            attributes.rr_dataURL = (n as HTMLCanvasElement).toDataURL();
+          }
+        } else if (!('__context' in n)) {
+          // context is unknown, better not call getContext to trigger it
+          const canvasDataURL = (n as HTMLCanvasElement).toDataURL();
 
-        // create blank canvas of same dimensions
-        const blankCanvas = document.createElement('canvas');
-        blankCanvas.width = (n as HTMLCanvasElement).width;
-        blankCanvas.height = (n as HTMLCanvasElement).height;
-        const blankCanvasDataURL = blankCanvas.toDataURL();
+          // create blank canvas of same dimensions
+          const blankCanvas = document.createElement('canvas');
+          blankCanvas.width = (n as HTMLCanvasElement).width;
+          blankCanvas.height = (n as HTMLCanvasElement).height;
+          const blankCanvasDataURL = blankCanvas.toDataURL();
 
-        // no need to save dataURL if it's the same as blank canvas
-        if (canvasDataURL !== blankCanvasDataURL) {
-          attributes.rr_dataURL = (n as HTMLCanvasElement).toDataURL();
+          // no need to save dataURL if it's the same as blank canvas
+          if (canvasDataURL !== blankCanvasDataURL) {
+            attributes.rr_dataURL = canvasDataURL;
+          }
         }
       }
       // media elements
