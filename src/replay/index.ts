@@ -193,7 +193,7 @@ export class Replayer {
       this.virtualStyleRulesMap.clear();
 
       for (const d of scrollMap.values()) {
-        this.applyScroll(d);
+        this.applyScroll(d, true);
       }
       for (const d of inputMap.values()) {
         this.applyInput(d);
@@ -733,6 +733,8 @@ export class Replayer {
           finish();
         }
       }
+
+      this.emitter.emit(ReplayerEvents.EventCast, event);
     };
     return wrappedCastFn;
   }
@@ -798,10 +800,6 @@ export class Replayer {
       this.newDocumentQueue = this.newDocumentQueue.filter(
         (m) => m !== mutationInQueue,
       );
-      if (builtNode.contentDocument) {
-        const { documentElement, head } = builtNode.contentDocument;
-        this.insertStyleRules(documentElement, head);
-      }
     }
     const { documentElement, head } = this.iframe.contentDocument;
     this.insertStyleRules(documentElement, head);
@@ -864,6 +862,13 @@ export class Replayer {
       skipChild: false,
       afterAppend: (builtNode) => {
         this.collectIframeAndAttachDocument(collected, builtNode);
+        if (
+          builtNode.__sn.type === NodeType.Element &&
+          builtNode.__sn.tagName.toUpperCase() === 'HTML'
+        ) {
+          const { documentElement, head } = iframeEl.contentDocument!;
+          this.insertStyleRules(documentElement, head);
+        }
       },
       cache: this.cache,
     });
@@ -872,10 +877,6 @@ export class Replayer {
       this.newDocumentQueue = this.newDocumentQueue.filter(
         (m) => m !== mutationInQueue,
       );
-      if (builtNode.contentDocument) {
-        const { documentElement, head } = builtNode.contentDocument;
-        this.insertStyleRules(documentElement, head);
-      }
     }
   }
 
@@ -1170,7 +1171,7 @@ export class Replayer {
           this.treeIndex.scroll(d);
           break;
         }
-        this.applyScroll(d);
+        this.applyScroll(d, false);
         break;
       }
       case IncrementalSource.ViewportResize:
@@ -1205,6 +1206,12 @@ export class Replayer {
         try {
           if (d.currentTime) {
             mediaEl.currentTime = d.currentTime;
+          }
+          if (d.volume) {
+            mediaEl.volume = d.volume;
+          }
+          if (d.muted) {
+            mediaEl.muted = d.muted;
           }
           if (d.type === MediaInteractions.Pause) {
             mediaEl.pause();
@@ -1642,10 +1649,6 @@ export class Replayer {
             (m) => m !== mutationInQueue,
           );
         }
-        if (target.contentDocument) {
-          const { documentElement, head } = target.contentDocument;
-          this.insertStyleRules(documentElement, head);
-        }
       }
 
       if (mutation.previousId || mutation.nextId) {
@@ -1758,7 +1761,13 @@ export class Replayer {
     });
   }
 
-  private applyScroll(d: scrollData) {
+  /**
+   * Apply the scroll data on real elements.
+   * If the replayer is in sync mode, smooth scroll behavior should be disabled.
+   * @param d the scroll data
+   * @param isSync whether the replayer is in sync mode(fast-forward)
+   */
+  private applyScroll(d: scrollData, isSync: boolean) {
     const target = this.mirror.getNode(d.id);
     if (!target) {
       return this.debugNodeNotFound(d, d.id);
@@ -1767,14 +1776,14 @@ export class Replayer {
       this.iframe.contentWindow!.scrollTo({
         top: d.y,
         left: d.x,
-        behavior: 'smooth',
+        behavior: isSync ? 'auto' : 'smooth',
       });
     } else if (target.__sn.type === NodeType.Document) {
       // nest iframe content document
       ((target as unknown) as Document).defaultView!.scrollTo({
         top: d.y,
         left: d.x,
-        behavior: 'smooth',
+        behavior: isSync ? 'auto' : 'smooth',
       });
     } else {
       try {
