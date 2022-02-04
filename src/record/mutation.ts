@@ -29,6 +29,7 @@ import {
   isIgnored,
   isIframeINode,
   hasShadowRoot,
+  obfuscateText,
 } from '../utils';
 import { IframeManager } from './iframe-manager';
 import { CanvasManager } from './observers/canvas/canvas-manager';
@@ -406,10 +407,16 @@ export default class MutationBuffer {
 
     const payload = {
       texts: this.texts
-        .map((text) => ({
-          id: this.mirror.getId(text.node as INode),
-          value: text.value,
-        }))
+        .map((text) => {
+          let value = text.value;
+          if (this.enableStrictPrivacy && value) {
+            value = obfuscateText(value);
+          }
+          return {
+            id: this.mirror.getId(text.node as INode),
+            value,
+          };
+        })
         // text mutation's id was not in the mirror map means the target node has been removed
         .filter((text) => this.mirror.has(text.id)),
       attributes: this.attributes
