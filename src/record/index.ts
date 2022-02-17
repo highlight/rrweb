@@ -478,7 +478,8 @@ function record<T = eventWithTime>(
 
 record.addCustomEvent = <T>(tag: string, payload: T) => {
   if (!wrappedEmit) {
-    throw new Error('please add custom event after start recording');
+    //     throw new Error('please add custom event after start recording');
+    return;
   }
   wrappedEmit(
     wrapEvent({
