@@ -225,6 +225,23 @@ export function getWindowWidth(): number {
   );
 }
 
+/**
+ * Start of Highlight Code
+ */
+export const isCanvasNode = (node: Node | null): boolean => {
+  try {
+    if (node instanceof HTMLElement) {
+      return node.tagName === 'CANVAS';
+    }
+  } catch {
+    return false;
+  }
+  return false;
+};
+/**
+ * End of Highlight Code
+ */
+
 export function isBlocked(node: Node | null, blockClass: blockClass): boolean {
   if (!node) {
     return false;

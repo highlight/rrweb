@@ -17,6 +17,7 @@ import {
   isBlocked,
   isTouchEvent,
   patch,
+  isCanvasNode,
 } from '../utils';
 import {
   mutationCallBack,
@@ -270,7 +271,11 @@ function initMouseInteractionObserver(
   const getHandler = (eventKey: keyof typeof MouseInteractions) => {
     return (event: MouseEvent | TouchEvent) => {
       const target = getEventTarget(event) as Node;
-      if (isBlocked(target as Node, blockClass)) {
+      if (
+        isBlocked(target as Node, blockClass) ||
+        // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
+        isCanvasNode(target as Node)
+      ) {
         return;
       }
       const e = isTouchEvent(event) ? event.changedTouches[0] : event;
