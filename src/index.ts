@@ -22,3 +22,5 @@ export {
   _mirror as mirror,
   utils,
 };
+
+export { getRecordSequentialIdPlugin } from './plugins/sequential-id/record';
