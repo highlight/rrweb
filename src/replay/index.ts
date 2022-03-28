@@ -505,6 +505,18 @@ export class Replayer {
     );
   }
 
+  public replaceEvents(events: eventWithTime[]) {
+    for (const event of events) {
+      if (indicatesTouchDevice(event)) {
+        this.mouse.classList.add('touch-device');
+        break;
+      }
+    }
+    Promise.resolve().then(() =>
+      this.service.send({ type: 'REPLACE_EVENTS', payload: { events } }),
+    );
+  }
+
   public enableInteract() {
     this.iframe.setAttribute('scrolling', 'auto');
     this.iframe.style.pointerEvents = 'auto';

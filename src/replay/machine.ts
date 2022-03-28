@@ -39,6 +39,12 @@ export type PlayerEvent =
       };
     }
   | {
+      type: 'REPLACE_EVENTS';
+      payload: {
+        events: eventWithTime[];
+      };
+    }
+  | {
       type: 'END';
     };
 export type PlayerState =
@@ -107,6 +113,10 @@ export function createPlayerService(
               target: 'playing',
               actions: ['addEvent'],
             },
+            REPLACE_EVENTS: {
+              target: 'playing',
+              actions: ['replaceEvents'],
+            },
           },
         },
         paused: {
@@ -126,6 +136,10 @@ export function createPlayerService(
             ADD_EVENT: {
               target: 'paused',
               actions: ['addEvent'],
+            },
+            REPLACE_EVENTS: {
+              target: 'paused',
+              actions: ['replaceEvents'],
             },
           },
         },
@@ -233,6 +247,32 @@ export function createPlayerService(
             }
             return Date.now();
           },
+        }),
+        replaceEvents: assign((ctx, machineEvent) => {
+          const { events: curEvents, timer, baselineTime } = ctx;
+          if (machineEvent.type === 'REPLACE_EVENTS') {
+            const { events: newEvents } = machineEvent.payload;
+            curEvents.length = 0;
+            const actions: actionWithDelay[] = [];
+            for (const event of newEvents) {
+              addDelay(event, baselineTime);
+              curEvents.push(event);
+              if (event.timestamp >= baselineTime) {
+                const castFn = getCastFn(event, false);
+                actions.push({
+                  doAction: () => {
+                    castFn();
+                  },
+                  delay: event.delay!,
+                });
+              }
+            }
+            
+            if (timer.isActive()) {
+              timer.replaceActions(actions);
+            }
+          }
+          return { ...ctx, events: curEvents };
         }),
         addEvent: assign((ctx, machineEvent) => {
           const { baselineTime, timer, events } = ctx;

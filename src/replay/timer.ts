@@ -33,6 +33,11 @@ export class Timer {
     this.actions = this.actions.concat(actions);
   }
 
+  public replaceActions(actions: actionWithDelay[]) {
+    this.actions.length = 0;
+    this.actions.splice(0, 0, ...actions)
+  }
+
   public start() {
     this.timeOffset = 0;
     let lastTimestamp = performance.now();
