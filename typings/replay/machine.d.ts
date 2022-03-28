@@ -31,6 +31,11 @@ export declare type PlayerEvent = {
         event: eventWithTime;
     };
 } | {
+    type: 'REPLACE_EVENTS';
+    payload: {
+        event: eventWithTime[];
+    };
+} | {
     type: 'END';
 };
 export declare type PlayerState = {
