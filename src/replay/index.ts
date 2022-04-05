@@ -512,9 +512,7 @@ export class Replayer {
         break;
       }
     }
-    Promise.resolve().then(() =>
-      this.service.send({ type: 'REPLACE_EVENTS', payload: { events } }),
-    );
+    this.service.send({ type: 'REPLACE_EVENTS', payload: { events } });
   }
 
   public enableInteract() {
