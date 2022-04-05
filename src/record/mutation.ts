@@ -173,7 +173,7 @@ export default class MutationBuffer {
   private maskInputOptions: MaskInputOptions;
   private maskTextFn: MaskTextFn | undefined;
   private maskInputFn: MaskInputFn | undefined;
-  private recordCanvas: boolean;
+  private recordCanvas: boolean | number;
   private enableStrictPrivacy: boolean;
   private slimDOMOptions: SlimDOMOptions;
   private doc: Document;
@@ -193,7 +193,7 @@ export default class MutationBuffer {
     maskInputOptions: MaskInputOptions,
     maskTextFn: MaskTextFn | undefined,
     maskInputFn: MaskInputFn | undefined,
-    recordCanvas: boolean,
+    recordCanvas: boolean | number,
     slimDOMOptions: SlimDOMOptions,
     doc: Document,
     mirror: Mirror,

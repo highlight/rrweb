@@ -10,7 +10,7 @@ declare type BypassOptions = {
     maskInputOptions: MaskInputOptions;
     maskTextFn: MaskTextFn | undefined;
     maskInputFn: MaskInputFn | undefined;
-    recordCanvas: boolean;
+    recordCanvas: boolean | number;
     sampling: SamplingStrategy;
     slimDOMOptions: SlimDOMOptions;
     iframeManager: IframeManager;

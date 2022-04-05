@@ -12,7 +12,7 @@ import {
   IncrementalSource,
   styleSheetRuleData,
 } from '../src/types';
-import { assertSnapshot, launchPuppeteer } from './utils';
+import { assertSnapshot, launchPuppeteer, waitForRAF } from './utils';
 import { Suite } from 'mocha';
 
 interface ISuite extends Suite {
@@ -91,7 +91,7 @@ describe('record', function (this: ISuite) {
     while (count--) {
       await this.page.type('input', 'a');
     }
-    await this.page.waitForTimeout(10);
+    await waitForRAF(ctx.page);
     expect(this.events.length).to.equal(33);
     expect(
       this.events.filter(

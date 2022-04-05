@@ -1,6 +1,6 @@
 import { Timer } from './timer';
 import { createPlayerService, createSpeedService } from './machine';
-import { eventWithTime, playerConfig, playerMetaData, Handler, Mirror } from '../types';
+import { eventWithTime, playerConfig, playerMetaData, Handler, Mirror, SessionInterval } from '../types';
 import './styles/style.css';
 export declare class Replayer {
     wrapper: HTMLDivElement;
@@ -20,6 +20,7 @@ export declare class Replayer {
     private fragmentParentMap;
     private elementStateMap;
     private imageMap;
+    private canvasEventMap;
     private mirror;
     private firstFullSnapshot;
     private newDocumentQueue;
@@ -50,6 +51,7 @@ export declare class Replayer {
     private collectIframeAndAttachDocument;
     private waitForStylesheetLoad;
     private preloadAllImages;
+    private deserializeAndPreloadCanvasEvents;
     private applyIncremental;
     private applyMutation;
     private applyScroll;

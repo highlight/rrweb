@@ -141,6 +141,9 @@ function getCode(): string {
     });
     await page.evaluate(`${code}
       const events = ${JSON.stringify(events)};
+      const replayer = new rrweb.Replayer(events, {
+        UNSAFE_replayCanvas: true
+      });
       const replayer = new rrweb.Replayer(events);
       replayer.play();
     `);

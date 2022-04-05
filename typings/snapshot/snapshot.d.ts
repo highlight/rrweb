@@ -13,7 +13,7 @@ export declare function serializeNodeWithId(n: Node | INode, options: {
     inlineStylesheet: boolean;
     maskInputOptions?: MaskInputOptions;
     slimDOMOptions: SlimDOMOptions;
-    recordCanvas?: boolean;
+    recordCanvas?: boolean | number;
     preserveWhiteSpace?: boolean;
     enableStrictPrivacy: boolean;
 }): serializedNodeWithId | null;
@@ -22,7 +22,7 @@ declare function snapshot(n: Document, options?: {
     inlineStylesheet?: boolean;
     maskAllInputs?: boolean | MaskInputOptions;
     slimDOM?: boolean | SlimDOMOptions;
-    recordCanvas?: boolean;
+    recordCanvas?: boolean | number;
     blockSelector?: string | null;
     enableStrictPrivacy: boolean;
 }): [serializedNodeWithId | null, idNodeMap];

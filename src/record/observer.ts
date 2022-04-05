@@ -102,7 +102,7 @@ export function initMutationObserver(
   maskInputOptions: MaskInputOptions,
   maskTextFn: MaskTextFn | undefined,
   maskInputFn: MaskInputFn | undefined,
-  recordCanvas: boolean,
+  recordCanvas: boolean | number,
   slimDOMOptions: SlimDOMOptions,
   mirror: Mirror,
   iframeManager: IframeManager,
