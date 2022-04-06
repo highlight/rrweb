@@ -1,13 +1,17 @@
-import { snapshot, MaskInputOptions, SlimDOMOptions } from '@highlight-run/rrweb-snapshot';
+import {
+  snapshot,
+  MaskInputOptions,
+  SlimDOMOptions,
+  createMirror,
+} from '@highlight-run/rrweb-snapshot';
 import { initObservers, mutationBuffers } from './observer';
 import {
   on,
   getWindowWidth,
   getWindowHeight,
   polyfill,
-  isIframeINode,
   hasShadowRoot,
-  createMirror,
+  isSerializedIframe,
 } from '../utils';
 import {
   EventType,
@@ -74,6 +78,9 @@ function record<T = eventWithTime>(
   if (mousemoveWait !== undefined && sampling.mousemove === undefined) {
     sampling.mousemove = mousemoveWait;
   }
+
+  // reset mirror in case `record` this was called earlier
+  mirror.reset();
 
   const maskInputOptions: MaskInputOptions =
     maskAllInputs === true
@@ -254,7 +261,8 @@ function record<T = eventWithTime>(
     );
 
     mutationBuffers.forEach((buf) => buf.lock()); // don't allow any mirror modifications during snapshotting
-    const [node, idNodeMap] = snapshot(document, {
+    const node = snapshot(document, {
+      mirror,
       blockClass,
       blockSelector,
       maskTextClass,
@@ -267,18 +275,16 @@ function record<T = eventWithTime>(
       inlineImages,
       enableStrictPrivacy,
       onSerialize: (n) => {
-        if (isIframeINode(n)) {
-          iframeManager.addIframe(n);
+        if (isSerializedIframe(n, mirror)) {
+          iframeManager.addIframe(n as HTMLIFrameElement);
         }
         if (hasShadowRoot(n)) {
           shadowDomManager.addShadowRoot(n.shadowRoot, document);
         }
       },
       onIframeLoad: (iframe, childSn) => {
-        iframeManager.attachIframe(iframe, childSn);
-        shadowDomManager.observeAttachShadow(
-          (iframe as Node) as HTMLIFrameElement,
-        );
+        iframeManager.attachIframe(iframe, childSn, mirror);
+        shadowDomManager.observeAttachShadow(iframe);
       },
       keepIframeSrcFn,
     });
@@ -287,7 +293,6 @@ function record<T = eventWithTime>(
       return console.warn('Failed to snapshot the document');
     }
 
-    mirror.map = idNodeMap;
     wrappedEmit(
       wrapEvent({
         type: EventType.FullSnapshot,

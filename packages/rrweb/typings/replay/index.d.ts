@@ -1,6 +1,7 @@
+import { Mirror } from '@highlight-run/rrweb-snapshot';
 import { Timer } from './timer';
 import { createPlayerService, createSpeedService } from './machine';
-import { eventWithTime, playerConfig, playerMetaData, Handler, Mirror, SessionInterval } from '../types';
+import { eventWithTime, playerConfig, playerMetaData, Handler, SessionInterval } from '../types';
 import './styles/style.css';
 export declare class Replayer {
     wrapper: HTMLDivElement;
