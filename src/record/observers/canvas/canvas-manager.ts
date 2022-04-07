@@ -1,4 +1,5 @@
-import { ICanvas, INode } from 'rrweb-snapshot';
+import { ICanvas, INode } from '../../../snapshot';
+
 import {
   blockClass,
   CanvasContext,
@@ -14,8 +15,8 @@ import {
 import initCanvas2DMutationObserver from './2d';
 import initCanvasContextObserver from './canvas';
 import initCanvasWebGLMutationObserver from './webgl';
-import ImageBitmapDataURLWorker from 'web-worker:../../workers/image-bitmap-data-url-worker.ts';
-import { ImageBitmapDataURLRequestWorker } from '../../workers/image-bitmap-data-url-worker';
+import ImageBitmapDataURLWorker from 'worker-loader!../../workers/image-bitmap-data-url.worker.ts';
+import { ImageBitmapDataURLRequestWorker } from '../../workers/image-bitmap-data-url.worker';
 
 export type RafStamps = { latestId: number; invokeId: number | null };
 

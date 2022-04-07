@@ -10,7 +10,7 @@
     "rootDir": "src",
     "outDir": "dist",
     "declarationDir": "dist",
-    "lib": ["es6", "dom"],
+    "lib": ["webworker", "es6", "dom"],
     "downlevelIteration": true,
     "declaration": true,
   },

@@ -1,9 +1,9 @@
 import { serializedNodeWithId, idNodeMap, INode, MaskInputOptions, SlimDOMOptions, MaskInputFn, MaskTextFn } from './snapshot';
 import { PackFn, UnpackFn } from './packer/base';
-import { FontFaceDescriptors } from 'css-font-loading-module';
 import { IframeManager } from './record/iframe-manager';
 import { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
+import { CanvasManager } from './record/observers/canvas/canvas-manager';
 export declare enum EventType {
     DomContentLoaded = 0,
     Load = 1,
@@ -77,7 +77,8 @@ export declare enum IncrementalSource {
     CanvasMutation = 9,
     Font = 10,
     Log = 11,
-    Drag = 12
+    Drag = 12,
+    StyleDeclaration = 13
 }
 export declare type mutationData = {
     source: IncrementalSource.Mutation;
@@ -105,13 +106,16 @@ export declare type mediaInteractionData = {
 export declare type styleSheetRuleData = {
     source: IncrementalSource.StyleSheetRule;
 } & styleSheetRuleParam;
+export declare type styleDeclarationData = {
+    source: IncrementalSource.StyleDeclaration;
+} & styleDeclarationParam;
 export declare type canvasMutationData = {
     source: IncrementalSource.CanvasMutation;
 } & canvasMutationParam;
 export declare type fontData = {
     source: IncrementalSource.Font;
 } & fontParam;
-export declare type incrementalData = mutationData | mousemoveData | mouseInteractionData | scrollData | viewportResizeData | inputData | mediaInteractionData | styleSheetRuleData | canvasMutationData | fontData;
+export declare type incrementalData = mutationData | mousemoveData | mouseInteractionData | scrollData | viewportResizeData | inputData | mediaInteractionData | styleSheetRuleData | canvasMutationData | fontData | styleDeclarationData;
 export declare type event = domContentLoadedEvent | loadedEvent | fullSnapshotEvent | incrementalSnapshotEvent | metaEvent | customEvent | pluginEvent;
 export declare type eventWithTime = event & {
     timestamp: number;
@@ -124,11 +128,13 @@ export declare type SamplingStrategy = Partial<{
     mousemoveCallback: number;
     mouseInteraction: boolean | Record<string, boolean | undefined>;
     scroll: number;
+    media: number;
     input: 'all' | 'last';
 }>;
 export declare type RecordPlugin<TOptions = unknown> = {
     name: string;
-    observer: (cb: Function, win: Window, options: TOptions) => listenerHandler;
+    observer?: (cb: Function, win: IWindow, options: TOptions) => listenerHandler;
+    eventProcessor?: <TExtend>(event: eventWithTime) => eventWithTime & TExtend;
     options: TOptions;
 };
 export declare type recordOptions<T> = {
@@ -150,6 +156,7 @@ export declare type recordOptions<T> = {
     packFn?: PackFn;
     sampling?: SamplingStrategy;
     recordCanvas?: boolean | number;
+    userTriggeredOnInput?: boolean;
     collectFonts?: boolean;
     plugins?: RecordPlugin[];
     mousemoveWait?: number;
@@ -174,16 +181,19 @@ export declare type observerParam = {
     maskTextFn?: MaskTextFn;
     inlineStylesheet: boolean;
     styleSheetRuleCb: styleSheetRuleCallback;
+    styleDeclarationCb: styleDeclarationCallback;
     canvasMutationCb: canvasMutationCallback;
     fontCb: fontCallback;
     sampling: SamplingStrategy;
     recordCanvas: boolean | number;
+    userTriggeredOnInput: boolean;
     collectFonts: boolean;
     slimDOMOptions: SlimDOMOptions;
     doc: Document;
     mirror: Mirror;
     iframeManager: IframeManager;
     shadowDomManager: ShadowDomManager;
+    canvasManager: CanvasManager;
     plugins: Array<{
         observer: Function;
         callback: Function;
@@ -200,6 +210,7 @@ export declare type hooksParam = {
     input?: inputCallback;
     mediaInteaction?: mediaInteractionCallback;
     styleSheetRule?: styleSheetRuleCallback;
+    styleDeclaration?: styleDeclarationCallback;
     canvasMutation?: canvasMutationCallback;
     font?: fontCallback;
 };
@@ -219,22 +230,21 @@ export declare type textMutation = {
     id: number;
     value: string | null;
 };
-
-export type styleAttributeValue = {
-  [key: string]: [string, string] | string | false;
+export declare type styleAttributeValue = {
+    [key: string]: styleValueWithPriority | string | false;
 };
-
+export declare type styleValueWithPriority = [string, string];
 export declare type attributeCursor = {
-  node: Node;
-  attributes: {
-    [key: string]: string | styleAttributeValue | null;
-  };
+    node: Node;
+    attributes: {
+        [key: string]: string | styleAttributeValue | null;
+    };
 };
 export declare type attributeMutation = {
-  id: number;
-  attributes: {
-    [key: string]: string | styleAttributeValue | null;
-  };
+    id: number;
+    attributes: {
+        [key: string]: string | styleAttributeValue | null;
+    };
 };
 export declare type removedNodeMutation = {
     parentId: number;
@@ -262,6 +272,12 @@ export declare type mousePosition = {
     id: number;
     timeOffset: number;
 };
+export declare type mouseMovePos = {
+    x: number;
+    y: number;
+    id: number;
+    debugData: incrementalData;
+};
 export declare enum MouseInteractions {
     MouseUp = 0,
     MouseDown = 1,
@@ -272,8 +288,32 @@ export declare enum MouseInteractions {
     Blur = 6,
     TouchStart = 7,
     TouchMove_Departed = 8,
-    TouchEnd = 9
+    TouchEnd = 9,
+    TouchCancel = 10
 }
+export declare enum CanvasContext {
+    '2D' = 0,
+    WebGL = 1,
+    WebGL2 = 2
+}
+export declare type SerializedCanvasArg = {
+    rr_type: 'ArrayBuffer';
+    base64: string;
+} | {
+    rr_type: 'Blob';
+    data: Array<CanvasArg>;
+    type?: string;
+} | {
+    rr_type: string;
+    src: string;
+} | {
+    rr_type: string;
+    args: Array<CanvasArg>;
+} | {
+    rr_type: string;
+    index: number;
+};
+export declare type CanvasArg = SerializedCanvasArg | string | number | boolean | null | CanvasArg[];
 declare type mouseInteractionParam = {
     type: MouseInteractions;
     id: number;
@@ -300,12 +340,51 @@ export declare type styleSheetRuleParam = {
     adds?: styleSheetAddRule[];
 };
 export declare type styleSheetRuleCallback = (s: styleSheetRuleParam) => void;
-export declare type canvasMutationCallback = (p: canvasMutationParam) => void;
-export declare type canvasMutationParam = {
+export declare type styleDeclarationParam = {
     id: number;
+    index: number[];
+    set?: {
+        property: string;
+        value: string | null;
+        priority: string | undefined;
+    };
+    remove?: {
+        property: string;
+    };
+};
+export declare type styleDeclarationCallback = (s: styleDeclarationParam) => void;
+export declare type canvasMutationCommand = {
     property: string;
     args: Array<unknown>;
     setter?: true;
+};
+export declare type canvasMutationParam = {
+    id: number;
+    type: CanvasContext;
+    commands: canvasMutationCommand[];
+} | ({
+    id: number;
+    type: CanvasContext;
+} & canvasMutationCommand);
+export declare type canvasMutationWithType = {
+    type: CanvasContext;
+} & canvasMutationCommand;
+export declare type canvasMutationCallback = (p: canvasMutationParam) => void;
+export declare type canvasManagerMutationCallback = (target: HTMLCanvasElement, p: canvasMutationWithType) => void;
+export declare type ImageBitmapDataURLWorkerParams = {
+    id: number;
+    bitmap: ImageBitmap;
+    width: number;
+    height: number;
+};
+export declare type ImageBitmapDataURLWorkerResponse = {
+    id: number;
+} | {
+    id: number;
+    type: string;
+    base64: string;
+    width: number;
+    height: number;
 };
 export declare type fontParam = {
     family: string;
@@ -322,6 +401,7 @@ export declare type viewportResizeCallback = (d: viewportResizeDimension) => voi
 export declare type inputValue = {
     text: string;
     isChecked: boolean;
+    userTriggered?: boolean;
 };
 export declare type inputCallback = (v: inputValue & {
     id: number;
@@ -329,12 +409,15 @@ export declare type inputCallback = (v: inputValue & {
 export declare const enum MediaInteractions {
     Play = 0,
     Pause = 1,
-    Seeked = 2
+    Seeked = 2,
+    VolumeChange = 3
 }
 export declare type mediaInteractionParam = {
     type: MediaInteractions;
     id: number;
     currentTime?: number;
+    volume?: number;
+    muted?: boolean;
 };
 export declare type mediaInteractionCallback = (p: mediaInteractionParam) => void;
 export declare type DocumentDimension = {
@@ -384,6 +467,8 @@ export declare type playerConfig = {
     };
     unpackFn?: UnpackFn;
     plugins?: ReplayPlugin[];
+    inactiveThreshold: number;
+    inactiveSkipTime: number;
 };
 export declare type playerMetaData = {
     startTime: number;
@@ -430,4 +515,15 @@ export declare type ElementState = {
     scroll?: [number, number];
 };
 export declare type KeepIframeSrcFn = (src: string) => boolean;
+export interface HighlightConfiguration {
+    enableOnHoverClass?: boolean;
+}
+declare global {
+    interface Window {
+        HIG_CONFIGURATION: HighlightConfiguration;
+        FontFace: typeof FontFace;
+    }
+}
+export declare type IWindow = Window & typeof globalThis;
+export declare type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 export {};

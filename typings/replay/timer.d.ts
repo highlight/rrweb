@@ -8,6 +8,7 @@ export declare class Timer {
     constructor(actions: actionWithDelay[] | undefined, speed: number);
     addAction(action: actionWithDelay): void;
     addActions(actions: actionWithDelay[]): void;
+    replaceActions(actions: actionWithDelay[]): void;
     start(): void;
     clear(): void;
     setSpeed(speed: number): void;

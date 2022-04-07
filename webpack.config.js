@@ -34,6 +34,10 @@ module.exports = {
         exclude: /node_modules/,
       },
       {
+        test: /\.worker\.js$/, 
+        use: { loader: 'worker-loader', options: { inline: true }},
+      },
+      {
         test: /\.css?$/,
         use: [MiniCssExtractPlugin.loader, 'css-loader'],
         sideEffects: true,

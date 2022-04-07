@@ -7,7 +7,7 @@ import {
   MaskTextFn,
   documentNode,
 } from '../snapshot';
-import { FontFaceDescriptors, FontFaceSet } from 'css-font-loading-module';
+import { FontFaceSet } from 'css-font-loading-module';
 import {
   throttle,
   on,
@@ -81,9 +81,9 @@ function getEventTarget(event: Event): EventTarget | null {
       }
     } else if (
       'path' in event &&
-      (event as { path: EventTarget[] }).path.length
+      (event as unknown as { path: EventTarget[] }).path.length
     ) {
-      return (event as { path: EventTarget[] }).path[0];
+      return (event as unknown as { path: EventTarget[] }).path[0];
     }
     return event.target;
   } catch {

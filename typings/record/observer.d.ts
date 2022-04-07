@@ -1,10 +1,11 @@
-import { MaskInputOptions, SlimDOMOptions, MaskInputFn, MaskTextFn } from 'rrweb-snapshot';
+import { MaskInputOptions, SlimDOMOptions, MaskInputFn, MaskTextFn } from '../snapshot';
 import { mutationCallBack, observerParam, listenerHandler, scrollCallback, blockClass, maskTextClass, hooksParam, SamplingStrategy, Mirror } from '../types';
 import MutationBuffer from './mutation';
 import { IframeManager } from './iframe-manager';
 import { ShadowDomManager } from './shadow-dom-manager';
+import { CanvasManager } from './observers/canvas/canvas-manager';
 export declare const mutationBuffers: MutationBuffer[];
-export declare function initMutationObserver(cb: mutationCallBack, doc: Document, blockClass: blockClass, blockSelector: string | null, maskTextClass: maskTextClass, maskTextSelector: string | null, inlineStylesheet: boolean, maskInputOptions: MaskInputOptions, maskTextFn: MaskTextFn | undefined, maskInputFn: MaskInputFn | undefined, recordCanvas: boolean | number, slimDOMOptions: SlimDOMOptions, mirror: Mirror, iframeManager: IframeManager, shadowDomManager: ShadowDomManager, rootEl: Node): MutationObserver;
+export declare function initMutationObserver(cb: mutationCallBack, doc: Document, blockClass: blockClass, blockSelector: string | null, maskTextClass: maskTextClass, maskTextSelector: string | null, inlineStylesheet: boolean, maskInputOptions: MaskInputOptions, maskTextFn: MaskTextFn | undefined, maskInputFn: MaskInputFn | undefined, recordCanvas: boolean | number, slimDOMOptions: SlimDOMOptions, mirror: Mirror, iframeManager: IframeManager, shadowDomManager: ShadowDomManager, canvasManager: CanvasManager, rootEl: Node, enableStrictPrivacy: boolean): MutationObserver;
 export declare function initScrollObserver(cb: scrollCallback, doc: Document, mirror: Mirror, blockClass: blockClass, sampling: SamplingStrategy): listenerHandler;
 export declare const INPUT_TAGS: string[];
 export declare function initObservers(o: observerParam, hooks?: hooksParam): listenerHandler;

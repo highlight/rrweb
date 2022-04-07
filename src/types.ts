@@ -8,7 +8,6 @@ import {
   MaskTextFn,
 } from './snapshot';
 import { PackFn, UnpackFn } from './packer/base';
-import { FontFaceDescriptors } from 'css-font-loading-module';
 import { IframeManager } from './record/iframe-manager';
 import { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
@@ -707,3 +706,5 @@ declare global {
 }
 
 export type IWindow = Window & typeof globalThis;
+
+export type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;

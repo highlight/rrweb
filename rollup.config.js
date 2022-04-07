@@ -99,13 +99,15 @@ const baseConfigs = [
 let configs = [];
 
 for (const c of baseConfigs) {
-  const basePlugins = [resolve({ browser: true }), webWorkerLoader(), typescript()];
+  const loader = webWorkerLoader();
+  const basePlugins = [resolve({ browser: true }), loader, typescript()];
   const plugins = basePlugins.concat(
     postcss({
       extract: false,
       inject: false,
     }),
   );
+  console.log('pkg', pkg);
   // browser
   configs.push({
     input: c.input,
@@ -118,6 +120,7 @@ for (const c of baseConfigs) {
       },
     ],
   });
+  console.log('ok1');
   // browser + minify
   configs.push({
     input: c.input,
@@ -138,6 +141,7 @@ for (const c of baseConfigs) {
       },
     ],
   });
+  console.log('ok2');
   // CommonJS
   configs.push({
     input: c.input,
@@ -164,6 +168,7 @@ for (const c of baseConfigs) {
       ],
     });
   }
+  console.log('out!');
 }
 
 if (process.env.BROWSER_ONLY) {
@@ -183,9 +188,12 @@ if (process.env.BROWSER_ONLY) {
   configs = [];
 
   for (const c of browserOnlyBaseConfigs) {
+    const loader = webWorkerLoader();
+    console.log('zanetest', loader);
+
     const plugins = [
       resolve({ browser: true }),
-      webWorkerLoader(),
+      loader,
       typescript(),
       postcss({
         extract: false,
@@ -208,6 +216,7 @@ if (process.env.BROWSER_ONLY) {
       ],
     });
   }
+  console.log('out 2!');
 }
 
 export default configs;

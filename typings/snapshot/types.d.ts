@@ -9,6 +9,7 @@ export declare enum NodeType {
 export declare type documentNode = {
     type: NodeType.Document;
     childNodes: serializedNodeWithId[];
+    compatMode?: string;
 };
 export declare type documentTypeNode = {
     type: NodeType.DocumentType;
@@ -40,7 +41,11 @@ export declare type commentNode = {
     type: NodeType.Comment;
     textContent: string;
 };
-export declare type serializedNode = documentNode | documentTypeNode | elementNode | textNode | cdataNode | commentNode;
+export declare type serializedNode = (documentNode | documentTypeNode | elementNode | textNode | cdataNode | commentNode) & {
+    rootId?: number;
+    isShadowHost?: boolean;
+    isShadow?: boolean;
+};
 export declare type serializedNodeWithId = serializedNode & {
     id: number;
 };
@@ -49,6 +54,9 @@ export declare type tagMap = {
 };
 export interface INode extends Node {
     __sn: serializedNodeWithId;
+}
+export interface ICanvas extends HTMLCanvasElement {
+    __context: string;
 }
 export declare type idNodeMap = {
     [key: number]: INode;
@@ -69,6 +77,7 @@ export declare type MaskInputOptions = Partial<{
     week: boolean;
     textarea: boolean;
     select: boolean;
+    password: boolean;
 }>;
 export declare type SlimDOMOptions = Partial<{
     script: boolean;
@@ -82,3 +91,9 @@ export declare type SlimDOMOptions = Partial<{
     headMetaAuthorship: boolean;
     headMetaVerification: boolean;
 }>;
+export declare type MaskTextFn = (text: string) => string;
+export declare type MaskInputFn = (text: string) => string;
+export declare type KeepIframeSrcFn = (src: string) => boolean;
+export declare type BuildCache = {
+    stylesWithHoverClass: Map<string, string>;
+};
