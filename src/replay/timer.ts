@@ -35,7 +35,7 @@ export class Timer {
 
   public replaceActions(actions: actionWithDelay[]) {
     this.actions.length = 0;
-    this.actions.splice(0, 0, ...actions)
+    this.actions.splice(0, 0, ...actions);
   }
 
   public start() {
