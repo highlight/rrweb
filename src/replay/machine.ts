@@ -257,7 +257,7 @@ export function createPlayerService(
             for (const event of newEvents) {
               addDelay(event, baselineTime);
               curEvents.push(event);
-              if (event.timestamp >= baselineTime) {
+              if (event.timestamp >= timer.timeOffset + baselineTime) {
                 const castFn = getCastFn(event, false);
                 actions.push({
                   doAction: () => {
