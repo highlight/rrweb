@@ -39,6 +39,7 @@ async function getTransparentBlobFor(
 
 // `as any` because: https://github.com/Microsoft/TypeScript/issues/20595
 const worker: ImageBitmapDataURLResponseWorker = self;
+console.log('worker initialized');
 
 worker.onmessage = async function (e) {
   if (!('OffscreenCanvas' in globalThis))

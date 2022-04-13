@@ -29,13 +29,21 @@ module.exports = {
   module: {
     rules: [
       {
+        test: /\.worker\.ts$/,
+        use: [
+          {
+            loader: 'ts-loader',
+          },
+          {
+            loader: 'worker-loader',
+            options: { inline: 'fallback' },
+          },
+        ]
+      },
+      {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/,
-      },
-      {
-        test: /\.worker\.js$/, 
-        use: { loader: 'worker-loader', options: { inline: true }},
       },
       {
         test: /\.css?$/,
