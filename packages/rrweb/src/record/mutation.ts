@@ -22,6 +22,7 @@ import {
   isBlocked,
   isAncestorRemoved,
   isIgnored,
+  isSerialized,
   hasShadowRoot,
   isSerializedIframe,
 } from '../utils';
@@ -542,7 +543,8 @@ export default class MutationBuffer {
             : this.mirror.getId(m.target);
           if (
             isBlocked(m.target, this.blockClass) ||
-            isIgnored(n, this.mirror)
+            isIgnored(n, this.mirror) ||
+            !isSerialized(n, this.mirror)
           ) {
             return;
           }
