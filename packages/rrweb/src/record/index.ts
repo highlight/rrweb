@@ -222,6 +222,7 @@ function record<T = eventWithTime>(
     win: window,
     blockClass,
     mirror,
+    sampling: sampling.canvas,
   });
 
   const shadowDomManager = new ShadowDomManager({
