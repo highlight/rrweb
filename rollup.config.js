@@ -1,8 +1,9 @@
-import typescript from 'rollup-plugin-typescript';
-import resolve from 'rollup-plugin-node-resolve';
+import typescript from 'rollup-plugin-typescript2';
+import resolve from '@rollup/plugin-node-resolve';
 import { terser } from 'rollup-plugin-terser';
 import postcss from 'rollup-plugin-postcss';
 import renameNodeModules from 'rollup-plugin-rename-node-modules';
+import webWorkerLoader from 'rollup-plugin-web-worker-loader';
 import pkg from './package.json';
 
 function toRecordPath(path) {
@@ -13,20 +14,20 @@ function toRecordPath(path) {
 
 function toRecordPackPath(path) {
   return path
-    .replace(/^([\w]+)\//, '$1/record/')
-    .replace('rrweb', 'rrweb-record-pack');
+      .replace(/^([\w]+)\//, '$1/record/')
+      .replace('rrweb', 'rrweb-record-pack');
 }
 
 function toReplayPath(path) {
   return path
-    .replace(/^([\w]+)\//, '$1/replay/')
-    .replace('rrweb', 'rrweb-replay');
+      .replace(/^([\w]+)\//, '$1/replay/')
+      .replace('rrweb', 'rrweb-replay');
 }
 
 function toReplayUnpackPath(path) {
   return path
-    .replace(/^([\w]+)\//, '$1/replay/')
-    .replace('rrweb', 'rrweb-replay-unpack');
+      .replace(/^([\w]+)\//, '$1/replay/')
+      .replace('rrweb', 'rrweb-replay-unpack');
 }
 
 function toAllPath(path) {
@@ -35,9 +36,9 @@ function toAllPath(path) {
 
 function toPluginPath(pluginName, stage) {
   return (path) =>
-    path
-      .replace(/^([\w]+)\//, '$1/plugins/')
-      .replace('rrweb', `${pluginName}-${stage}`);
+      path
+          .replace(/^([\w]+)\//, '$1/plugins/')
+          .replace('rrweb', `${pluginName}-${stage}`);
 }
 
 function toMinPath(path) {
@@ -45,6 +46,13 @@ function toMinPath(path) {
 }
 
 const baseConfigs = [
+  // all in one
+  {
+    input: './src/entries/all.ts',
+    name: 'rrweb',
+    pathFn: toAllPath,
+    esm: true,
+  },
   // record only
   {
     input: './src/record/index.ts',
@@ -75,13 +83,6 @@ const baseConfigs = [
     name: 'rrweb',
     pathFn: (p) => p,
   },
-  // all in one
-  {
-    input: './src/entries/all.ts',
-    name: 'rrweb',
-    pathFn: toAllPath,
-    esm: true,
-  },
   // plugins
   {
     input: './src/plugins/console/record/index.ts',
@@ -93,17 +94,31 @@ const baseConfigs = [
     name: 'rrwebConsoleReplay',
     pathFn: toPluginPath('console', 'replay'),
   },
+  {
+    input: './src/plugins/sequential-id/record/index.ts',
+    name: 'rrwebSequentialIdRecord',
+    pathFn: toPluginPath('sequential-id', 'record'),
+  },
+  {
+    input: './src/plugins/sequential-id/replay/index.ts',
+    name: 'rrwebSequentialIdReplay',
+    pathFn: toPluginPath('sequential-id', 'replay'),
+  },
 ];
 
 let configs = [];
 
 for (const c of baseConfigs) {
-  const basePlugins = [resolve({ browser: true }), typescript()];
+  const basePlugins = [
+    resolve({ browser: true }),
+    webWorkerLoader(),
+    typescript({tsconfig: 'tsconfig.rollup.json'}),
+  ];
   const plugins = basePlugins.concat(
-    postcss({
-      extract: false,
-      inject: false,
-    }),
+      postcss({
+        extract: false,
+        inject: false,
+      }),
   );
   // browser
   configs.push({
@@ -121,12 +136,12 @@ for (const c of baseConfigs) {
   configs.push({
     input: c.input,
     plugins: basePlugins.concat(
-      postcss({
-        extract: true,
-        minimize: true,
-        sourceMap: true,
-      }),
-      terser(),
+        postcss({
+          extract: true,
+          minimize: true,
+          sourceMap: true,
+        }),
+        terser(),
     ),
     output: [
       {
@@ -184,7 +199,11 @@ if (process.env.BROWSER_ONLY) {
   for (const c of browserOnlyBaseConfigs) {
     const plugins = [
       resolve({ browser: true }),
-      typescript(),
+      webWorkerLoader(),
+      typescript({
+        outDir: null,
+        tsconfig: 'tsconfig.rollup.json'
+      }),
       postcss({
         extract: false,
         inject: false,
