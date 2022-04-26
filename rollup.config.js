@@ -112,7 +112,7 @@ for (const c of baseConfigs) {
   const basePlugins = [
     resolve({ browser: true }),
     webWorkerLoader(),
-    typescript(),
+    typescript({tsconfig: 'tsconfig.rollup.json'}),
   ];
   const plugins = basePlugins.concat(
       postcss({
@@ -202,6 +202,7 @@ if (process.env.BROWSER_ONLY) {
       webWorkerLoader(),
       typescript({
         outDir: null,
+        tsconfig: 'tsconfig.rollup.json'
       }),
       postcss({
         extract: false,
