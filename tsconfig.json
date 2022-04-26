@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "ESNext",
     "target": "ES5",
     "noImplicitAny": true,
     "strictNullChecks": true,
