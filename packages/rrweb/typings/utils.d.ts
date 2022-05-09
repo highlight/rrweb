@@ -11,6 +11,7 @@ export declare function getWindowHeight(): number;
 export declare function getWindowWidth(): number;
 export declare const isCanvasNode: (node: Node | null) => boolean;
 export declare function isBlocked(node: Node | null, blockClass: blockClass): boolean;
+export declare function isSerialized(n: Node, mirror: Mirror): boolean;
 export declare function isIgnored(n: Node, mirror: Mirror): boolean;
 export declare function isAncestorRemoved(target: Node, mirror: Mirror): boolean;
 export declare function isTouchEvent(event: MouseEvent | TouchEvent): event is TouchEvent;
@@ -63,4 +64,5 @@ export declare function getBaseDimension(node: Node, rootIframe: Node): Document
 export declare function hasShadowRoot<T extends Node>(n: T): n is T & {
     shadowRoot: ShadowRoot;
 };
+export declare function getUniqueTextMutations(mutations: textMutation[]): textMutation[];
 export {};
