@@ -1964,9 +1964,15 @@ export class Replayer {
     ) {
       ((parent as unknown) as HTMLTextAreaElement).value = frag.textContent;
     }
-    parent.appendChild(frag);
-    // restore state of elements after they are mounted
-    this.restoreState(parent);
+    try {
+      parent.appendChild(frag);
+      // restore state of elements after they are mounted
+      this.restoreState(parent);
+    } catch (error) {
+      // this is likely due to a recording with
+      // invalid DOM nesting (a div under a p). don't crash rrweb in this case.
+      console.warn(error)
+    }
   }
 
   /**
