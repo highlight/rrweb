@@ -7,7 +7,7 @@ import {
   maskInputValue, obfuscateText,
   Mirror,
 } from '@highlight-run/rrweb-snapshot';
-import {
+import type {
   mutationRecord,
   textCursor,
   attributeCursor,
@@ -301,7 +301,7 @@ export default class MutationBuffer {
         enableStrictPrivacy: this.enableStrictPrivacy,
         onSerialize: (currentN) => {
           if (isSerializedIframe(currentN, this.mirror)) {
-            this.iframeManager.addIframe(currentN);
+            this.iframeManager.addIframe(currentN as HTMLIFrameElement);
           }
           if (hasShadowRoot(n)) {
             this.shadowDomManager.addShadowRoot(n.shadowRoot, document);
@@ -325,7 +325,7 @@ export default class MutationBuffer {
       this.mirror.removeNodeFromMap(this.mapRemoves.shift()!);
     }
 
-    for (const n of this.movedSet) {
+    for (const n of Array.from(this.movedSet.values())) {
       if (
         isParentRemoved(this.removes, n, this.mirror) &&
         !this.movedSet.has(n.parentNode!)
@@ -335,7 +335,7 @@ export default class MutationBuffer {
       pushAdd(n);
     }
 
-    for (const n of this.addedSet) {
+    for (const n of Array.from(this.addedSet.values())) {
       if (
         !isAncestorInSet(this.droppedSet, n) &&
         !isParentRemoved(this.removes, n, this.mirror)

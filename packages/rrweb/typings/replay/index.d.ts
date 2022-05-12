@@ -1,4 +1,5 @@
 import { Mirror } from '@highlight-run/rrweb-snapshot';
+import { RRDocument } from 'rrdom/es/virtual-dom';
 import { Timer } from './timer';
 import { createPlayerService, createSpeedService } from './machine';
 import { eventWithTime, playerConfig, playerMetaData, Handler, SessionInterval } from '../types';
@@ -10,6 +11,8 @@ export declare class Replayer {
     speedService: ReturnType<typeof createSpeedService>;
     get timer(): Timer;
     config: playerConfig;
+    usingVirtualDom: boolean;
+    virtualDom: RRDocument;
     private mouse;
     private mouseTail;
     private tailPositions;
@@ -18,10 +21,6 @@ export declare class Replayer {
     private activityIntervals;
     private inactiveEndTimestamp;
     private legacy_missingNodeRetryMap;
-    private treeIndex;
-    private fragmentParentMap;
-    private elementStateMap;
-    private virtualStyleRulesMap;
     private cache;
     private imageMap;
     private canvasEventMap;
@@ -67,17 +66,12 @@ export declare class Replayer {
     private applyMutation;
     private applyScroll;
     private applyInput;
-    private applyText;
     private legacy_resolveMissingNode;
     private moveAndHover;
     private drawMouseTail;
     private hoverElements;
     private isUserInteraction;
     private backToNormal;
-    private restoreRealParent;
-    private storeState;
-    private restoreState;
-    private restoreNodeSheet;
     private warnNodeNotFound;
     private warnCanvasMutationFailed;
     private debugNodeNotFound;

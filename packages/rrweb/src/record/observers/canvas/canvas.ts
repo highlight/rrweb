@@ -1,5 +1,5 @@
-import { ICanvas } from '@highlight-run/rrweb-snapshot';
-import { blockClass, IWindow, listenerHandler } from '../../../types';
+import type { ICanvas } from '@highlight-run/rrweb-snapshot';
+import type { blockClass, IWindow, listenerHandler } from '../../../types';
 import { isBlocked, patch } from '../../../utils';
 
 export default function initCanvasContextObserver(
