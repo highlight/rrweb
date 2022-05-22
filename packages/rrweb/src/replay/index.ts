@@ -356,7 +356,7 @@ export class Replayer {
       this.speedService.send({
         type: 'SET_SPEED',
         payload: {
-          speed: config.speed!,
+          speed: config.speed,
         },
       });
     }
@@ -591,7 +591,7 @@ export class Replayer {
   private setupDom() {
     this.wrapper = document.createElement('div');
     this.wrapper.classList.add('replayer-wrapper');
-    this.config.root!.appendChild(this.wrapper);
+    this.config.root.appendChild(this.wrapper);
 
     this.mouse = document.createElement('div');
     this.mouse.classList.add('replayer-mouse');
@@ -714,7 +714,7 @@ export class Replayer {
           }
           if (this.config.skipInactive && !this.nextUserInteractionEvent) {
             for (const _event of this.service.state.context.events) {
-              if (_event.timestamp! <= event.timestamp!) {
+              if (_event.timestamp <= event.timestamp) {
                 continue;
               }
               if (this.isUserInteraction(_event)) {
@@ -757,7 +757,7 @@ export class Replayer {
       this.service.send({ type: 'CAST_EVENT', payload: { event } });
 
       // events are kept sorted by timestamp, check if this is the last event
-      let last_index = this.service.state.context.events.length - 1;
+      const last_index = this.service.state.context.events.length - 1;
       if (event === this.service.state.context.events[last_index]) {
         const finish = () => {
           if (last_index < this.service.state.context.events.length - 1) {
@@ -825,7 +825,7 @@ export class Replayer {
 
   private rebuildFullSnapshot(
     event: fullSnapshotEvent & { timestamp: number },
-    isSync: boolean = false,
+    isSync = false,
   ) {
     if (!this.iframe.contentDocument) {
       return console.warn('Looks like your replayer has been destroyed.');
@@ -881,7 +881,7 @@ export class Replayer {
       );
     }
     if (this.usingVirtualDom) {
-      const styleEl = this.virtualDom.createElement('style') as RRStyleElement;
+      const styleEl = this.virtualDom.createElement('style') ;
       this.virtualDom.mirror.add(
         styleEl,
         getDefaultSN(styleEl, this.virtualDom.unserializedId),
@@ -902,7 +902,7 @@ export class Replayer {
         head as HTMLHeadElement,
       );
       for (let idx = 0; idx < injectStylesRules.length; idx++) {
-        (styleEl.sheet! as CSSStyleSheet).insertRule(
+        (styleEl.sheet! ).insertRule(
           injectStylesRules[idx],
           idx,
         );
@@ -1360,7 +1360,7 @@ export class Replayer {
           if (!target) {
             return this.debugNodeNotFound(d, d.id);
           }
-          const styleSheet = ((target as Node) as HTMLStyleElement).sheet!;
+          const styleSheet = ((target ) as HTMLStyleElement).sheet!;
           d.adds?.forEach(({ rule, index: nestedIndex }) => {
             try {
               if (Array.isArray(nestedIndex)) {
@@ -1533,7 +1533,7 @@ export class Replayer {
     type TNode = typeof mirror extends Mirror ? Node : RRNode;
 
     d.removes.forEach((mutation) => {
-      let target = mirror.getNode(mutation.id);
+      const target = mirror.getNode(mutation.id);
       if (!target) {
         if (d.removes.find((r) => r.id === mutation.parentId)) {
           // no need to warn, parent was already removed
@@ -1762,7 +1762,7 @@ export class Replayer {
       appendNode(mutation);
     });
 
-    let startTime = Date.now();
+    const startTime = Date.now();
     while (queue.length) {
       // transform queue to resolve tree
       const resolveTrees = queueToResolveTrees(queue);
@@ -1775,7 +1775,7 @@ export class Replayer {
         break;
       }
       for (const tree of resolveTrees) {
-        let parent = mirror.getNode(tree.value.parentId);
+        const parent = mirror.getNode(tree.value.parentId);
         if (!parent) {
           this.debug(
             'Drop resolve tree since there is no parent for the root node.',
@@ -1794,7 +1794,7 @@ export class Replayer {
     }
 
     uniqueTextMutations(d.texts).forEach((mutation) => {
-      let target = mirror.getNode(mutation.id);
+      const target = mirror.getNode(mutation.id);
       if (!target) {
         if (d.removes.find((r) => r.id === mutation.id)) {
           // no need to warn, element was already removed
@@ -1814,7 +1814,7 @@ export class Replayer {
       }
     });
     d.attributes.forEach((mutation) => {
-      let target = mirror.getNode(mutation.id);
+      const target = mirror.getNode(mutation.id);
       if (!target) {
         if (d.removes.find((r) => r.id === mutation.id)) {
           // no need to warn, element was already removed
@@ -1842,9 +1842,9 @@ export class Replayer {
               }
             }
           } else if (attributeName === 'style') {
-            let styleValues = value as styleAttributeValue;
+            const styleValues = value ;
             const targetEl = target as HTMLElement | RRElement;
-            for (var s in styleValues) {
+            for (const s in styleValues) {
               if (styleValues[s] === false) {
                 targetEl.style.removeProperty(s);
               } else if (styleValues[s] instanceof Array) {
@@ -1922,7 +1922,7 @@ export class Replayer {
     const previousInMap = previousId && map[previousId];
     const nextInMap = nextId && map[nextId];
     if (previousInMap) {
-      const { node, mutation } = previousInMap as missingNode;
+      const { node, mutation } = previousInMap ;
       parent.insertBefore(node as Node & RRNode, target as Node & RRNode);
       delete map[mutation.node.id];
       delete this.legacy_missingNodeRetryMap[mutation.node.id];
@@ -1931,7 +1931,7 @@ export class Replayer {
       }
     }
     if (nextInMap) {
-      const { node, mutation } = nextInMap as missingNode;
+      const { node, mutation } = nextInMap ;
       parent.insertBefore(
         node as Node & RRNode,
         target.nextSibling as Node & RRNode,
