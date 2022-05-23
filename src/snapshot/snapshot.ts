@@ -849,6 +849,20 @@ export function serializeNodeWithId(
   if (serializedNode.type === NodeType.Element) {
     recordChild = recordChild && !serializedNode.needBlock;
 
+    /** Start of Highlight */
+    // Upload and replace blob images.
+    if (serializedNode.tagName === 'img') {
+      const src = (n as HTMLImageElement).src;
+      if (/blob:/gm.exec(src)) {
+        console.warn('isImage MATCH', src);
+        // TODO(vkorolik) read blob, serialize as base64 str
+        const clone = n.cloneNode();
+        ((clone as unknown) as HTMLImageElement).src = `base64://`;
+        map[id] = clone as INode;
+      }
+    }
+    /** End of Highlight */
+
     /** Highlight Code Begin */
     // Remove the image's src if enableStrictPrivacy.
     if (serializedNode.needBlock && serializedNode.tagName === 'img') {
