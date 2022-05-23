@@ -751,6 +751,16 @@ function slimDOMExcluded(
   return false;
 }
 
+async function convertBlobResources(src: string) {
+  const r = await fetch(src);
+  const blob = await r.blob();
+  return await new Promise((resolve, _) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function serializeNodeWithId(
   n: Node | INode,
   options: {
@@ -816,7 +826,7 @@ export function serializeNodeWithId(
     return null;
   }
 
-  let id;
+  let id: number;
   // Try to reuse the previous id
   if ('__sn' in n) {
     id = n.__sn.id;
@@ -845,38 +855,30 @@ export function serializeNodeWithId(
     recordChild = recordChild && !serializedNode.needBlock;
 
     /** Start of Highlight */
-    // Upload and replace blob images.
+    // Upload and replace blob resources.
     if (serializedNode.tagName === 'img') {
       const src = (n as HTMLImageElement).src;
       if (/blob:/gm.exec(src)) {
-        console.warn('isImage MATCH', id, src);
-        // TODO(vkorolik) ok that is async?
-        /*const blob = await fetch(src).then(r => r.blob());
-        const blobBase64 = await new Promise((resolve, _) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
+        const clone = n.cloneNode() as unknown as HTMLImageElement;
+        clone.removeAttribute('data-async-download-url');
+        clone.src = 'https://vadweb.us';
+        map[id] = clone as unknown as INode;
+        convertBlobResources(src).then((blobBase64: string) => {
+          clone.src = blobBase64;
+          (n as unknown as HTMLImageElement).src = blobBase64;
+          console.warn('isImage MATCH', id, src, serializedNode);
         });
-        const contentType = blob.type;
-        console.warn('processed as', contentType, blobBase64);
-        const clone = n.cloneNode();
-        ((clone as unknown) as HTMLImageElement).src = `data:${contentType};base64, ${blobBase64}`;
-        map[id] = clone as INode;*/
-        fetch(src).then(r => r.blob()).then(blob => {
-          return new Promise((resolve, _) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve({
-              contentType: blob.type, blobBase64: reader.result
-            });
-            reader.readAsDataURL(blob);
-          });
-        }).then(({contentType, blobBase64}) => {
-          console.warn('processed', contentType, blobBase64);
-          const clone = n.cloneNode();
-          ((clone as unknown) as HTMLImageElement).src = `data:${contentType};base64, ${blobBase64}`;
-          // TODO(vkorolik)
-          // map[id] = clone as INode;
-          console.warn(clone);
+      }
+    } else if (serializedNode.tagName === 'link') {
+      const href = (n as HTMLLinkElement).href;
+      if (/blob:/gm.exec(href)) {
+        const clone = n.cloneNode() as unknown as HTMLLinkElement;
+        clone.href = 'https://vadweb.us';
+        map[id] = clone as unknown as INode;
+        convertBlobResources(href).then((blobBase64: string) => {
+          clone.href = blobBase64;
+          (n as unknown as HTMLLinkElement).href = blobBase64;
+          console.warn('isLink MATCH', id, href, serializedNode);
         });
       }
     }
