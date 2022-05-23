@@ -1,24 +1,19 @@
-import { obfuscateText } from '../utils';
+import { obfuscateText } from "../utils";
 import {
+  attributes,
+  ICanvas,
+  idNodeMap,
+  INode,
+  KeepIframeSrcFn,
+  MaskInputFn,
+  MaskInputOptions,
+  MaskTextFn,
+  NodeType,
   serializedNode,
   serializedNodeWithId,
-  NodeType,
-  attributes,
-  INode,
-  idNodeMap,
-  MaskInputOptions,
-  SlimDOMOptions,
-  MaskTextFn,
-  MaskInputFn,
-  KeepIframeSrcFn,
-  ICanvas,
-} from './types';
-import {
-  is2DCanvasBlank,
-  isElement,
-  isShadowRoot,
-  maskInputValue,
-} from './utils';
+  SlimDOMOptions
+} from "./types";
+import { is2DCanvasBlank, isElement, isShadowRoot, maskInputValue } from "./utils";
 
 let _id = 1;
 const tagNameRegex = new RegExp('[^a-z0-9-_:]');
@@ -854,11 +849,35 @@ export function serializeNodeWithId(
     if (serializedNode.tagName === 'img') {
       const src = (n as HTMLImageElement).src;
       if (/blob:/gm.exec(src)) {
-        console.warn('isImage MATCH', src);
-        // TODO(vkorolik) read blob, serialize as base64 str
+        console.warn('isImage MATCH', id, src);
+        // TODO(vkorolik) ok that is async?
+        /*const blob = await fetch(src).then(r => r.blob());
+        const blobBase64 = await new Promise((resolve, _) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+        const contentType = blob.type;
+        console.warn('processed as', contentType, blobBase64);
         const clone = n.cloneNode();
-        ((clone as unknown) as HTMLImageElement).src = `base64://`;
-        map[id] = clone as INode;
+        ((clone as unknown) as HTMLImageElement).src = `data:${contentType};base64, ${blobBase64}`;
+        map[id] = clone as INode;*/
+        fetch(src).then(r => r.blob()).then(blob => {
+          return new Promise((resolve, _) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve({
+              contentType: blob.type, blobBase64: reader.result
+            });
+            reader.readAsDataURL(blob);
+          });
+        }).then(({contentType, blobBase64}) => {
+          console.warn('processed', contentType, blobBase64);
+          const clone = n.cloneNode();
+          ((clone as unknown) as HTMLImageElement).src = `data:${contentType};base64, ${blobBase64}`;
+          // TODO(vkorolik)
+          // map[id] = clone as INode;
+          console.warn(clone);
+        });
       }
     }
     /** End of Highlight */
