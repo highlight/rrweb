@@ -5,6 +5,7 @@ import type { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
 import type { RRNode } from 'rrdom/es/virtual-dom';
 import type { CanvasManager } from './record/observers/canvas/canvas-manager';
+import type { StylesheetManager } from './record/stylesheet-manager';
 export declare enum EventType {
     DomContentLoaded = 0,
     Load = 1,
@@ -200,6 +201,7 @@ export declare type observerParam = {
     doc: Document;
     mirror: Mirror;
     iframeManager: IframeManager;
+    stylesheetManager: StylesheetManager;
     shadowDomManager: ShadowDomManager;
     canvasManager: CanvasManager;
     enableStrictPrivacy: boolean;
@@ -209,7 +211,7 @@ export declare type observerParam = {
         options: unknown;
     }>;
 };
-export declare type MutationBufferParam = Pick<observerParam, 'mutationCb' | 'blockClass' | 'blockSelector' | 'maskTextClass' | 'maskTextSelector' | 'inlineStylesheet' | 'maskInputOptions' | 'maskTextFn' | 'maskInputFn' | 'recordCanvas' | 'inlineImages' | 'slimDOMOptions' | 'doc' | 'mirror' | 'iframeManager' | 'shadowDomManager' | 'canvasManager' | 'enableStrictPrivacy'>;
+export declare type MutationBufferParam = Pick<observerParam, 'mutationCb' | 'blockClass' | 'blockSelector' | 'maskTextClass' | 'maskTextSelector' | 'inlineStylesheet' | 'maskInputOptions' | 'maskTextFn' | 'maskInputFn' | 'recordCanvas' | 'inlineImages' | 'slimDOMOptions' | 'doc' | 'mirror' | 'iframeManager' | 'stylesheetManager' | 'shadowDomManager' | 'canvasManager' | 'enableStrictPrivacy'>;
 export declare type hooksParam = {
     mutation?: mutationCallBack;
     mousemove?: mousemoveCallBack;

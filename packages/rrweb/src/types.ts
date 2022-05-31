@@ -13,6 +13,7 @@ import type { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
 import type { RRNode } from 'highlight-run.rrdom/es/virtual-dom';
 import type { CanvasManager } from './record/observers/canvas/canvas-manager';
+import type { StylesheetManager } from './record/stylesheet-manager';
 
 export enum EventType {
   DomContentLoaded,
@@ -292,6 +293,7 @@ export type observerParam = {
   doc: Document;
   mirror: Mirror;
   iframeManager: IframeManager;
+  stylesheetManager: StylesheetManager;
   shadowDomManager: ShadowDomManager;
   canvasManager: CanvasManager;
   enableStrictPrivacy: boolean,
@@ -319,6 +321,7 @@ export type MutationBufferParam = Pick<
   | 'doc'
   | 'mirror'
   | 'iframeManager'
+  | 'stylesheetManager'
   | 'shadowDomManager'
   | 'canvasManager'
   | 'enableStrictPrivacy'
