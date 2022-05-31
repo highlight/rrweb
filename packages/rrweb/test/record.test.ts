@@ -148,16 +148,20 @@ describe('record', function (this: ISuite) {
         checkoutEveryNms: 500,
       });
     });
-    let count = 30;
-    while (count--) {
-      await ctx.page.type('input', 'a');
-    }
+    await ctx.page.type('input', 'a');
     await ctx.page.waitForTimeout(300);
-    expect(ctx.events.length).toEqual(33); // before first automatic snapshot
-    await ctx.page.waitForTimeout(200); // could be 33 or 35 events by now depending on speed of test env
+    expect(
+      ctx.events.filter((event: eventWithTime) => event.type === EventType.Meta)
+        .length,
+    ).toEqual(1); // before first automatic snapshot
+    expect(
+      ctx.events.filter(
+        (event: eventWithTime) => event.type === EventType.FullSnapshot,
+      ).length,
+    ).toEqual(1); // before first automatic snapshot
+    await ctx.page.waitForTimeout(200);
     await ctx.page.type('input', 'a');
     await ctx.page.waitForTimeout(10);
-    expect(ctx.events.length).toEqual(36); // additionally includes the 2 checkout events
     expect(
       ctx.events.filter((event: eventWithTime) => event.type === EventType.Meta)
         .length,
@@ -167,8 +171,6 @@ describe('record', function (this: ISuite) {
         (event: eventWithTime) => event.type === EventType.FullSnapshot,
       ).length,
     ).toEqual(2);
-    expect(ctx.events[1].type).toEqual(EventType.FullSnapshot);
-    expect(ctx.events[35].type).toEqual(EventType.FullSnapshot);
   });
 
   it('is safe to checkout during async callbacks', async () => {
@@ -414,6 +416,38 @@ describe('record', function (this: ISuite) {
     assertSnapshot(ctx.events);
   });
 
+  it('captures stylesheets in iframes with `blob:` url', async () => {
+    await ctx.page.evaluate(() => {
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('src', 'about:blank');
+      document.body.appendChild(iframe);
+
+      const linkEl = document.createElement('link');
+      linkEl.setAttribute('rel', 'stylesheet');
+      linkEl.setAttribute(
+        'href',
+        URL.createObjectURL(
+          new Blob(['body { color: pink; }'], {
+            type: 'text/css',
+          }),
+        ),
+      );
+      const iframeDoc = iframe.contentDocument!;
+      iframeDoc.head.appendChild(linkEl);
+    });
+    await waitForRAF(ctx.page);
+    await ctx.page.evaluate(() => {
+      const { record } = ((window as unknown) as IWindow).rrweb;
+
+      record({
+        inlineStylesheet: true,
+        emit: ((window as unknown) as IWindow).emit,
+      });
+    });
+    await waitForRAF(ctx.page);
+    assertSnapshot(ctx.events);
+  });
+
   it('captures stylesheets that are still loading', async () => {
     await ctx.page.evaluate(() => {
       const { record } = ((window as unknown) as IWindow).rrweb;
@@ -434,6 +468,39 @@ describe('record', function (this: ISuite) {
         ),
       );
       document.head.appendChild(link1);
+    });
+
+    // `blob:` URLs are not available immediately, so we need to wait for the browser to load them
+    await waitForRAF(ctx.page);
+
+    assertSnapshot(ctx.events);
+  });
+
+  it('captures stylesheets in iframes that are still loading', async () => {
+    await ctx.page.evaluate(() => {
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('src', 'about:blank');
+      document.body.appendChild(iframe);
+      const iframeDoc = iframe.contentDocument!;
+
+      const { record } = ((window as unknown) as IWindow).rrweb;
+
+      record({
+        inlineStylesheet: true,
+        emit: ((window as unknown) as IWindow).emit,
+      });
+
+      const linkEl = document.createElement('link');
+      linkEl.setAttribute('rel', 'stylesheet');
+      linkEl.setAttribute(
+        'href',
+        URL.createObjectURL(
+          new Blob(['body { color: pink; }'], {
+            type: 'text/css',
+          }),
+        ),
+      );
+      iframeDoc.head.appendChild(linkEl);
     });
 
     // `blob:` URLs are not available immediately, so we need to wait for the browser to load them
@@ -548,7 +615,8 @@ describe('record iframes', function (this: ISuite) {
         }, 10);
       }, 10);
     });
-    await ctx.page.waitForTimeout(50);
+    await ctx.page.waitForTimeout(50); // wait till setTimeout is called
+    await waitForRAF(ctx.page); // wait till events get sent
     const styleRelatedEvents = ctx.events.filter(
       (e) =>
         e.type === EventType.IncrementalSnapshot &&

@@ -1,4 +1,4 @@
-import type { Mirror, serializedNodeWithId } from '@highlight-run/rrweb-snapshot';
+import type { Mirror, serializedNodeWithId } from 'rrweb-snapshot';
 import type { mutationCallBack } from '../types';
 
 export class StylesheetManager {
@@ -16,6 +16,7 @@ export class StylesheetManager {
     this.trackStylesheet(linkEl);
   }
 
+  // TODO: take snapshot on stylesheet reload by applying event listener
   private trackStylesheet(linkEl: HTMLLinkElement) {
     // linkEl.addEventListener('load', () => {
     //   // re-loaded, maybe take another snapshot?
