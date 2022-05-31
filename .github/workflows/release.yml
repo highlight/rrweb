@@ -14,12 +14,8 @@ jobs:
         with:
           node-version: 16.15.0
           registry-url: https://registry.npmjs.org
-      - name: Install
-        run: yarn install
-      - name: Bundle Browser
-        run: yarn bundle:browser
-      - name: Bundle Highlight
-        run: yarn bundle:highlight
+      - name: Install and Bundle
+        run: yarn
       - name: Confirm new version
         run: python3 compare.py
       - name: Publish
