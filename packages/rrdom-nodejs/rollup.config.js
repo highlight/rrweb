@@ -24,8 +24,13 @@ const basePlugins = [
 const baseConfigs = [
   {
     input: './src/index.ts',
-    name: 'rrdom',
-    path: 'rrdom',
+    name: pkg.name,
+    path: pkg.name,
+  },
+  {
+    input: './src/document-nodejs.ts',
+    name: 'RRDocument',
+    path: 'document-nodejs',
   },
 ];
 
@@ -40,36 +45,12 @@ for (let config of baseConfigs) {
       output: [
         {
           format: 'esm',
-          file: pkg.module.replace('rrdom', config.path),
+          file: pkg.module.replace(pkg.name, config.path),
         },
       ],
     },
   );
   extraConfigs.push(
-    // browser
-    {
-      input: config.input,
-      plugins: basePlugins,
-      output: [
-        {
-          name: config.name,
-          format: 'iife',
-          file: pkg.unpkg.replace(pkg.name, config.path),
-        },
-      ],
-    },
-    {
-      input: config.input,
-      plugins: basePlugins.concat(terser()),
-      output: [
-        {
-          name: config.name,
-          format: 'iife',
-          file: toMinPath(pkg.unpkg).replace(pkg.name, config.path),
-          sourcemap: true,
-        },
-      ],
-    },
     // CommonJS
     {
       input: config.input,

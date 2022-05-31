@@ -25,7 +25,7 @@ import type {
   RRStyleElement,
   RRDocument,
   Mirror,
-} from './virtual-dom';
+} from '.';
 
 const NAMESPACES: Record<string, string> = {
   svg: 'http://www.w3.org/2000/svg',
