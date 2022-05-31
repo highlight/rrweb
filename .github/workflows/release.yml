@@ -17,7 +17,7 @@ jobs:
       - name: Install and Bundle
         run: yarn
       - name: Confirm new version
-        run: cd .. && python3 compare.py
+        run: cd ../.. && python3 compare.py
       - name: Publish
         if: github.ref == 'refs/heads/master'
         run: yarn publish --access public
