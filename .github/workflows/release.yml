@@ -19,6 +19,6 @@ jobs:
         run: python3 compare.py
       - name: Publish
         if: github.ref == 'refs/heads/master'
-        run: yarn lerna publish
+        run: yarn lerna publish --no-private
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

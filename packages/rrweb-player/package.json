@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb-player",
-  "version": "0.7.14",
+  "version": "0.7.15-alpha.0",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^11.0.0",
     "@rollup/plugin-node-resolve": "^7.0.0",
@@ -24,7 +24,7 @@
     "typescript": "^3.9.7"
   },
   "dependencies": {
-    "@highlight-run/rrweb": "^2.0.0",
+    "@highlight-run/rrweb": "^2.0.1-alpha.0",
     "@tsconfig/svelte": "^1.0.0"
   },
   "scripts": {
@@ -57,5 +57,6 @@
   "bugs": {
     "url": "https://github.com/rrweb-io/rrweb/issues"
   },
-  "homepage": "https://github.com/rrweb-io/rrweb#readme"
+  "homepage": "https://github.com/rrweb-io/rrweb#readme",
+  "gitHead": "d5100d35eae775154ce9db13c101a623d0a8bc12"
 }
