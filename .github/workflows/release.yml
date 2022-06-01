@@ -9,18 +9,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: 14.15.4
+          node-version: 16.15.0
           registry-url: https://registry.npmjs.org
       - name: Install
-        run: yarn install
-      - name: Bundle Browser
-        run: yarn bundle:browser
-      - name: Bundle Highlight
-        run: yarn bundle:highlight
+        run: yarn
+      - name: Build all
+        run: yarn build:all
       - name: Confirm new version
         run: python3 compare.py
       - name: Publish
         if: github.ref == 'refs/heads/master'
-        run: yarn publish --access public
+        run: yarn lerna publish from-package --no-private
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

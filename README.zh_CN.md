@@ -7,7 +7,7 @@
 
 # rrweb
 
-**[rrweb 社区新的征程](http://www.myriptide.com/rrweb-community-cn/)**
+**[rrweb 纪录片（中文）](https://www.bilibili.com/video/BV1wL4y1B7wN?share_source=copy_web)**
 
 [![Join the chat at slack](https://img.shields.io/badge/slack-@rrweb-teal.svg?logo=slack)](https://join.slack.com/t/rrweb/shared_invite/zt-siwoc6hx-uWay3s2wyG8t5GpZVb8rWg)
 ![total gzip size](https://img.badgesize.io/https://cdn.jsdelivr.net/npm/rrweb@latest/dist/rrweb.min.js?compression=gzip&label=total%20gzip%20size)
@@ -28,9 +28,9 @@ rrweb 是 'record and replay the web' 的简写，旨在利用现代浏览器所
 
 rrweb 主要由 3 部分组成：
 
-- **[rrweb-snapshot](https://github.com/rrweb-io/rrweb-snapshot)**，包含 snapshot 和 rebuild 两个功能。snapshot 用于将 DOM 及其状态转化为可序列化的数据结构并添加唯一标识；rebuild 则是将 snapshot 记录的数据结构重建为对应的 DOM。
+- **[rrweb-snapshot](https://github.com/rrweb-io/rrweb/tree/master/packages/rrweb-snapshot/)**，包含 snapshot 和 rebuild 两个功能。snapshot 用于将 DOM 及其状态转化为可序列化的数据结构并添加唯一标识；rebuild 则是将 snapshot 记录的数据结构重建为对应的 DOM。
 - **[rrweb](https://github.com/rrweb-io/rrweb)**，包含 record 和 replay 两个功能。record 用于记录 DOM 中的所有变更（mutation）；replay 则是将记录的变更按照对应的时间一一重放。
-- **[rrweb-player](https://github.com/rrweb-io/rrweb-player)**，为 rrweb 提供一套 UI 控件，提供基于 GUI 的暂停、快进、拖拽至任意时间点播放等功能。
+- **[rrweb-player](https://github.com/rrweb-io/rrweb/tree/master/packages/rrweb-player/)**，为 rrweb 提供一套 UI 控件，提供基于 GUI 的暂停、快进、拖拽至任意时间点播放等功能。
 
 ## Roadmap
 
@@ -58,7 +58,7 @@ rrweb 主要由 3 部分组成：
 [Typescript 手册](https://www.typescriptlang.org/docs/handbook/declaration-files/introduction.html)
 
 1. Fork 需要修改的 rrweb 组件仓库
-2. `npm install` 安装所需依赖
+2. `yarn install` 安装所需依赖
 3. 修改代码并通过测试
 4. 提交代码，创建 pull request
 
@@ -115,8 +115,22 @@ rrweb 主要由 3 部分组成：
 
 ## Who's using rrweb
 
-<p align="center">
-  <a href="http://www.smartx.com/" target="_blank">
-    <img width="260px" src="https://www.rrweb.io/logos/smartx.png">
-  </a>
-</p>
+<table>
+  <tr>
+    <td align="center">
+      <a href="http://www.smartx.com/" target="_blank">
+        <img width="260px" src="https://www.rrweb.io/logos/smartx.png">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://posthog.com?utm_source=rrweb&utm_medium=sponsorship&utm_campaign=open-source-sponsorship" target="_blank">
+        <img width="260px" src="https://www.rrweb.io/logos/posthog.png">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://statcounter.com/session-replay/" target="_blank">
+        <img width="260px" src="https://statcounter.com/images/logo-statcounter-arc-blue.svg">
+      </a>
+    </td>
+  </tr>
+</table>

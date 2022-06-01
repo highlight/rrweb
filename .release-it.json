@@ -1,15 +1,15 @@
 {
-  "non-interactive": true,
-  "hooks": {
-    "before:init": [
-      "npm run bundle",
-      "npm run typings"
-    ]
-  },
+  "hooks": {},
   "git": {
-    "requireCleanWorkingDir": false
+    "commit": false,
+    "tag": false,
+    "push": false
+  },
+  "npm": {
+    "publish": false
   },
   "github": {
-    "release": true
+    "release": true,
+    "releaseName": "Release ${version}"
   }
 }
