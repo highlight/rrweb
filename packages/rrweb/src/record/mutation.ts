@@ -5,8 +5,8 @@ import {
   IGNORED_NODE,
   isShadowRoot,
   needMaskingText,
-  maskInputValue,
-} from 'rrweb-snapshot';
+  maskInputValue, obfuscateText,
+} from '@highlight-run/rrweb-snapshot';
 import {
   mutationRecord,
   textCursor,
@@ -173,6 +173,7 @@ export default class MutationBuffer {
   private iframeManager: observerParam['iframeManager'];
   private shadowDomManager: observerParam['shadowDomManager'];
   private canvasManager: observerParam['canvasManager'];
+  private enableStrictPrivacy: observerParam['enableStrictPrivacy'];
 
   public init(options: MutationBufferParam) {
     ([
@@ -193,6 +194,7 @@ export default class MutationBuffer {
       'iframeManager',
       'shadowDomManager',
       'canvasManager',
+      'enableStrictPrivacy',
     ] as const).forEach((key) => {
       // just a type trick, the runtime result is correct
       this[key] = options[key] as never;
@@ -298,6 +300,7 @@ export default class MutationBuffer {
         slimDOMOptions: this.slimDOMOptions,
         recordCanvas: this.recordCanvas,
         inlineImages: this.inlineImages,
+        enableStrictPrivacy: this.enableStrictPrivacy,
         onSerialize: (currentN) => {
           if (isIframeINode(currentN)) {
             this.iframeManager.addIframe(currentN);
@@ -395,19 +398,25 @@ export default class MutationBuffer {
 
     const payload = {
       texts: this.texts
-        .map((text) => ({
-          id: this.mirror.getId(text.node as INode),
-          value: text.value,
-        }))
-        // text mutation's id was not in the mirror map means the target node has been removed
-        .filter((text) => this.mirror.has(text.id)),
+          .map((text) => {
+            let value = text.value;
+            if (this.enableStrictPrivacy && value) {
+              value = obfuscateText(value);
+            }
+            return {
+              id: this.mirror.getId(text.node as INode),
+              value,
+            };
+          })
+          // text mutation's id was not in the mirror map means the target node has been removed
+          .filter((text) => this.mirror.has(text.id)),
       attributes: this.attributes
-        .map((attribute) => ({
-          id: this.mirror.getId(attribute.node as INode),
-          attributes: attribute.attributes,
-        }))
-        // attribute mutation's id was not in the mirror map means the target node has been removed
-        .filter((attribute) => this.mirror.has(attribute.id)),
+          .map((attribute) => ({
+            id: this.mirror.getId(attribute.node as INode),
+            attributes: attribute.attributes,
+          }))
+          // attribute mutation's id was not in the mirror map means the target node has been removed
+          .filter((attribute) => this.mirror.has(attribute.id)),
       removes: this.removes,
       adds,
     };
@@ -515,6 +524,14 @@ export default class MutationBuffer {
             }
           }
         } else {
+          const tagName = (m.target as HTMLElement).tagName;
+          if (tagName === 'INPUT') {
+            const node = m.target as HTMLInputElement;
+            if (node.type === 'password') {
+              item.attributes['value'] = '*'.repeat(node.value.length);
+              break;
+            }
+          }
           // overwrite attribute if the mutations was triggered in same time
           item.attributes[m.attributeName!] = transformAttribute(
             this.doc,

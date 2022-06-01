@@ -6,7 +6,7 @@ import {
   SlimDOMOptions,
   MaskInputFn,
   MaskTextFn,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import { PackFn, UnpackFn } from './packer/base';
 import { IframeManager } from './record/iframe-manager';
 import { ShadowDomManager } from './record/shadow-dom-manager';
@@ -243,6 +243,10 @@ export type recordOptions<T> = {
   // departed, please use sampling options
   mousemoveWait?: number;
   keepIframeSrcFn?: KeepIframeSrcFn;
+  /**
+   * Enabling this will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
+   * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
+   */
   enableStrictPrivacy?: boolean;
 };
 
@@ -278,6 +282,7 @@ export type observerParam = {
   iframeManager: IframeManager;
   shadowDomManager: ShadowDomManager;
   canvasManager: CanvasManager;
+  enableStrictPrivacy: boolean,
   plugins: Array<{
     observer: Function;
     callback: Function;
@@ -304,6 +309,7 @@ export type MutationBufferParam = Pick<
   | 'iframeManager'
   | 'shadowDomManager'
   | 'canvasManager'
+  | 'enableStrictPrivacy'
 >;
 
 export type hooksParam = {

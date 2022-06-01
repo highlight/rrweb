@@ -1,4 +1,4 @@
-import { INode } from 'rrweb-snapshot';
+import { INode } from '@highlight-run/rrweb-snapshot';
 
 export enum StyleRuleType {
   Insert,

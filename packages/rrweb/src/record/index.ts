@@ -1,4 +1,4 @@
-import { snapshot, MaskInputOptions, SlimDOMOptions } from 'rrweb-snapshot';
+import { snapshot, MaskInputOptions, SlimDOMOptions } from '@highlight-run/rrweb-snapshot';
 import { initObservers, mutationBuffers } from './observer';
 import {
   on,
@@ -43,10 +43,10 @@ function record<T = eventWithTime>(
     emit,
     checkoutEveryNms,
     checkoutEveryNth,
-    blockClass = 'rr-block',
+    blockClass = 'highlight-block',
     blockSelector = null,
-    ignoreClass = 'rr-ignore',
-    maskTextClass = 'rr-mask',
+    ignoreClass = 'highlight-ignore',
+    maskTextClass = 'highlight-mask',
     maskTextSelector = null,
     inlineStylesheet = true,
     maskAllInputs,
@@ -64,6 +64,7 @@ function record<T = eventWithTime>(
     inlineImages = false,
     plugins,
     keepIframeSrcFn = () => false,
+    enableStrictPrivacy = false,
   } = options;
   // runtime checks for user options
   if (!emit) {
@@ -234,6 +235,7 @@ function record<T = eventWithTime>(
       slimDOMOptions,
       iframeManager,
       canvasManager,
+      enableStrictPrivacy
     },
     mirror,
   });
@@ -263,6 +265,7 @@ function record<T = eventWithTime>(
       slimDOM: slimDOMOptions,
       recordCanvas,
       inlineImages,
+      enableStrictPrivacy,
       onSerialize: (n) => {
         if (isIframeINode(n)) {
           iframeManager.addIframe(n);
@@ -431,6 +434,7 @@ function record<T = eventWithTime>(
           iframeManager,
           shadowDomManager,
           canvasManager,
+          enableStrictPrivacy,
           plugins:
             plugins
               ?.filter((p) => p.observer)

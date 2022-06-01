@@ -27,6 +27,7 @@ export default class MutationBuffer {
     private iframeManager;
     private shadowDomManager;
     private canvasManager;
+    private enableStrictPrivacy;
     init(options: MutationBufferParam): void;
     freeze(): void;
     unfreeze(): void;

@@ -66,6 +66,9 @@ function escapeRegExp(str: string) {
 const HOVER_SELECTOR = /([^\\]):hover/;
 const HOVER_SELECTOR_GLOBAL = new RegExp(HOVER_SELECTOR.source, 'g');
 export function addHoverClass(cssText: string, cache: BuildCache): string {
+  if (!(window as any).HIG_CONFIGURATION?.enableOnHoverClass) {
+    return cssText;
+  }
   const cachedStyle = cache?.stylesWithHoverClass.get(cssText);
   if (cachedStyle) return cachedStyle;
 

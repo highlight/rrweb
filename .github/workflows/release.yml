@@ -3,9 +3,6 @@ on: push
 jobs:
   release:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./packages/rrweb
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -14,12 +11,14 @@ jobs:
         with:
           node-version: 16.15.0
           registry-url: https://registry.npmjs.org
-      - name: Install and Bundle
+      - name: Install
         run: yarn
+      - name: Build all
+        run: yarn build:all
       - name: Confirm new version
-        run: cd ../.. && python3 compare.py
+        run: python3 compare.py
       - name: Publish
         if: github.ref == 'refs/heads/master'
-        run: yarn publish --access public
+        run: yarn lerna publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

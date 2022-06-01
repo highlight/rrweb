@@ -1,4 +1,4 @@
-import { INode, ICanvas } from 'rrweb-snapshot';
+import { INode, ICanvas } from '@highlight-run/rrweb-snapshot';
 import { blockClass, IWindow, listenerHandler } from '../../../types';
 import { isBlocked, patch } from '../../../utils';
 

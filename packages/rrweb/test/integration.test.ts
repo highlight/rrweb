@@ -11,7 +11,7 @@ import {
   replaceLast,
 } from './utils';
 import { recordOptions, eventWithTime, EventType } from '../src/types';
-import { visitSnapshot, NodeType } from 'rrweb-snapshot';
+import { visitSnapshot, NodeType } from '@highlight-run/rrweb-snapshot';
 
 interface ISuite {
   server: http.Server;
@@ -210,7 +210,7 @@ describe('record integration tests', function (this: ISuite) {
     await page.goto('about:blank');
     await page.setContent(getHtml.call(this, 'ignore.html'));
 
-    await page.type('.rr-ignore', 'secret');
+    await page.type('.highlight-ignore', 'secret');
 
     const snapshots = await page.evaluate('window.snapshots');
     assertSnapshot(snapshots);
@@ -313,12 +313,12 @@ describe('record integration tests', function (this: ISuite) {
 
     await page.evaluate(() => {
       const el = document.createElement('button');
-      el.className = 'rr-block';
+      el.className = 'highlight-block';
       el.style.width = '100px';
       el.style.height = '100px';
       el.innerText = 'Should not be recorded';
 
-      const nextElement = document.querySelector('.rr-block')!;
+      const nextElement = document.querySelector('.highlight-block')!;
       nextElement.parentNode!.insertBefore(el, nextElement);
     });
 
@@ -625,7 +625,7 @@ describe('record integration tests', function (this: ISuite) {
       const ul = document.querySelector('ul') as HTMLUListElement;
       const p = document.querySelector('p') as HTMLParagraphElement;
       [li, p].forEach((element) => {
-        element.className = 'rr-mask';
+        element.className = 'highlight-mask';
       });
       ul.appendChild(li);
       li.innerText = 'new list item';

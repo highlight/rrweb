@@ -5,7 +5,7 @@ import {
   NodeType,
   BuildCache,
   createCache,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import * as mittProxy from 'mitt';
 import { polyfill as smoothscrollPolyfill } from './smoothscroll';
 import { Timer } from './timer';
@@ -153,7 +153,7 @@ export class Replayer {
       skipInactive: false,
       showWarning: true,
       showDebug: false,
-      blockClass: 'rr-block',
+      blockClass: 'highlight-block',
       liveMode: false,
       insertStyleRules: [],
       triggerFocus: true,

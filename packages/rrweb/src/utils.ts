@@ -21,7 +21,7 @@ import {
   serializedNodeWithId,
   NodeType,
   isShadowRoot,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 
 export function on(
   type: string,

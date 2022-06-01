@@ -441,7 +441,7 @@ function serializeNode(
         rootId,
       };
     case n.ELEMENT_NODE:
-      const needBlock = _isBlockedElement(
+      let needBlock = _isBlockedElement(
         n as HTMLElement,
         blockClass,
         blockSelector,
@@ -606,6 +606,7 @@ function serializeNode(
           rr_width: `${width}px`,
           rr_height: `${height}px`,
         };
+        needBlock = true;
       }
       // iframe
       if (tagName === 'iframe' && !keepIframeSrcFn(attributes.src as string)) {
@@ -1052,9 +1053,9 @@ function snapshot(
   },
 ): [serializedNodeWithId | null, idNodeMap] {
   const {
-    blockClass = 'rr-block',
+    blockClass = 'highlight-block',
     blockSelector = null,
-    maskTextClass = 'rr-mask',
+    maskTextClass = 'highlight-mask',
     maskTextSelector = null,
     inlineStylesheet = true,
     inlineImages = false,

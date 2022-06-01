@@ -1,5 +1,5 @@
 {
-  "name": "@highlight-run/rrdom",
+  "name": "highlight-run.rrdom",
   "version": "0.1.2",
   "scripts": {
     "dev": "rollup -c -w",
@@ -24,6 +24,7 @@
     "typings"
   ],
   "devDependencies": {
+    "@highlight-run/rrweb-snapshot": "^1.1.14",
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
     "@types/cssom": "^0.4.1",
@@ -33,7 +34,6 @@
     "rollup": "^2.56.3",
     "rollup-plugin-terser": "^7.0.2",
     "rollup-plugin-typescript2": "^0.30.0",
-    "rrweb-snapshot": "^1.1.14",
     "ts-jest": "^27.0.5",
     "typescript": "^3.9.5"
   },

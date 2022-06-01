@@ -341,7 +341,7 @@ exports[`record integration tests can mask character data mutations 1`] = `
         {
           \\"id\\": 7,
           \\"attributes\\": {
-            \\"class\\": \\"rr-mask\\"
+            \\"class\\": \\"highlight-mask\\"
           }
         }
       ],
@@ -359,7 +359,7 @@ exports[`record integration tests can mask character data mutations 1`] = `
             \\"type\\": 2,
             \\"tagName\\": \\"li\\",
             \\"attributes\\": {
-              \\"class\\": \\"rr-mask\\"
+              \\"class\\": \\"highlight-mask\\"
             },
             \\"childNodes\\": [],
             \\"id\\": 20
@@ -3678,7 +3678,7 @@ exports[`record integration tests should mask texts 1`] = `
                     \\"type\\": 2,
                     \\"tagName\\": \\"p\\",
                     \\"attributes\\": {
-                      \\"class\\": \\"rr-mask\\"
+                      \\"class\\": \\"highlight-mask\\"
                     },
                     \\"childNodes\\": [
                       {
@@ -3698,7 +3698,7 @@ exports[`record integration tests should mask texts 1`] = `
                     \\"type\\": 2,
                     \\"tagName\\": \\"div\\",
                     \\"attributes\\": {
-                      \\"class\\": \\"rr-mask\\"
+                      \\"class\\": \\"highlight-mask\\"
                     },
                     \\"childNodes\\": [
                       {
@@ -3956,7 +3956,7 @@ exports[`record integration tests should mask texts using maskTextFn 1`] = `
                     \\"type\\": 2,
                     \\"tagName\\": \\"p\\",
                     \\"attributes\\": {
-                      \\"class\\": \\"rr-mask\\"
+                      \\"class\\": \\"highlight-mask\\"
                     },
                     \\"childNodes\\": [
                       {
@@ -3976,7 +3976,7 @@ exports[`record integration tests should mask texts using maskTextFn 1`] = `
                     \\"type\\": 2,
                     \\"tagName\\": \\"div\\",
                     \\"attributes\\": {
-                      \\"class\\": \\"rr-mask\\"
+                      \\"class\\": \\"highlight-mask\\"
                     },
                     \\"childNodes\\": [
                       {
@@ -5354,7 +5354,7 @@ exports[`record integration tests should not record blocked elements and its chi
                     \\"type\\": 2,
                     \\"tagName\\": \\"div\\",
                     \\"attributes\\": {
-                      \\"class\\": \\"rr-block\\",
+                      \\"class\\": \\"highlight-block\\",
                       \\"rr_width\\": \\"50px\\",
                       \\"rr_height\\": \\"50px\\"
                     },
@@ -5534,7 +5534,7 @@ exports[`record integration tests should not record blocked elements dynamically
                     \\"type\\": 2,
                     \\"tagName\\": \\"div\\",
                     \\"attributes\\": {
-                      \\"class\\": \\"rr-block\\",
+                      \\"class\\": \\"highlight-block\\",
                       \\"rr_width\\": \\"50px\\",
                       \\"rr_height\\": \\"50px\\"
                     },
@@ -5594,7 +5594,7 @@ exports[`record integration tests should not record blocked elements dynamically
             \\"type\\": 2,
             \\"tagName\\": \\"button\\",
             \\"attributes\\": {
-              \\"class\\": \\"rr-block\\",
+              \\"class\\": \\"highlight-block\\",
               \\"rr_width\\": \\"100px\\",
               \\"rr_height\\": \\"100px\\"
             },
@@ -5763,7 +5763,7 @@ exports[`record integration tests should not record input events on ignored elem
                             \\"tagName\\": \\"input\\",
                             \\"attributes\\": {
                               \\"type\\": \\"text\\",
-                              \\"class\\": \\"rr-ignore\\"
+                              \\"class\\": \\"highlight-ignore\\"
                             },
                             \\"childNodes\\": [],
                             \\"id\\": 22
