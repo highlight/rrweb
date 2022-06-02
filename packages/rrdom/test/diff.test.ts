@@ -15,13 +15,13 @@ import {
   serializedNodeWithId,
   createMirror,
   Mirror,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type { IRRNode } from '../src/document';
 import {
   canvasMutationData,
   EventType,
   IncrementalSource,
-} from 'rrweb/src/types';
+} from '@highlight-run/rrweb/src/types';
 
 const elementSn = {
   type: RRNodeType.Element,

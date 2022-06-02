@@ -6,7 +6,7 @@ import type {
 } from '../types';
 import { initMutationObserver, initScrollObserver } from './observer';
 import { patch } from '../utils';
-import type { Mirror } from 'rrweb-snapshot';
+import type { Mirror } from '@highlight-run/rrweb-snapshot';
 
 type BypassOptions = Omit<
   MutationBufferParam,
