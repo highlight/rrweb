@@ -1,6 +1,5 @@
 {
   "name": "@highlight-run/rrdom",
-  "private": true,
   "version": "0.1.2",
   "scripts": {
     "dev": "rollup -c -w",
