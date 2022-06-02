@@ -1,10 +1,10 @@
-import { NodeType as RRNodeType, Mirror as NodeMirror } from 'rrweb-snapshot';
+import { NodeType as RRNodeType, Mirror as NodeMirror } from '@highlight-run/rrweb-snapshot';
 import type {
   canvasMutationData,
   canvasEventWithTime,
   inputData,
   scrollData,
-} from 'rrweb/src/types';
+} from '@highlight-run/rrweb/src/types';
 import type {
   IRRCDATASection,
   IRRComment,

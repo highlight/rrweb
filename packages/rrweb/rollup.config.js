@@ -109,7 +109,7 @@ const baseConfigs = [
 let configs = [];
 
 function getPlugins(options = {}) {
-  const { minify = false, sourceMap = false } = options;
+  const { minify = true, sourceMap = false } = options;
   return [
     resolve({ browser: true }),
     webWorkerLoader({
@@ -121,7 +121,7 @@ function getPlugins(options = {}) {
       minify,
     }),
     postcss({
-      extract: false,
+      extract: true,
       inject: false,
       minimize: minify,
       sourceMap,
@@ -140,8 +140,9 @@ for (const c of baseConfigs) {
   ];
   const plugins = basePlugins.concat(
     postcss({
-      extract: false,
+      extract: true,
       inject: false,
+      minimize: true,
     }),
   );
   // browser

@@ -23,7 +23,7 @@
     "typescript": "^4.6.4"
   },
   "dependencies": {
-    "@highlight-run/rrweb": "^2.0.1",
+    "@highlight-run/rrweb": "2.0.3",
     "@tsconfig/svelte": "^1.0.0"
   },
   "scripts": {
@@ -58,5 +58,5 @@
     "url": "https://github.com/rrweb-io/rrweb/issues"
   },
   "homepage": "https://github.com/rrweb-io/rrweb#readme",
-  "gitHead": "d5100d35eae775154ce9db13c101a623d0a8bc12"
+  "gitHead": "5db953fd4478f89aabf8af047f8b03046a05e6e9"
 }

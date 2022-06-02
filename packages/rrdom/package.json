@@ -1,6 +1,5 @@
 {
-  "name": "highlight-run.rrdom",
-  "private": true,
+  "name": "@highlight-run/rrdom",
   "version": "0.1.2",
   "scripts": {
     "dev": "rollup -c -w",
@@ -27,7 +26,7 @@
     "typings"
   ],
   "devDependencies": {
-    "@highlight-run/rrweb-snapshot": "^1.1.15-alpha.0",
+    "@highlight-run/rrweb-snapshot": "^1.1.15",
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
     "@types/cssom": "^0.4.1",
@@ -53,5 +52,5 @@
     "cssstyle": "^2.3.0",
     "nwsapi": "^2.2.0"
   },
-  "gitHead": "d5100d35eae775154ce9db13c101a623d0a8bc12"
+  "gitHead": "5db953fd4478f89aabf8af047f8b03046a05e6e9"
 }
