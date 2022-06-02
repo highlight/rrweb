@@ -976,14 +976,6 @@ export function serializeNodeWithId(
       ((clone as unknown) as HTMLImageElement).src = '';
       mirror.add(clone, serializedNode);
     }
-
-    // Inline serialized links.
-    if (serializedNode.tagName === 'link') {
-      const clone = n.cloneNode();
-      ((clone as unknown) as HTMLLinkElement).href = '';
-      ((clone as unknown) as HTMLLinkElement).innerText = serializedNode.attributes._cssText as string;
-      mirror.add(clone, serializedNode);
-    }
     /** Highlight Code End */
 
     // this property was not needed in replay side
