@@ -974,7 +974,15 @@ export function serializeNodeWithId(
     if (serializedNode.needBlock && serializedNode.tagName === 'img') {
       const clone = n.cloneNode();
       ((clone as unknown) as HTMLImageElement).src = '';
-      map[id] = clone as INode;
+      mirror.add(clone, serializedNode);
+    }
+
+    // Inline serialized links.
+    if (serializedNode.tagName === 'link') {
+      const clone = n.cloneNode();
+      ((clone as unknown) as HTMLLinkElement).href = '';
+      ((clone as unknown) as HTMLLinkElement).innerText = serializedNode.attributes._cssText as string;
+      mirror.add(clone, serializedNode);
     }
     /** Highlight Code End */
 
@@ -1119,6 +1127,7 @@ export function serializeNodeWithId(
             onStylesheetLoad,
             iframeLoadTimeout,
             keepIframeSrcFn,
+            enableStrictPrivacy
           });
 
           if (serializedLinkNode) {

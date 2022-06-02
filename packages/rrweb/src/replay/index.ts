@@ -15,7 +15,7 @@ import {
   buildFromDom,
   diff,
   getDefaultSN,
-} from 'rrdom/es/virtual-dom';
+} from '@highlight-run/rrdom/es/virtual-dom';
 import type {
   RRNode,
   RRElement,
@@ -26,7 +26,7 @@ import type {
   ReplayerHandler,
   Mirror as RRDOMMirror,
   VirtualStyleRules,
-} from 'rrdom/es/virtual-dom';
+} from '@highlight-run/rrdom/es/virtual-dom';
 import * as mittProxy from 'mitt';
 import { polyfill as smoothscrollPolyfill } from './smoothscroll';
 import { Timer } from './timer';

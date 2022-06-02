@@ -1,5 +1,5 @@
 {
-  "name": "highlight-run.rrdom",
+  "name": "@highlight-run/rrdom",
   "private": true,
   "version": "0.1.2",
   "scripts": {
@@ -27,7 +27,7 @@
     "typings"
   ],
   "devDependencies": {
-    "@highlight-run/rrweb-snapshot": "^1.1.15-alpha.0",
+    "@highlight-run/rrweb-snapshot": "^1.1.15",
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
     "@types/cssom": "^0.4.1",
