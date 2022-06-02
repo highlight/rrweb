@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "record and replay the web",
   "scripts": {
     "prepare": "npm run prepack",
@@ -79,9 +79,8 @@
     "@xstate/fsm": "^1.4.0",
     "base64-arraybuffer": "^1.0.1",
     "fflate": "^0.4.4",
-    "mitt": "^1.1.3",
-    "rrdom": "^0.1.2",
-    "rrweb-snapshot": "^1.1.14"
+    "@highlight-run/rrdom": "^0.1.2",
+    "mitt": "^1.1.3"
   },
   "gitHead": "d5100d35eae775154ce9db13c101a623d0a8bc12"
 }
