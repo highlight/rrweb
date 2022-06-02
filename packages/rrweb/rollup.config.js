@@ -121,7 +121,7 @@ function getPlugins(options = {}) {
       minify,
     }),
     postcss({
-      extract: false,
+      extract: true,
       inject: false,
       minimize: minify,
       sourceMap,
