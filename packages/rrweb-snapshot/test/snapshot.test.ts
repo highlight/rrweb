@@ -150,6 +150,7 @@ describe('style elements', () => {
       maskTextFn: undefined,
       maskInputFn: undefined,
       slimDOMOptions: {},
+      enableStrictPrivacy: true
     });
   };
 

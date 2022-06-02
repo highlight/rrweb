@@ -140,7 +140,7 @@ for (const c of baseConfigs) {
   ];
   const plugins = basePlugins.concat(
     postcss({
-      extract: false,
+      extract: true,
       inject: false,
     }),
   );
