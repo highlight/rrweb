@@ -1,4 +1,7 @@
-import { MaskInputOptions, maskInputValue } from '@highlight-run/rrweb-snapshot';
+import {
+  MaskInputOptions,
+  maskInputValue,
+} from '@highlight-run/rrweb-snapshot';
 import type { FontFaceSet } from 'css-font-loading-module';
 import {
   throttle,
@@ -8,7 +11,8 @@ import {
   getWindowWidth,
   isBlocked,
   isTouchEvent,
-  patch, isCanvasNode,
+  patch,
+  isCanvasNode,
 } from '../utils';
 import {
   mutationCallBack,
@@ -223,9 +227,9 @@ function initMouseInteractionObserver({
       const target = getEventTarget(event) as Node;
       /* Start of Highlight Code */
       if (
-          isBlocked(target, blockClass) ||
-          // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
-          isCanvasNode(target as Node)
+        isBlocked(target, blockClass, true) ||
+        // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
+        isCanvasNode(target)
       ) {
         return;
       }
@@ -273,7 +277,7 @@ export function initScrollObserver({
 >): listenerHandler {
   const updatePosition = throttle<UIEvent>((evt) => {
     const target = getEventTarget(evt);
-    if (!target || isBlocked(target as Node, blockClass)) {
+    if (!target || isBlocked(target as Node, blockClass, true)) {
       return;
     }
     const id = mirror.getId(target as Node);
@@ -350,7 +354,7 @@ function initInputObserver({
       !target ||
       !(target as Element).tagName ||
       INPUT_TAGS.indexOf((target as Element).tagName) < 0 ||
-      isBlocked(target as Node, blockClass)
+      isBlocked(target as Node, blockClass, true)
     ) {
       return;
     }
@@ -555,8 +559,8 @@ function initStyleSheetObserver(
 
   Object.entries(supportedNestedCSSRuleTypes).forEach(([typeKey, type]) => {
     unmodifiedFunctions[typeKey] = {
-      insertRule: (type ).prototype.insertRule,
-      deleteRule: (type ).prototype.deleteRule,
+      insertRule: type.prototype.insertRule,
+      deleteRule: type.prototype.deleteRule,
     };
 
     type.prototype.insertRule = function (rule: string, index?: number) {
@@ -659,7 +663,7 @@ function initMediaInteractionObserver({
   const handler = (type: MediaInteractions) =>
     throttle((event: Event) => {
       const target = getEventTarget(event);
-      if (!target || isBlocked(target as Node, blockClass)) {
+      if (!target || isBlocked(target as Node, blockClass, true)) {
         return;
       }
       const { currentTime, volume, muted } = target as HTMLMediaElement;
