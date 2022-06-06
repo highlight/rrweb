@@ -11,7 +11,7 @@ export declare function patch(source: {
 export declare function getWindowHeight(): number;
 export declare function getWindowWidth(): number;
 export declare const isCanvasNode: (node: Node | null) => boolean;
-export declare function isBlocked(node: Node | null, blockClass: blockClass): boolean;
+export declare function isBlocked(node: Node | null, blockClass: blockClass, checkAncestors: boolean): boolean;
 export declare function isSerialized(n: Node, mirror: Mirror): boolean;
 export declare function isIgnored(n: Node, mirror: Mirror): boolean;
 export declare function isAncestorRemoved(target: Node, mirror: Mirror): boolean;
