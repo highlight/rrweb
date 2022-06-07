@@ -30,8 +30,8 @@ export declare function serializeNodeWithId(n: Node, options: {
     iframeLoadTimeout?: number;
     onStylesheetLoad?: (linkNode: HTMLLinkElement, node: serializedElementNodeWithId) => unknown;
     stylesheetLoadTimeout?: number;
-    enableStrictPrivacy: boolean;
     newlyAddedElement?: boolean;
+    enableStrictPrivacy: boolean;
 }): serializedNodeWithId | null;
 declare function snapshot(n: Document, options?: {
     mirror?: Mirror;

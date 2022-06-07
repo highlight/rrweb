@@ -197,7 +197,6 @@ export const isCanvasNode = (node: Node | null): boolean => {
  * End of Highlight Code
  */
 
-export function isBlocked(node: Node | null, blockClass: blockClass): boolean {
 /**
  * Checks if the given element set to be blocked by rrweb
  * @param node - node to check
