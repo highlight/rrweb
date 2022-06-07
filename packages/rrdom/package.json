@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrdom",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "scripts": {
     "dev": "rollup -c -w",
     "bundle": "rollup --config",
@@ -26,7 +26,7 @@
     "typings"
   ],
   "devDependencies": {
-    "@highlight-run/rrweb-snapshot": "^1.1.18",
+    "@highlight-run/rrweb-snapshot": "^1.1.19",
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
     "@types/cssom": "^0.4.1",
