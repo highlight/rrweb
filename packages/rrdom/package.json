@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrdom",
-  "version": "0.1.2",
+  "version": "0.1.7",
   "scripts": {
     "dev": "rollup -c -w",
     "bundle": "rollup --config",
