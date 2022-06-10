@@ -64,7 +64,7 @@ function escapeRegExp(str: string) {
 declare global {
   interface Window {
     HIG_CONFIGURATION?: {
-      enableOnHoverClass?: boolean
+      enableOnHoverClass?: boolean;
     };
   }
 }
@@ -209,13 +209,12 @@ function buildNode(
               // Replace all references to the old URL to our proxy URL in the stylesheet.
               fontUrls.forEach((urlPair) => {
                 value = (value as string).replace(
-                    urlPair.originalUrl,
-                    urlPair.proxyUrl,
+                  urlPair.originalUrl,
+                  urlPair.proxyUrl,
                 );
               });
             }
             /** End of Highlight */
-
           }
           if (isTextarea || isRemoteOrDynamicCss) {
             const child = doc.createTextNode(value);
@@ -299,6 +298,7 @@ function buildNode(
                 n.attributes.src as string,
               );
               image.src = value;
+              image.setAttribute('rrweb-inline-src', value);
             }
           }
 
@@ -321,6 +321,16 @@ function buildNode(
                 break;
               default:
             }
+          }
+        }
+      }
+
+      if (tagName === 'img') {
+        const image = node as HTMLImageElement;
+        if (!image.currentSrc.startsWith('data:')) {
+          const inlineSrc = image.getAttribute('rrweb-inline-src');
+          if (inlineSrc?.startsWith('data:')) {
+            image.src = inlineSrc;
           }
         }
       }
