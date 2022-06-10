@@ -17,7 +17,8 @@ import {
   is2DCanvasBlank,
   isElement,
   isShadowRoot,
-  maskInputValue, obfuscateText,
+  maskInputValue,
+  obfuscateText,
 } from './utils';
 
 let _id = 1;
@@ -539,7 +540,13 @@ function serializeTextNode(
     rootId: number | undefined;
   },
 ): serializedNode {
-  const { maskTextClass, maskTextSelector, maskTextFn, enableStrictPrivacy, rootId } = options;
+  const {
+    maskTextClass,
+    maskTextSelector,
+    maskTextFn,
+    enableStrictPrivacy,
+    rootId,
+  } = options;
   // The parent node may not be a html element which has a tagName attribute.
   // So just let it be undefined which is ok in this use case.
   const parentTagName = n.parentNode && (n.parentNode as HTMLElement).tagName;
@@ -1203,7 +1210,7 @@ export function serializeNodeWithId(
             onStylesheetLoad,
             stylesheetLoadTimeout,
             keepIframeSrcFn,
-            enableStrictPrivacy
+            enableStrictPrivacy,
           });
 
           if (serializedLinkNode) {

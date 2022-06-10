@@ -131,7 +131,9 @@ describe('isBlockedElement()', () => {
 
   it('blocks blocked selector', () => {
     expect(
-      subject('<div data-highlight-block />', { blockSelector: '[data-highlight-block]' }),
+      subject('<div data-highlight-block />', {
+        blockSelector: '[data-highlight-block]',
+      }),
     ).toEqual(true);
   });
 });
@@ -150,7 +152,7 @@ describe('style elements', () => {
       maskTextFn: undefined,
       maskInputFn: undefined,
       slimDOMOptions: {},
-      enableStrictPrivacy: true
+      enableStrictPrivacy: true,
     });
   };
 
@@ -197,6 +199,7 @@ describe('scrollTop/scrollLeft', () => {
       maskInputFn: undefined,
       slimDOMOptions: {},
       newlyAddedElement: false,
+      enableStrictPrivacy: true,
     });
   };
 
