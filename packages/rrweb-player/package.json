@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb-player",
-  "version": "0.7.20",
+  "version": "0.7.21",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^22.0.0",
     "@rollup/plugin-node-resolve": "^13.2.1",

@@ -1,4 +1,7 @@
-import { NodeType as RRNodeType, Mirror as NodeMirror } from '@highlight-run/rrweb-snapshot';
+import {
+  NodeType as RRNodeType,
+  Mirror as NodeMirror,
+} from '@highlight-run/rrweb-snapshot';
 import type {
   canvasMutationData,
   canvasEventWithTime,
@@ -113,7 +116,7 @@ export function diff(
       break;
     }
     case RRNodeType.Element: {
-      const oldElement = (oldTree ) as HTMLElement;
+      const oldElement = oldTree as HTMLElement;
       const newRRElement = newTree as IRRElement;
       diffProps(oldElement, newRRElement, rrnodeMirror);
       scrollDataToApply = (newRRElement as RRElement).scrollData;
@@ -121,7 +124,7 @@ export function diff(
       switch (newRRElement.tagName) {
         case 'AUDIO':
         case 'VIDEO': {
-          const oldMediaElement = (oldTree ) as HTMLMediaElement;
+          const oldMediaElement = oldTree as HTMLMediaElement;
           const newMediaRRElement = newRRElement as RRMediaElement;
           if (newMediaRRElement.paused !== undefined)
             newMediaRRElement.paused
@@ -141,7 +144,7 @@ export function diff(
               replayer.applyCanvas(
                 canvasMutation.event,
                 canvasMutation.mutation,
-                (oldTree ) as HTMLCanvasElement,
+                oldTree as HTMLCanvasElement,
               ),
           );
           break;
@@ -191,8 +194,7 @@ export function diff(
 
   // IFrame element doesn't have child nodes.
   if (newTree.nodeName === 'IFRAME') {
-    const oldContentDocument = ((oldTree ) as HTMLIFrameElement)
-      .contentDocument;
+    const oldContentDocument = (oldTree as HTMLIFrameElement).contentDocument;
     const newIFrameElement = newTree as RRIFrameElement;
     // If the iframe is cross-origin, the contentDocument will be null.
     if (oldContentDocument) {
@@ -279,17 +281,25 @@ function diffChildren(
     } else if (
       replayer.mirror.getId(oldStartNode) === rrnodeMirror.getId(newEndNode)
     ) {
-      parentNode.insertBefore(oldStartNode, oldEndNode.nextSibling);
-      diff(oldStartNode, newEndNode, replayer, rrnodeMirror);
-      oldStartNode = oldChildren[++oldStartIndex];
-      newEndNode = newChildren[--newEndIndex];
+      try {
+        parentNode.insertBefore(oldStartNode, oldEndNode.nextSibling);
+        diff(oldStartNode, newEndNode, replayer, rrnodeMirror);
+        oldStartNode = oldChildren[++oldStartIndex];
+        newEndNode = newChildren[--newEndIndex];
+      } catch (e) {
+        console.error(e, parentNode, oldStartNode, oldEndNode);
+      }
     } else if (
       replayer.mirror.getId(oldEndNode) === rrnodeMirror.getId(newStartNode)
     ) {
-      parentNode.insertBefore(oldEndNode, oldStartNode);
-      diff(oldEndNode, newStartNode, replayer, rrnodeMirror);
-      oldEndNode = oldChildren[--oldEndIndex];
-      newStartNode = newChildren[++newStartIndex];
+      try {
+        parentNode.insertBefore(oldEndNode, oldStartNode);
+        diff(oldEndNode, newStartNode, replayer, rrnodeMirror);
+        oldEndNode = oldChildren[--oldEndIndex];
+        newStartNode = newChildren[++newStartIndex];
+      } catch (e) {
+        console.error(e, parentNode, oldEndNode, oldStartNode);
+      }
     } else {
       if (!oldIdToIndex) {
         oldIdToIndex = {};
@@ -302,9 +312,13 @@ function diffChildren(
       indexInOld = oldIdToIndex[rrnodeMirror.getId(newStartNode)];
       if (indexInOld) {
         const nodeToMove = oldChildren[indexInOld]!;
-        parentNode.insertBefore(nodeToMove, oldStartNode);
-        diff(nodeToMove, newStartNode, replayer, rrnodeMirror);
-        oldChildren[indexInOld] = undefined;
+        try {
+          parentNode.insertBefore(nodeToMove, oldStartNode);
+          diff(nodeToMove, newStartNode, replayer, rrnodeMirror);
+          oldChildren[indexInOld] = undefined;
+        } catch (e) {
+          console.error(e, parentNode, nodeToMove, oldStartNode);
+        }
       } else {
         const newNode = createOrGetNode(
           newStartNode,
@@ -319,16 +333,18 @@ function diffChildren(
         if (
           replayer.mirror.getMeta(parentNode)?.type === RRNodeType.Document &&
           replayer.mirror.getMeta(newNode)?.type === RRNodeType.Element &&
-          ((parentNode ) as Document).documentElement
+          (parentNode as Document).documentElement
         ) {
-          parentNode.removeChild(
-            ((parentNode ) as Document).documentElement,
-          );
+          parentNode.removeChild((parentNode as Document).documentElement);
           oldChildren[oldStartIndex] = undefined;
           oldStartNode = undefined;
         }
-        parentNode.insertBefore(newNode, oldStartNode || null);
-        diff(newNode, newStartNode, replayer, rrnodeMirror);
+        try {
+          parentNode.insertBefore(newNode, oldStartNode || null);
+          diff(newNode, newStartNode, replayer, rrnodeMirror);
+        } catch (e) {
+          console.error(e, parentNode, newNode, oldStartNode || null);
+        }
       }
       newStartNode = newChildren[++newStartIndex];
     }
@@ -349,8 +365,12 @@ function diffChildren(
         replayer.mirror,
         rrnodeMirror,
       );
-      parentNode.insertBefore(newNode, referenceNode);
-      diff(newNode, newChildren[newStartIndex], replayer, rrnodeMirror);
+      try {
+        parentNode.insertBefore(newNode, referenceNode);
+        diff(newNode, newChildren[newStartIndex], replayer, rrnodeMirror);
+      } catch (e) {
+        console.error(e, parentNode, newNode, referenceNode);
+      }
     }
   } else if (newStartIndex > newEndIndex) {
     for (; oldStartIndex <= oldEndIndex; oldStartIndex++) {
@@ -417,8 +437,7 @@ export function getNestedRule(
     return rule;
   } else {
     return getNestedRule(
-      ((rule ).cssRules[position[1]] as CSSGroupingRule)
-        .cssRules,
+      (rule.cssRules[position[1]] as CSSGroupingRule).cssRules,
       position.slice(2),
     );
   }
