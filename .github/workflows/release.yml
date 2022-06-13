@@ -15,12 +15,10 @@ jobs:
         run: yarn
       - name: Build all
         run: yarn build:all
-      - name: Test all
-        run: yarn test
-      - name: Confirm new version
-        run: python3 compare.py
+      # - name: Test all
+      # run: yarn test
       - name: Publish
         if: github.ref == 'refs/heads/master'
-        run: yarn lerna publish from-package
+        run: yarn lerna publish from-package -y
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
