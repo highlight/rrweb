@@ -1,3 +1,4 @@
+// tslint:disable:no-console no-any
 import { NodeType } from '@highlight-run/rrweb-snapshot';
 import {
   EventType,
@@ -7,6 +8,7 @@ import {
   Optional,
   mouseInteractionData,
   event,
+  recordOptions,
 } from '../src/types';
 import * as puppeteer from 'puppeteer';
 import { format } from 'prettier';
@@ -15,20 +17,31 @@ import * as http from 'http';
 import * as url from 'url';
 import * as fs from 'fs';
 
-export async function launchPuppeteer() {
+export async function launchPuppeteer(
+  options?: Parameters<typeof puppeteer['launch']>[0],
+) {
   return await puppeteer.launch({
     headless: process.env.PUPPETEER_HEADLESS ? true : false,
     defaultViewport: {
       width: 1920,
       height: 1080,
     },
-    // devtools: true,
     args: ['--no-sandbox'],
+    ...options,
   });
 }
 
 interface IMimeType {
   [key: string]: string;
+}
+
+export interface ISuite {
+  server: http.Server;
+  serverURL: string;
+  code: string;
+  browser: puppeteer.Browser;
+  page: puppeteer.Page;
+  events: eventWithTime[];
 }
 
 export const startServer = (defaultPort: number = 3030) =>
@@ -43,7 +56,11 @@ export const startServer = (defaultPort: number = 3030) =>
       const sanitizePath = path
         .normalize(parsedUrl.pathname!)
         .replace(/^(\.\.[\/\\])+/, '');
+
       let pathname = path.join(__dirname, sanitizePath);
+      if (/^\/rrweb.*\.js.*/.test(sanitizePath)) {
+        pathname = path.join(__dirname, `../dist`, sanitizePath);
+      }
 
       try {
         const data = fs.readFileSync(pathname);
@@ -179,9 +196,9 @@ function stringifyDomSnapshot(mhtml: string): string {
     .rewrite() // rewrite all links
     .spit(); // return all contents
 
-  const newResult: Array<{ filename: string; content: string }> = result.map(
+  const newResult: { filename: string; content: string }[] = result.map(
     (asset: { filename: string; content: string }) => {
-      let { filename, content } = asset;
+      const { filename, content } = asset;
       let res: string | undefined;
       if (filename.includes('frame')) {
         res = format(content, {
@@ -218,6 +235,39 @@ export async function assertDomSnapshot(
   });
 
   expect(stringifyDomSnapshot(data)).toMatchSnapshot();
+}
+
+export function stripBase64(events: eventWithTime[]) {
+  const base64Strings: string[] = [];
+  function walk<T>(obj: T): T {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return (obj.map((e) => walk(e)) as unknown) as T;
+    const newObj: Partial<T> = {};
+    for (const prop in obj) {
+      const value = obj[prop];
+      if (prop === 'base64' && typeof value === 'string') {
+        let index = base64Strings.indexOf(value);
+        if (index === -1) {
+          index = base64Strings.push(value) - 1;
+        }
+        (newObj as any)[prop] = `base64-${index}`;
+      } else {
+        (newObj as any)[prop] = walk(value);
+      }
+    }
+    return newObj as T;
+  }
+
+  return events.map((evt) => {
+    if (
+      evt.type === EventType.IncrementalSnapshot &&
+      evt.data.source === IncrementalSource.CanvasMutation
+    ) {
+      const newData = walk(evt.data);
+      return { ...evt, data: newData };
+    }
+    return evt;
+  });
 }
 
 const now = Date.now();
@@ -491,4 +541,22 @@ export async function waitForRAF(page: puppeteer.Page) {
       });
     });
   });
+}
+
+export function generateRecordSnippet(options: recordOptions<eventWithTime>) {
+  return `
+  window.snapshots = [];
+  rrweb.record({
+    emit: event => {
+      window.snapshots.push(event);
+    },
+    maskTextSelector: ${JSON.stringify(options.maskTextSelector)},
+    maskAllInputs: ${options.maskAllInputs},
+    maskInputOptions: ${JSON.stringify(options.maskAllInputs)},
+    userTriggeredOnInput: ${options.userTriggeredOnInput},
+    maskTextFn: ${options.maskTextFn},
+    recordCanvas: ${options.recordCanvas},
+    plugins: ${options.plugins}
+  });
+  `;
 }

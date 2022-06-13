@@ -1,8 +1,9 @@
-import typescript from '@rollup/plugin-typescript';
+import typescript from 'rollup-plugin-typescript2';
+import esbuild from 'rollup-plugin-esbuild';
 import resolve from '@rollup/plugin-node-resolve';
-import { terser } from 'rollup-plugin-terser';
 import postcss from 'rollup-plugin-postcss';
 import renameNodeModules from 'rollup-plugin-rename-node-modules';
+import webWorkerLoader from 'rollup-plugin-web-worker-loader';
 import pkg from './package.json';
 
 function toRecordPath(path) {
@@ -45,6 +46,13 @@ function toMinPath(path) {
 }
 
 const baseConfigs = [
+  // all in one
+  {
+    input: './src/entries/all.ts',
+    name: 'rrweb',
+    pathFn: toAllPath,
+    esm: true,
+  },
   // record only
   {
     input: './src/record/index.ts',
@@ -75,13 +83,6 @@ const baseConfigs = [
     name: 'rrweb',
     pathFn: (p) => p,
   },
-  // all in one
-  {
-    input: './src/entries/all.ts',
-    name: 'rrweb',
-    pathFn: toAllPath,
-    esm: true,
-  },
   // plugins
   {
     input: './src/plugins/console/record/index.ts',
@@ -107,24 +108,47 @@ const baseConfigs = [
 
 let configs = [];
 
+function getPlugins(options = {}) {
+  const { minify = true, sourceMap = false } = options;
+  return [
+    resolve({ browser: true }),
+    webWorkerLoader({
+      targetPlatform: 'browser',
+      inline: true,
+      sourceMap,
+    }),
+    esbuild({
+      minify,
+    }),
+    postcss({
+      extract: true,
+      inject: false,
+      minimize: minify,
+      sourceMap,
+    }),
+  ];
+}
+
 for (const c of baseConfigs) {
   const basePlugins = [
     resolve({ browser: true }),
-    typescript({
-      // a trick to avoid @rollup/plugin-typescript error
-      outDir: 'es/rrweb',
-    }),
+
+    // supports bundling `web-worker:..filename`
+    webWorkerLoader(),
+
+    typescript(),
   ];
   const plugins = basePlugins.concat(
     postcss({
-      extract: false,
+      extract: true,
       inject: false,
+      minimize: true,
     }),
   );
   // browser
   configs.push({
     input: c.input,
-    plugins,
+    plugins: getPlugins(),
     output: [
       {
         name: c.name,
@@ -136,14 +160,7 @@ for (const c of baseConfigs) {
   // browser + minify
   configs.push({
     input: c.input,
-    plugins: basePlugins.concat(
-      postcss({
-        extract: true,
-        minimize: true,
-        sourceMap: true,
-      }),
-      terser(),
-    ),
+    plugins: getPlugins({ minify: true, sourceMap: true }),
     output: [
       {
         name: c.name,
@@ -202,23 +219,23 @@ if (process.env.BROWSER_ONLY) {
 
   configs = [];
 
-  for (const c of browserOnlyBaseConfigs) {
-    const plugins = [
-      resolve({ browser: true }),
-      typescript({
-        outDir: null,
-      }),
-      postcss({
-        extract: false,
-        inject: false,
-        sourceMap: true,
-      }),
-      terser(),
-    ];
+  // browser record + replay, unminified (for profiling and performance testing)
+  configs.push({
+    input: './src/index.ts',
+    plugins: getPlugins(),
+    output: [
+      {
+        name: 'rrweb',
+        format: 'iife',
+        file: pkg.unpkg,
+      },
+    ],
+  });
 
+  for (const c of browserOnlyBaseConfigs) {
     configs.push({
       input: c.input,
-      plugins,
+      plugins: getPlugins({ sourceMap: true, minify: true }),
       output: [
         {
           name: c.name,

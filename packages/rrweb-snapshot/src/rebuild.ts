@@ -4,11 +4,9 @@ import {
   NodeType,
   tagMap,
   elementNode,
-  idNodeMap,
-  INode,
   BuildCache,
 } from './types';
-import { isElement } from './utils';
+import { isElement, Mirror } from './utils';
 
 const tagMap: tagMap = {
   script: 'noscript',
@@ -63,10 +61,18 @@ function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
+declare global {
+  interface Window {
+    HIG_CONFIGURATION?: {
+      enableOnHoverClass?: boolean;
+    };
+  }
+}
+
 const HOVER_SELECTOR = /([^\\]):hover/;
 const HOVER_SELECTOR_GLOBAL = new RegExp(HOVER_SELECTOR.source, 'g');
 export function addHoverClass(cssText: string, cache: BuildCache): string {
-  if (!(window as any).HIG_CONFIGURATION?.enableOnHoverClass) {
+  if (!window?.HIG_CONFIGURATION?.enableOnHoverClass) {
     return cssText;
   }
   const cachedStyle = cache?.stylesWithHoverClass.get(cssText);
@@ -153,7 +159,8 @@ function buildNode(
         }
         let value = n.attributes[name];
         if (tagName === 'option' && name === 'selected' && value === false) {
-          // legacy fix (TODO: if `value === false` can be generated for other attrs, should we also omit those other attrs from build?)
+          // legacy fix (TODO: if `value === false` can be generated for other attrs,
+          // should we also omit those other attrs from build ?)
           continue;
         }
         value =
@@ -202,13 +209,12 @@ function buildNode(
               // Replace all references to the old URL to our proxy URL in the stylesheet.
               fontUrls.forEach((urlPair) => {
                 value = (value as string).replace(
-                    urlPair.originalUrl,
-                    urlPair.proxyUrl,
+                  urlPair.originalUrl,
+                  urlPair.proxyUrl,
                 );
               });
             }
             /** End of Highlight */
-
           }
           if (isTextarea || isRemoteOrDynamicCss) {
             const child = doc.createTextNode(value);
@@ -262,7 +268,10 @@ function buildNode(
               n.attributes.rr_dataURL
             ) {
               // backup original img srcset
-              node.setAttribute('rrweb-original-srcset', n.attributes.srcset as string);
+              node.setAttribute(
+                'rrweb-original-srcset',
+                n.attributes.srcset as string,
+              );
             } else {
               node.setAttribute(name, value);
             }
@@ -289,6 +298,7 @@ function buildNode(
                 n.attributes.src as string,
               );
               image.src = value;
+              image.setAttribute('rrweb-inline-src', value);
             }
           }
 
@@ -311,6 +321,16 @@ function buildNode(
                 break;
               default:
             }
+          }
+        }
+      }
+
+      if (tagName === 'img') {
+        const image = node as HTMLImageElement;
+        if (!image.currentSrc.startsWith('data:')) {
+          const inlineSrc = image.getAttribute('rrweb-inline-src');
+          if (inlineSrc?.startsWith('data:')) {
+            image.src = inlineSrc;
           }
         }
       }
@@ -354,16 +374,16 @@ export function buildNodeWithSN(
   n: serializedNodeWithId,
   options: {
     doc: Document;
-    map: idNodeMap;
+    mirror: Mirror;
     skipChild?: boolean;
     hackCss: boolean;
-    afterAppend?: (n: INode) => unknown;
+    afterAppend?: (n: Node) => unknown;
     cache: BuildCache;
   },
-): INode | null {
+): Node | null {
   const {
     doc,
-    map,
+    mirror,
     skipChild = false,
     hackCss = true,
     afterAppend,
@@ -375,8 +395,8 @@ export function buildNodeWithSN(
   }
   if (n.rootId) {
     console.assert(
-      ((map[n.rootId] as unknown) as Document) === doc,
-      'Target document should has the same root id.',
+      (mirror.getNode(n.rootId) as Document) === doc,
+      'Target document should have the same root id.',
     );
   }
   // use target document as root document
@@ -409,8 +429,7 @@ export function buildNodeWithSN(
     node = doc;
   }
 
-  (node as INode).__sn = n;
-  map[n.id] = node as INode;
+  mirror.add(node, n);
 
   if (
     (n.type === NodeType.Document || n.type === NodeType.Element) &&
@@ -419,7 +438,7 @@ export function buildNodeWithSN(
     for (const childN of n.childNodes) {
       const childNode = buildNodeWithSN(childN, {
         doc,
-        map,
+        mirror,
         skipChild: false,
         hackCss,
         afterAppend,
@@ -441,27 +460,27 @@ export function buildNodeWithSN(
     }
   }
 
-  return node as INode;
+  return node;
 }
 
-function visit(idNodeMap: idNodeMap, onVisit: (node: INode) => void) {
-  function walk(node: INode) {
+function visit(mirror: Mirror, onVisit: (node: Node) => void) {
+  function walk(node: Node) {
     onVisit(node);
   }
 
-  for (const key in idNodeMap) {
-    if (idNodeMap[key]) {
-      walk(idNodeMap[key]);
+  for (const id of mirror.getIds()) {
+    if (mirror.has(id)) {
+      walk(mirror.getNode(id)!);
     }
   }
 }
 
-function handleScroll(node: INode) {
-  const n = node.__sn;
-  if (n.type !== NodeType.Element) {
+function handleScroll(node: Node, mirror: Mirror) {
+  const n = mirror.getMeta(node);
+  if (n?.type !== NodeType.Element) {
     return;
   }
-  const el = (node as Node) as HTMLElement;
+  const el = node as HTMLElement;
   for (const name in n.attributes) {
     if (!(n.attributes.hasOwnProperty(name) && name.startsWith('rr_'))) {
       continue;
@@ -480,29 +499,36 @@ function rebuild(
   n: serializedNodeWithId,
   options: {
     doc: Document;
-    onVisit?: (node: INode) => unknown;
+    onVisit?: (node: Node) => unknown;
     hackCss?: boolean;
-    afterAppend?: (n: INode) => unknown;
+    afterAppend?: (n: Node) => unknown;
     cache: BuildCache;
+    mirror: Mirror;
   },
-): [Node | null, idNodeMap] {
-  const { doc, onVisit, hackCss = true, afterAppend, cache } = options;
-  const idNodeMap: idNodeMap = {};
+): Node | null {
+  const {
+    doc,
+    onVisit,
+    hackCss = true,
+    afterAppend,
+    cache,
+    mirror = new Mirror(),
+  } = options;
   const node = buildNodeWithSN(n, {
     doc,
-    map: idNodeMap,
+    mirror,
     skipChild: false,
     hackCss,
     afterAppend,
     cache,
   });
-  visit(idNodeMap, (visitedNode) => {
+  visit(mirror, (visitedNode) => {
     if (onVisit) {
       onVisit(visitedNode);
     }
-    handleScroll(visitedNode);
+    handleScroll(visitedNode, mirror);
   });
-  return [node, idNodeMap];
+  return node;
 }
 
 export default rebuild;

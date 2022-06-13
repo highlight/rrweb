@@ -1,13 +1,13 @@
-import { INode } from '@highlight-run/rrweb-snapshot';
+import type { Mirror } from '@highlight-run/rrweb-snapshot';
 import {
   blockClass,
   CanvasContext,
   canvasManagerMutationCallback,
   IWindow,
   listenerHandler,
-  Mirror,
 } from '../../../types';
 import { hookSetter, isBlocked, patch } from '../../../utils';
+import { serializeArgs } from './serialize-args';
 
 export default function initCanvas2DMutationObserver(
   cb: canvasManagerMutationCallback,
@@ -36,28 +36,11 @@ export default function initCanvas2DMutationObserver(
             this: CanvasRenderingContext2D,
             ...args: Array<unknown>
           ) {
-            if (!isBlocked((this.canvas as unknown) as INode, blockClass)) {
-              // Using setTimeout as getImageData + JSON.stringify can be heavy
+            if (!isBlocked(this.canvas, blockClass, true)) {
+              // Using setTimeout as toDataURL can be heavy
               // and we'd rather not block the main thread
               setTimeout(() => {
-                const recordArgs = [...args];
-                if (prop === 'drawImage') {
-                  if (
-                    recordArgs[0] &&
-                    recordArgs[0] instanceof HTMLCanvasElement
-                  ) {
-                    const canvas = recordArgs[0];
-                    const ctx = canvas.getContext('2d');
-                    let imgd = ctx?.getImageData(
-                      0,
-                      0,
-                      canvas.width,
-                      canvas.height,
-                    );
-                    let pix = imgd?.data;
-                    recordArgs[0] = JSON.stringify(pix);
-                  }
-                }
+                const recordArgs = serializeArgs([...args], win, this);
                 cb(this.canvas, {
                   type: CanvasContext['2D'],
                   property: prop,

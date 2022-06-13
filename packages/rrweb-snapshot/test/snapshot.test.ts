@@ -8,6 +8,7 @@ import {
   _isBlockedElement,
 } from '../src/snapshot';
 import { serializedNodeWithId } from '../src/types';
+import { Mirror } from '../src/utils';
 
 describe('absolute url to stylesheet', () => {
   const href = 'http://localhost/css/style.css';
@@ -130,7 +131,9 @@ describe('isBlockedElement()', () => {
 
   it('blocks blocked selector', () => {
     expect(
-      subject('<div data-highlight-block />', { blockSelector: '[data-highlight-block]' }),
+      subject('<div data-highlight-block />', {
+        blockSelector: '[data-highlight-block]',
+      }),
     ).toEqual(true);
   });
 });
@@ -139,7 +142,7 @@ describe('style elements', () => {
   const serializeNode = (node: Node): serializedNodeWithId | null => {
     return serializeNodeWithId(node, {
       doc: document,
-      map: {},
+      mirror: new Mirror(),
       blockClass: 'blockblock',
       blockSelector: null,
       maskTextClass: 'maskmask',
@@ -149,6 +152,7 @@ describe('style elements', () => {
       maskTextFn: undefined,
       maskInputFn: undefined,
       slimDOMOptions: {},
+      enableStrictPrivacy: true,
     });
   };
 
@@ -176,6 +180,45 @@ describe('style elements', () => {
       rootId: undefined,
       textContent: 'section { color: blue; }',
       type: 3,
+    });
+  });
+});
+
+describe('scrollTop/scrollLeft', () => {
+  const serializeNode = (node: Node): serializedNodeWithId | null => {
+    return serializeNodeWithId(node, {
+      doc: document,
+      mirror: new Mirror(),
+      blockClass: 'blockblock',
+      blockSelector: null,
+      maskTextClass: 'maskmask',
+      maskTextSelector: null,
+      skipChild: false,
+      inlineStylesheet: true,
+      maskTextFn: undefined,
+      maskInputFn: undefined,
+      slimDOMOptions: {},
+      newlyAddedElement: false,
+      enableStrictPrivacy: true,
+    });
+  };
+
+  const render = (html: string): HTMLDivElement => {
+    document.write(html);
+    return document.querySelector('div')!;
+  };
+
+  it('should serialize scroll positions', () => {
+    const el = render(`<div stylel='overflow: auto; width: 1px; height: 1px;'>
+      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+    </div>`);
+    el.scrollTop = 10;
+    el.scrollLeft = 20;
+    expect(serializeNode(el)).toMatchObject({
+      attributes: {
+        rr_scrollTop: 10,
+        rr_scrollLeft: 20,
+      },
     });
   });
 });

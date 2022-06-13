@@ -1,11 +1,32 @@
 import {
   rebuild,
   buildNodeWithSN,
-  INode,
   NodeType,
   BuildCache,
   createCache,
+  Mirror,
+  createMirror,
 } from '@highlight-run/rrweb-snapshot';
+import {
+  RRDocument,
+  StyleRuleType,
+  createOrGetNode,
+  buildFromNode,
+  buildFromDom,
+  diff,
+  getDefaultSN,
+} from '@highlight-run/rrdom/es/virtual-dom';
+import type {
+  RRNode,
+  RRElement,
+  RRStyleElement,
+  RRIFrameElement,
+  RRMediaElement,
+  RRCanvasElement,
+  ReplayerHandler,
+  Mirror as RRDOMMirror,
+  VirtualStyleRules,
+} from '@highlight-run/rrdom/es/virtual-dom';
 import * as mittProxy from 'mitt';
 import { polyfill as smoothscrollPolyfill } from './smoothscroll';
 import { Timer } from './timer';
@@ -33,38 +54,30 @@ import {
   scrollData,
   inputData,
   canvasMutationData,
-  Mirror,
-  ElementState,
   styleAttributeValue,
   styleValueWithPriority,
   mouseMovePos,
   IWindow,
   canvasMutationCommand,
-  textMutation, SessionInterval,
+  canvasMutationParam,
+  canvasEventWithTime, SessionInterval,
 } from '../types';
 import {
-  createMirror,
   polyfill,
-  TreeIndex,
   queueToResolveTrees,
   iterateResolveTree,
   AppendedIframe,
-  isIframeINode,
   getBaseDimension,
   hasShadowRoot,
+  isSerializedIframe,
+  getNestedRule,
+  getPositionsAndIndex,
+  uniqueTextMutations,
 } from '../utils';
 import getInjectStyleRules from './styles/inject-style';
 import './styles/style.css';
-import {
-  applyVirtualStyleRulesToNode,
-  storeCSSRules,
-  StyleRuleType,
-  VirtualStyleRules,
-  VirtualStyleRulesMap,
-  getNestedRule,
-  getPositionsAndIndex,
-} from './virtual-styles';
 import canvasMutation from './canvas';
+import { deserializeArg } from './canvas/deserialize-args';
 
 const SKIP_TIME_THRESHOLD = 10 * 1000;
 const SKIP_TIME_INTERVAL = 2 * 1000;
@@ -105,6 +118,10 @@ export class Replayer {
 
   public config: playerConfig;
 
+  // In the fast-forward process, if the virtual-dom optimization is used, this flag value is true.
+  public usingVirtualDom = false;
+  public virtualDom: RRDocument = new RRDocument();
+
   private mouse: HTMLDivElement;
   private mouseTail: HTMLCanvasElement | null = null;
   private tailPositions: Array<{ x: number; y: number }> = [];
@@ -118,16 +135,11 @@ export class Replayer {
   // tslint:disable-next-line: variable-name
   private legacy_missingNodeRetryMap: missingNodeMap = {};
 
-  private treeIndex!: TreeIndex;
-  private fragmentParentMap!: Map<INode, INode>;
-  private elementStateMap!: Map<INode, ElementState>;
-  // Hold the list of CSSRules for in-memory state restoration
-  private virtualStyleRulesMap!: VirtualStyleRulesMap;
-
   // The replayer uses the cache to speed up replay and scrubbing.
   private cache: BuildCache = createCache();
 
   private imageMap: Map<eventWithTime | string, HTMLImageElement> = new Map();
+  private canvasEventMap: Map<eventWithTime, canvasMutationParam> = new Map();
 
   private mirror: Mirror = createMirror();
 
@@ -160,6 +172,7 @@ export class Replayer {
       UNSAFE_replayCanvas: false,
       pauseAnimation: true,
       mouseTail: defaultMouseTailConfig,
+      useVirtualDom: true, // Virtual-dom optimization is enabled by default.
       inactiveThreshold: 0.02,
       inactiveSkipTime: SKIP_TIME_INTERVAL,
     };
@@ -172,37 +185,72 @@ export class Replayer {
 
     this.setupDom();
 
-    this.treeIndex = new TreeIndex();
-    this.fragmentParentMap = new Map<INode, INode>();
-    this.elementStateMap = new Map<INode, ElementState>();
-    this.virtualStyleRulesMap = new Map();
-
     this.emitter.on(ReplayerEvents.Flush, () => {
-      const { scrollMap, inputMap, mutationData } = this.treeIndex.flush();
+      if (this.usingVirtualDom) {
+        const replayerHandler: ReplayerHandler = {
+          mirror: this.mirror,
+          applyCanvas: (
+            canvasEvent: canvasEventWithTime,
+            canvasMutationData: canvasMutationData,
+            target: HTMLCanvasElement,
+          ) => {
+            canvasMutation({
+              event: canvasEvent,
+              mutation: canvasMutationData,
+              target,
+              imageMap: this.imageMap,
+              canvasEventMap: this.canvasEventMap,
+              errorHandler: this.warnCanvasMutationFailed.bind(this),
+            });
+          },
+          applyInput: this.applyInput.bind(this),
+          applyScroll: this.applyScroll.bind(this),
+        };
+        diff(
+          this.iframe.contentDocument!,
+          this.virtualDom,
+          replayerHandler,
+          this.virtualDom.mirror,
+        );
+        this.virtualDom.destroyTree();
+        this.usingVirtualDom = false;
 
-      this.fragmentParentMap.forEach((parent, frag) =>
-        this.restoreRealParent(frag, parent),
-      );
-      // apply text needs to happen before virtual style rules gets applied
-      // as it can overwrite the contents of a stylesheet
-      for (const d of mutationData.texts) {
-        this.applyText(d, mutationData);
+        // If these legacy missing nodes haven't been resolved, they should be converted to real Nodes.
+        if (Object.keys(this.legacy_missingNodeRetryMap).length) {
+          for (const key in this.legacy_missingNodeRetryMap) {
+            try {
+              const value = this.legacy_missingNodeRetryMap[key];
+              const realNode = createOrGetNode(
+                value.node as RRNode,
+                this.mirror,
+                this.virtualDom.mirror,
+              );
+              diff(
+                realNode,
+                value.node as RRNode,
+                replayerHandler,
+                this.virtualDom.mirror,
+              );
+              value.node = realNode;
+            } catch (error) {
+              if (this.config.showWarning) {
+                console.warn(error);
+              }
+            }
+          }
+        }
       }
 
-      for (const node of this.virtualStyleRulesMap.keys()) {
-        // restore css rules of style elements after they are mounted
-        this.restoreNodeSheet(node);
+      if (this.mousePos) {
+        this.moveAndHover(
+          this.mousePos.x,
+          this.mousePos.y,
+          this.mousePos.id,
+          true,
+          this.mousePos.debugData,
+        );
       }
-      this.fragmentParentMap.clear();
-      this.elementStateMap.clear();
-      this.virtualStyleRulesMap.clear();
-
-      for (const d of scrollMap.values()) {
-        this.applyScroll(d, true);
-      }
-      for (const d of inputMap.values()) {
-        this.applyInput(d);
-      }
+      this.mousePos = null;
     });
     this.emitter.on(ReplayerEvents.PlayBack, () => {
       this.firstFullSnapshot = null;
@@ -308,7 +356,7 @@ export class Replayer {
       this.speedService.send({
         type: 'SET_SPEED',
         payload: {
-          speed: config.speed!,
+          speed: config.speed,
         },
       });
     }
@@ -469,7 +517,7 @@ export class Replayer {
     }
     this.iframe.contentDocument
       ?.getElementsByTagName('html')[0]
-      .classList.remove('rrweb-paused');
+      ?.classList.remove('rrweb-paused');
     this.emitter.emit(ReplayerEvents.Start);
     this.handleInactivity(this.getMetaData().startTime + timeOffset, true);
   }
@@ -484,7 +532,7 @@ export class Replayer {
     }
     this.iframe.contentDocument
       ?.getElementsByTagName('html')[0]
-      .classList.add('rrweb-paused');
+      ?.classList.add('rrweb-paused');
     this.emitter.emit(ReplayerEvents.Pause);
   }
 
@@ -543,7 +591,7 @@ export class Replayer {
   private setupDom() {
     this.wrapper = document.createElement('div');
     this.wrapper.classList.add('replayer-wrapper');
-    this.config.root!.appendChild(this.wrapper);
+    this.config.root.appendChild(this.wrapper);
 
     this.mouse = document.createElement('div');
     this.mouse.classList.add('replayer-mouse');
@@ -597,14 +645,7 @@ export class Replayer {
         case EventType.FullSnapshot:
         case EventType.Meta:
         case EventType.Plugin:
-          break;
         case EventType.IncrementalSnapshot:
-          switch (event.data.source) {
-            case IncrementalSource.MediaInteraction:
-              continue;
-            default:
-              break;
-          }
           break;
         default:
           break;
@@ -612,16 +653,6 @@ export class Replayer {
       const castFn = this.getCastFn(event, true);
       castFn();
     }
-    if (this.mousePos) {
-      this.moveAndHover(
-        this.mousePos.x,
-        this.mousePos.y,
-        this.mousePos.id,
-        true,
-        this.mousePos.debugData,
-      );
-    }
-    this.mousePos = null;
     if (this.touchActive === true) {
       this.mouse.classList.add('touch-active');
     } else if (this.touchActive === false) {
@@ -683,7 +714,7 @@ export class Replayer {
           }
           if (this.config.skipInactive && !this.nextUserInteractionEvent) {
             for (const _event of this.service.state.context.events) {
-              if (_event.timestamp! <= event.timestamp!) {
+              if (_event.timestamp <= event.timestamp) {
                 continue;
               }
               if (this.isUserInteraction(_event)) {
@@ -726,7 +757,7 @@ export class Replayer {
       this.service.send({ type: 'CAST_EVENT', payload: { event } });
 
       // events are kept sorted by timestamp, check if this is the last event
-      let last_index = this.service.state.context.events.length - 1;
+      const last_index = this.service.state.context.events.length - 1;
       if (event === this.service.state.context.events[last_index]) {
         const finish = () => {
           if (last_index < this.service.state.context.events.length - 1) {
@@ -794,7 +825,7 @@ export class Replayer {
 
   private rebuildFullSnapshot(
     event: fullSnapshotEvent & { timestamp: number },
-    isSync: boolean = false,
+    isSync = false,
   ) {
     if (!this.iframe.contentDocument) {
       return console.warn('Looks like your replayer has been destroyed.');
@@ -807,13 +838,14 @@ export class Replayer {
     }
     this.legacy_missingNodeRetryMap = {};
     const collected: AppendedIframe[] = [];
-    this.mirror.map = rebuild(event.data.node, {
+    rebuild(event.data.node, {
       doc: this.iframe.contentDocument,
       afterAppend: (builtNode) => {
         this.collectIframeAndAttachDocument(collected, builtNode);
       },
       cache: this.cache,
-    })[1];
+      mirror: this.mirror,
+    });
     for (const { mutationInQueue, builtNode } of collected) {
       this.attachDocumentToIframe(mutationInQueue, builtNode);
       this.newDocumentQueue = this.newDocumentQueue.filter(
@@ -837,11 +869,9 @@ export class Replayer {
   }
 
   private insertStyleRules(
-    documentElement: HTMLElement,
-    head: HTMLHeadElement,
+    documentElement: HTMLElement | RRElement,
+    head: HTMLHeadElement | RRElement,
   ) {
-    const styleEl = document.createElement('style');
-    documentElement!.insertBefore(styleEl, head);
     const injectStylesRules = getInjectStyleRules(
       this.config.blockClass,
     ).concat(this.config.insertStyleRules);
@@ -850,43 +880,64 @@ export class Replayer {
         'html.rrweb-paused *, html.rrweb-paused *:before, html.rrweb-paused *:after { animation-play-state: paused !important; }',
       );
     }
-    for (let idx = 0; idx < injectStylesRules.length; idx++) {
-      (styleEl.sheet! as CSSStyleSheet).insertRule(injectStylesRules[idx], idx);
+    if (this.usingVirtualDom) {
+      const styleEl = this.virtualDom.createElement('style') ;
+      this.virtualDom.mirror.add(
+        styleEl,
+        getDefaultSN(styleEl, this.virtualDom.unserializedId),
+      );
+      (documentElement as RRElement)!.insertBefore(styleEl, head as RRElement);
+      for (let idx = 0; idx < injectStylesRules.length; idx++) {
+        // push virtual styles
+        styleEl.rules.push({
+          cssText: injectStylesRules[idx],
+          type: StyleRuleType.Insert,
+          index: idx,
+        });
+      }
+    } else {
+      const styleEl = document.createElement('style');
+      (documentElement as HTMLElement)!.insertBefore(
+        styleEl,
+        head as HTMLHeadElement,
+      );
+      for (let idx = 0; idx < injectStylesRules.length; idx++) {
+        (styleEl.sheet! ).insertRule(
+          injectStylesRules[idx],
+          idx,
+        );
+      }
     }
   }
 
   private attachDocumentToIframe(
     mutation: addedNodeMutation,
-    iframeEl: HTMLIFrameElement,
+    iframeEl: HTMLIFrameElement | RRIFrameElement,
   ) {
+    const mirror: RRDOMMirror | Mirror = this.usingVirtualDom
+      ? this.virtualDom.mirror
+      : this.mirror;
+    type TNode = typeof mirror extends Mirror ? Node : RRNode;
+    type TMirror = typeof mirror extends Mirror ? Mirror : RRDOMMirror;
+
     const collected: AppendedIframe[] = [];
-    // If iframeEl is detached from dom, iframeEl.contentDocument is null.
-    if (!iframeEl.contentDocument) {
-      let parent = iframeEl.parentNode;
-      while (parent) {
-        // The parent of iframeEl is virtual parent and we need to mount it on the dom.
-        if (this.fragmentParentMap.has((parent as unknown) as INode)) {
-          const frag = (parent as unknown) as INode;
-          const realParent = this.fragmentParentMap.get(frag)!;
-          this.restoreRealParent(frag, realParent);
-          break;
-        }
-        parent = parent.parentNode;
-      }
-    }
     buildNodeWithSN(mutation.node, {
-      doc: iframeEl.contentDocument!,
-      map: this.mirror.map,
+      doc: iframeEl.contentDocument! as Document,
+      mirror: mirror as Mirror,
       hackCss: true,
       skipChild: false,
       afterAppend: (builtNode) => {
         this.collectIframeAndAttachDocument(collected, builtNode);
+        const sn = (mirror as TMirror).getMeta((builtNode as unknown) as TNode);
         if (
-          builtNode.__sn.type === NodeType.Element &&
-          builtNode.__sn.tagName.toUpperCase() === 'HTML'
+          sn?.type === NodeType.Element &&
+          sn?.tagName.toUpperCase() === 'HTML'
         ) {
           const { documentElement, head } = iframeEl.contentDocument!;
-          this.insertStyleRules(documentElement, head);
+          this.insertStyleRules(
+            documentElement as HTMLElement | RRElement,
+            head as HTMLElement | RRElement,
+          );
         }
       },
       cache: this.cache,
@@ -901,14 +952,17 @@ export class Replayer {
 
   private collectIframeAndAttachDocument(
     collected: AppendedIframe[],
-    builtNode: INode,
+    builtNode: Node,
   ) {
-    if (isIframeINode(builtNode)) {
+    if (isSerializedIframe(builtNode, this.mirror)) {
       const mutationInQueue = this.newDocumentQueue.find(
-        (m) => m.parentId === builtNode.__sn.id,
+        (m) => m.parentId === this.mirror.getId(builtNode),
       );
       if (mutationInQueue) {
-        collected.push({ mutationInQueue, builtNode });
+        collected.push({
+          mutationInQueue,
+          builtNode: builtNode as HTMLIFrameElement,
+        });
       }
     }
   }
@@ -1003,24 +1057,30 @@ export class Replayer {
   /**
    * pause when there are some canvas drawImage args need to be loaded
    */
-  private preloadAllImages() {
+  private async preloadAllImages(): Promise<void[]> {
     let beforeLoadState = this.service.state;
     const stateHandler = () => {
       beforeLoadState = this.service.state;
     };
     this.emitter.on(ReplayerEvents.Start, stateHandler);
     this.emitter.on(ReplayerEvents.Pause, stateHandler);
+    const promises: Promise<void>[] = [];
     for (const event of this.service.state.context.events) {
       if (
         event.type === EventType.IncrementalSnapshot &&
         event.data.source === IncrementalSource.CanvasMutation
-      )
-        if ('commands' in event.data) {
-          event.data.commands.forEach((c) => this.preloadImages(c, event));
-        } else {
-          this.preloadImages(event.data, event);
-        }
+      ) {
+        promises.push(
+          this.deserializeAndPreloadCanvasEvents(event.data, event),
+        );
+        const commands =
+          'commands' in event.data ? event.data.commands : [event.data];
+        commands.forEach((c) => {
+          this.preloadImages(c, event);
+        });
+      }
     }
+    return Promise.all(promises);
   }
 
   private preloadImages(data: canvasMutationCommand, event: eventWithTime) {
@@ -1035,12 +1095,34 @@ export class Replayer {
       let d = imgd?.data;
       d = JSON.parse(data.args[0]);
       ctx?.putImageData(imgd!, 0, 0);
-    } else if (this.hasImageArg(data.args)) {
-      this.getImageArgs(data.args).forEach((url) => {
-        const image = new Image();
-        image.src = url; // this preloads the image
-        this.imageMap.set(url, image);
-      });
+    }
+  }
+  private async deserializeAndPreloadCanvasEvents(
+    data: canvasMutationData,
+    event: eventWithTime,
+  ) {
+    if (!this.canvasEventMap.has(event)) {
+      const status = {
+        isUnchanged: true,
+      };
+      if ('commands' in data) {
+        const commands = await Promise.all(
+          data.commands.map(async (c) => {
+            const args = await Promise.all(
+              c.args.map(deserializeArg(this.imageMap, null, status)),
+            );
+            return { ...c, args };
+          }),
+        );
+        if (status.isUnchanged === false)
+          this.canvasEventMap.set(event, { ...data, commands });
+      } else {
+        const args = await Promise.all(
+          data.args.map(deserializeArg(this.imageMap, null, status)),
+        );
+        if (status.isUnchanged === false)
+          this.canvasEventMap.set(event, { ...data, args });
+      }
     }
   }
 
@@ -1051,21 +1133,6 @@ export class Replayer {
     const { data: d } = e;
     switch (d.source) {
       case IncrementalSource.Mutation: {
-        if (isSync) {
-          d.adds.forEach((m) => this.treeIndex.add(m));
-          d.texts.forEach((m) => {
-            const target = this.mirror.getNode(m.id);
-            const parent = (target?.parentNode as unknown) as INode | null;
-            // remove any style rules that pending
-            // for stylesheets where the contents get replaced
-            if (parent && this.virtualStyleRulesMap.has(parent))
-              this.virtualStyleRulesMap.delete(parent);
-
-            this.treeIndex.text(m);
-          });
-          d.attributes.forEach((m) => this.treeIndex.attribute(m));
-          d.removes.forEach((m) => this.treeIndex.remove(m, this.mirror));
-        }
         try {
           this.applyMutation(d, isSync);
         } catch (error) {
@@ -1108,7 +1175,7 @@ export class Replayer {
         /**
          * Same as the situation of missing input target.
          */
-        if (d.id === -1) {
+        if (d.id === -1 || isSync) {
           break;
         }
         const event = new Event(MouseInteractions[d.type].toLowerCase());
@@ -1123,13 +1190,13 @@ export class Replayer {
         const { triggerFocus } = this.config;
         switch (d.type) {
           case MouseInteractions.Blur:
-            if ('blur' in ((target as Node) as HTMLElement)) {
-              ((target as Node) as HTMLElement).blur();
+            if ('blur' in (target as HTMLElement)) {
+              (target as HTMLElement).blur();
             }
             break;
           case MouseInteractions.Focus:
-            if (triggerFocus && ((target as Node) as HTMLElement).focus) {
-              ((target as Node) as HTMLElement).focus({
+            if (triggerFocus && (target as HTMLElement).focus) {
+              (target as HTMLElement).focus({
                 preventScroll: true,
               });
             }
@@ -1195,11 +1262,16 @@ export class Replayer {
         if (d.id === -1) {
           break;
         }
-        if (isSync) {
-          this.treeIndex.scroll(d);
+        if (this.usingVirtualDom) {
+          const target = this.virtualDom.mirror.getNode(d.id) as RRElement;
+          if (!target) {
+            return this.debugNodeNotFound(d, d.id);
+          }
+          target.scrollData = d;
           break;
         }
-        this.applyScroll(d, false);
+        // Use isSync rather than this.usingVirtualDom because not every fast-forward process uses virtual dom optimization.
+        this.applyScroll(d, isSync);
         break;
       }
       case IncrementalSource.ViewportResize:
@@ -1218,19 +1290,25 @@ export class Replayer {
         if (d.id === -1) {
           break;
         }
-        if (isSync) {
-          this.treeIndex.input(d);
+        if (this.usingVirtualDom) {
+          const target = this.virtualDom.mirror.getNode(d.id) as RRElement;
+          if (!target) {
+            return this.debugNodeNotFound(d, d.id);
+          }
+          target.inputData = d;
           break;
         }
         this.applyInput(d);
         break;
       }
       case IncrementalSource.MediaInteraction: {
-        const target = this.mirror.getNode(d.id);
+        const target = this.usingVirtualDom
+          ? this.virtualDom.mirror.getNode(d.id)
+          : this.mirror.getNode(d.id);
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
-        const mediaEl = (target as Node) as HTMLMediaElement;
+        const mediaEl = target as HTMLMediaElement | RRMediaElement;
         try {
           if (d.currentTime) {
             mediaEl.currentTime = d.currentTime;
@@ -1261,158 +1339,118 @@ export class Replayer {
         break;
       }
       case IncrementalSource.StyleSheetRule: {
-        const target = this.mirror.getNode(d.id);
-        if (!target) {
-          return this.debugNodeNotFound(d, d.id);
-        }
-
-        const styleEl = (target as Node) as HTMLStyleElement;
-        const parent = (target.parentNode as unknown) as INode;
-        const usingVirtualParent = this.fragmentParentMap.has(parent);
-
-        /**
-         * Always use existing DOM node, when it's there.
-         * In in-memory replay, there is virtual node, but it's `sheet` is inaccessible.
-         * Hence, we buffer all style changes in virtualStyleRulesMap.
-         */
-        const styleSheet = usingVirtualParent ? null : styleEl.sheet;
-        let rules: VirtualStyleRules;
-
-        if (!styleSheet) {
-          /**
-           * styleEl.sheet is only accessible if the styleEl is part of the
-           * dom. This doesn't work on DocumentFragments so we have to add the
-           * style mutations to the virtualStyleRulesMap.
-           */
-
-          if (this.virtualStyleRulesMap.has(target)) {
-            rules = this.virtualStyleRulesMap.get(target) as VirtualStyleRules;
-          } else {
-            rules = [];
-            this.virtualStyleRulesMap.set(target, rules);
+        if (this.usingVirtualDom) {
+          const target = this.virtualDom.mirror.getNode(d.id) as RRStyleElement;
+          if (!target) {
+            return this.debugNodeNotFound(d, d.id);
           }
-        }
-
-        if (d.adds) {
-          d.adds.forEach(({ rule, index: nestedIndex }) => {
-            if (styleSheet) {
-              try {
-                if (Array.isArray(nestedIndex)) {
-                  const { positions, index } = getPositionsAndIndex(
-                    nestedIndex,
-                  );
-                  const nestedRule = getNestedRule(
-                    styleSheet.cssRules,
-                    positions,
-                  );
-                  nestedRule.insertRule(rule, index);
-                } else {
-                  const index =
-                    nestedIndex === undefined
-                      ? undefined
-                      : Math.min(nestedIndex, styleSheet.cssRules.length);
-                  styleSheet.insertRule(rule, index);
-                }
-              } catch (e) {
-                /**
-                 * sometimes we may capture rules with browser prefix
-                 * insert rule with prefixs in other browsers may cause Error
-                 */
-                /**
-                 * accessing styleSheet rules may cause SecurityError
-                 * for specific access control settings
-                 */
+          const rules: VirtualStyleRules = target.rules;
+          d.adds?.forEach(({ rule, index: nestedIndex }) =>
+            rules?.push({
+              cssText: rule,
+              index: nestedIndex,
+              type: StyleRuleType.Insert,
+            }),
+          );
+          d.removes?.forEach(({ index: nestedIndex }) =>
+            rules?.push({ index: nestedIndex, type: StyleRuleType.Remove }),
+          );
+        } else {
+          const target = this.mirror.getNode(d.id);
+          if (!target) {
+            return this.debugNodeNotFound(d, d.id);
+          }
+          const styleSheet = ((target ) as HTMLStyleElement).sheet!;
+          d.adds?.forEach(({ rule, index: nestedIndex }) => {
+            try {
+              if (Array.isArray(nestedIndex)) {
+                const { positions, index } = getPositionsAndIndex(nestedIndex);
+                const nestedRule = getNestedRule(
+                  styleSheet.cssRules,
+                  positions,
+                );
+                nestedRule.insertRule(rule, index);
+              } else {
+                const index =
+                  nestedIndex === undefined
+                    ? undefined
+                    : Math.min(nestedIndex, styleSheet.cssRules.length);
+                styleSheet.insertRule(rule, index);
               }
-            } else {
-              rules?.push({
-                cssText: rule,
-                index: nestedIndex,
-                type: StyleRuleType.Insert,
-              });
+            } catch (e) {
+              /**
+               * sometimes we may capture rules with browser prefix
+               * insert rule with prefixs in other browsers may cause Error
+               */
+              /**
+               * accessing styleSheet rules may cause SecurityError
+               * for specific access control settings
+               */
             }
           });
-        }
 
-        if (d.removes) {
-          d.removes.forEach(({ index: nestedIndex }) => {
-            if (usingVirtualParent) {
-              rules?.push({ index: nestedIndex, type: StyleRuleType.Remove });
-            } else {
-              try {
-                if (Array.isArray(nestedIndex)) {
-                  const { positions, index } = getPositionsAndIndex(
-                    nestedIndex,
-                  );
-                  const nestedRule = getNestedRule(
-                    styleSheet!.cssRules,
-                    positions,
-                  );
-                  nestedRule.deleteRule(index || 0);
-                } else {
-                  styleSheet?.deleteRule(nestedIndex);
-                }
-              } catch (e) {
-                /**
-                 * same as insertRule
-                 */
+          d.removes?.forEach(({ index: nestedIndex }) => {
+            try {
+              if (Array.isArray(nestedIndex)) {
+                const { positions, index } = getPositionsAndIndex(nestedIndex);
+                const nestedRule = getNestedRule(
+                  styleSheet.cssRules,
+                  positions,
+                );
+                nestedRule.deleteRule(index || 0);
+              } else {
+                styleSheet?.deleteRule(nestedIndex);
               }
+            } catch (e) {
+              /**
+               * same as insertRule
+               */
             }
           });
         }
         break;
       }
       case IncrementalSource.StyleDeclaration: {
-        // same with StyleSheetRule
-        const target = this.mirror.getNode(d.id);
-        if (!target) {
-          return this.debugNodeNotFound(d, d.id);
-        }
-
-        const styleEl = (target as Node) as HTMLStyleElement;
-        const parent = (target.parentNode as unknown) as INode;
-        const usingVirtualParent = this.fragmentParentMap.has(parent);
-
-        const styleSheet = usingVirtualParent ? null : styleEl.sheet;
-        let rules: VirtualStyleRules = [];
-
-        if (!styleSheet) {
-          if (this.virtualStyleRulesMap.has(target)) {
-            rules = this.virtualStyleRulesMap.get(target) as VirtualStyleRules;
-          } else {
-            rules = [];
-            this.virtualStyleRulesMap.set(target, rules);
+        if (this.usingVirtualDom) {
+          const target = this.virtualDom.mirror.getNode(d.id) as RRStyleElement;
+          if (!target) {
+            return this.debugNodeNotFound(d, d.id);
           }
-        }
-
-        if (d.set) {
-          if (styleSheet) {
-            const rule = (getNestedRule(
-              styleSheet.rules,
-              d.index,
-            ) as unknown) as CSSStyleRule;
-            rule.style.setProperty(d.set.property, d.set.value, d.set.priority);
-          } else {
+          const rules: VirtualStyleRules = target.rules;
+          d.set &&
             rules.push({
               type: StyleRuleType.SetProperty,
               index: d.index,
               ...d.set,
             });
-          }
-        }
-
-        if (d.remove) {
-          if (styleSheet) {
-            const rule = (getNestedRule(
-              styleSheet.rules,
-              d.index,
-            ) as unknown) as CSSStyleRule;
-            rule.style.removeProperty(d.remove.property);
-          } else {
+          d.remove &&
             rules.push({
               type: StyleRuleType.RemoveProperty,
               index: d.index,
               ...d.remove,
             });
+        } else {
+          const target = (this.mirror.getNode(
+            d.id,
+          ) as Node) as HTMLStyleElement;
+          if (!target) {
+            return this.debugNodeNotFound(d, d.id);
+          }
+          const styleSheet = target.sheet!;
+          if (d.set) {
+            const rule = (getNestedRule(
+              styleSheet.rules,
+              d.index,
+            ) as unknown) as CSSStyleRule;
+            rule.style.setProperty(d.set.property, d.set.value, d.set.priority);
+          }
+
+          if (d.remove) {
+            const rule = (getNestedRule(
+              styleSheet.rules,
+              d.index,
+            ) as unknown) as CSSStyleRule;
+            rule.style.removeProperty(d.remove.property);
           }
         }
         break;
@@ -1421,19 +1459,31 @@ export class Replayer {
         if (!this.config.UNSAFE_replayCanvas) {
           return;
         }
-        const target = this.mirror.getNode(d.id);
-        if (!target) {
-          return this.debugNodeNotFound(d, d.id);
+        if (this.usingVirtualDom) {
+          const target = this.virtualDom.mirror.getNode(
+            d.id,
+          ) as RRCanvasElement;
+          if (!target) {
+            return this.debugNodeNotFound(d, d.id);
+          }
+          target.canvasMutations.push({
+            event: e as canvasEventWithTime,
+            mutation: d,
+          });
+        } else {
+          const target = this.mirror.getNode(d.id);
+          if (!target) {
+            return this.debugNodeNotFound(d, d.id);
+          }
+          canvasMutation({
+            event: e,
+            mutation: d,
+            target: target as HTMLCanvasElement,
+            imageMap: this.imageMap,
+            canvasEventMap: this.canvasEventMap,
+            errorHandler: this.warnCanvasMutationFailed.bind(this),
+          });
         }
-
-        canvasMutation({
-          event: e,
-          mutation: d,
-          target: (target as unknown) as HTMLCanvasElement,
-          imageMap: this.imageMap,
-          errorHandler: this.warnCanvasMutationFailed.bind(this),
-        });
-
         break;
       }
       case IncrementalSource.Font: {
@@ -1455,9 +1505,35 @@ export class Replayer {
     }
   }
 
-  private applyMutation(d: mutationData, useVirtualParent: boolean) {
+  private applyMutation(d: mutationData, isSync: boolean) {
+    // Only apply virtual dom optimization if the fast-forward process has node mutation. Because the cost of creating a virtual dom tree and executing the diff algorithm is usually higher than directly applying other kind of events.
+    if (this.config.useVirtualDom && !this.usingVirtualDom && isSync) {
+      this.usingVirtualDom = true;
+      buildFromDom(this.iframe.contentDocument!, this.mirror, this.virtualDom);
+      // If these legacy missing nodes haven't been resolved, they should be converted to virtual nodes.
+      if (Object.keys(this.legacy_missingNodeRetryMap).length) {
+        for (const key in this.legacy_missingNodeRetryMap) {
+          try {
+            const value = this.legacy_missingNodeRetryMap[key];
+            const virtualNode = buildFromNode(
+              value.node as Node,
+              this.virtualDom,
+              this.mirror,
+            );
+            if (virtualNode) value.node = virtualNode;
+          } catch (error) {
+            if (this.config.showWarning) {
+              console.warn(error);
+            }
+          }
+        }
+      }
+    }
+    const mirror = this.usingVirtualDom ? this.virtualDom.mirror : this.mirror;
+    type TNode = typeof mirror extends Mirror ? Node : RRNode;
+
     d.removes.forEach((mutation) => {
-      let target = this.mirror.getNode(mutation.id);
+      const target = mirror.getNode(mutation.id);
       if (!target) {
         if (d.removes.find((r) => r.id === mutation.parentId)) {
           // no need to warn, parent was already removed
@@ -1465,52 +1541,43 @@ export class Replayer {
         }
         return this.warnNodeNotFound(d, mutation.id);
       }
-      if (this.virtualStyleRulesMap.has(target)) {
-        this.virtualStyleRulesMap.delete(target);
-      }
-      let parent: INode | null | ShadowRoot = this.mirror.getNode(
+      let parent: Node | null | ShadowRoot | RRNode = mirror.getNode(
         mutation.parentId,
       );
       if (!parent) {
         return this.warnNodeNotFound(d, mutation.parentId);
       }
-      if (mutation.isShadow && hasShadowRoot(parent)) {
-        parent = parent.shadowRoot;
+      if (mutation.isShadow && hasShadowRoot(parent as Node)) {
+        parent = (parent as Element | RRElement).shadowRoot;
       }
       // target may be removed with its parents before
-      this.mirror.removeNodeFromMap(target);
-      if (parent) {
-        let realTarget = null;
-        const realParent =
-          '__sn' in parent ? this.fragmentParentMap.get(parent) : undefined;
-        if (realParent && realParent.contains(target)) {
-          parent = realParent;
-        } else if (this.fragmentParentMap.has(target)) {
-          /**
-           * the target itself is a fragment document and it's not in the dom
-           * so we should remove the real target from its parent
-           */
-          realTarget = this.fragmentParentMap.get(target)!;
-          this.fragmentParentMap.delete(target);
-          target = realTarget;
-        }
+      mirror.removeNodeFromMap(target as Node & RRNode);
+      if (parent)
         try {
-          parent.removeChild(target);
+          parent.removeChild(target as Node & RRNode);
+          /**
+           * https://github.com/rrweb-io/rrweb/pull/887
+           * Remove any virtual style rules for stylesheets if a child text node is removed.
+           */
+          if (
+            this.usingVirtualDom &&
+            target.nodeName === '#text' &&
+            parent.nodeName === 'STYLE' &&
+            (parent as RRStyleElement).rules?.length > 0
+          )
+            (parent as RRStyleElement).rules = [];
         } catch (error) {
           if (error instanceof DOMException) {
             this.warn(
               'parent could not remove child in mutation',
               parent,
-              realParent,
               target,
-              realTarget,
               d,
             );
           } else {
             throw error;
           }
         }
-      }
     });
 
     // tslint:disable-next-line: variable-name
@@ -1521,9 +1588,9 @@ export class Replayer {
 
     // next not present at this moment
     const nextNotInDOM = (mutation: addedNodeMutation) => {
-      let next: Node | null = null;
+      let next: TNode | null = null;
       if (mutation.nextId) {
-        next = this.mirror.getNode(mutation.nextId) as Node;
+        next = mirror.getNode(mutation.nextId) as TNode | null;
       }
       // next not present at this moment
       if (
@@ -1541,7 +1608,7 @@ export class Replayer {
       if (!this.iframe.contentDocument) {
         return console.warn('Looks like your replayer has been destroyed.');
       }
-      let parent: INode | null | ShadowRoot = this.mirror.getNode(
+      let parent: Node | null | ShadowRoot | RRNode = mirror.getNode(
         mutation.parentId,
       );
       if (!parent) {
@@ -1552,79 +1619,49 @@ export class Replayer {
         return queue.push(mutation);
       }
 
-      let parentInDocument = null;
-      if (this.iframe.contentDocument.contains) {
-        parentInDocument = this.iframe.contentDocument.contains(parent);
-      } else if (this.iframe.contentDocument.body.contains) {
-        // fix for IE
-        // refer 'Internet Explorer notes' at https://developer.mozilla.org/zh-CN/docs/Web/API/Document
-        parentInDocument = this.iframe.contentDocument.body.contains(parent);
-      }
-
-      const hasIframeChild =
-        ((parent as unknown) as HTMLElement).getElementsByTagName?.('iframe')
-          .length > 0;
-      /**
-       * Why !isIframeINode(parent)? If parent element is an iframe, iframe document can't be appended to virtual parent.
-       * Why !hasIframeChild? If we move iframe elements from dom to fragment document, we will lose the contentDocument of iframe. So we need to disable the virtual dom optimization if a parent node contains iframe elements.
-       */
-      if (
-        useVirtualParent &&
-        parentInDocument &&
-        !isIframeINode(parent) &&
-        !hasIframeChild
-      ) {
-        const virtualParent = (document.createDocumentFragment() as unknown) as INode;
-        this.mirror.map[mutation.parentId] = virtualParent;
-        this.fragmentParentMap.set(virtualParent, parent);
-
-        // store the state, like scroll position, of child nodes before they are unmounted from dom
-        this.storeState(parent);
-
-        while (parent.firstChild) {
-          virtualParent.appendChild(parent.firstChild);
-        }
-        parent = virtualParent;
-      }
-
       if (mutation.node.isShadow) {
         // If the parent is attached a shadow dom after it's created, it won't have a shadow root.
         if (!hasShadowRoot(parent)) {
-          ((parent as Node) as HTMLElement).attachShadow({ mode: 'open' });
-          parent = ((parent as Node) as HTMLElement).shadowRoot!;
-        } else parent = parent.shadowRoot;
+          (parent as Element | RRElement).attachShadow({ mode: 'open' });
+          parent = (parent as Element | RRElement).shadowRoot! as Node | RRNode;
+        } else parent = parent.shadowRoot as Node | RRNode;
       }
 
-      let previous: Node | null = null;
-      let next: Node | null = null;
+      let previous: Node | RRNode | null = null;
+      let next: Node | RRNode | null = null;
       if (mutation.previousId) {
-        previous = this.mirror.getNode(mutation.previousId) as Node;
+        previous = mirror.getNode(mutation.previousId);
       }
       if (mutation.nextId) {
-        next = this.mirror.getNode(mutation.nextId) as Node;
+        next = mirror.getNode(mutation.nextId);
       }
       if (nextNotInDOM(mutation)) {
         return queue.push(mutation);
       }
 
-      if (mutation.node.rootId && !this.mirror.getNode(mutation.node.rootId)) {
+      if (mutation.node.rootId && !mirror.getNode(mutation.node.rootId)) {
         return;
       }
 
       const targetDoc = mutation.node.rootId
-        ? this.mirror.getNode(mutation.node.rootId)
+        ? mirror.getNode(mutation.node.rootId)
+        : this.usingVirtualDom
+        ? this.virtualDom
         : this.iframe.contentDocument;
-      if (isIframeINode(parent)) {
-        this.attachDocumentToIframe(mutation, parent);
+      if (isSerializedIframe<typeof parent>(parent, mirror)) {
+        this.attachDocumentToIframe(
+          mutation,
+          parent as HTMLIFrameElement | RRIFrameElement,
+        );
         return;
       }
       const target = buildNodeWithSN(mutation.node, {
-        doc: targetDoc as Document,
-        map: this.mirror.map,
+        doc: targetDoc as Document, // can be Document or RRDocument
+        mirror: mirror as Mirror, // can be this.mirror or virtualDom.mirror
         skipChild: true,
         hackCss: true,
         cache: this.cache,
-      }) as INode;
+      }) as Node | RRNode;
 
       // legacy data, we should not have -1 siblings any more
       if (mutation.previousId === -1 || mutation.nextId === -1) {
@@ -1635,48 +1672,76 @@ export class Replayer {
         return;
       }
 
+      // Typescripts type system is not smart enough
+      // to understand what is going on with the types below
+      type TNode = typeof mirror extends Mirror ? Node : RRNode;
+      type TMirror = typeof mirror extends Mirror ? Mirror : RRDOMMirror;
+
+      const parentSn = (mirror as TMirror).getMeta(parent as TNode);
       if (
-        '__sn' in parent &&
-        parent.__sn.type === NodeType.Element &&
-        parent.__sn.tagName === 'textarea' &&
+        parentSn &&
+        parentSn.type === NodeType.Element &&
+        parentSn.tagName === 'textarea' &&
         mutation.node.type === NodeType.Text
       ) {
+        const childNodeArray = Array.isArray(parent.childNodes)
+          ? parent.childNodes
+          : Array.from(parent.childNodes);
+
         // https://github.com/rrweb-io/rrweb/issues/745
         // parent is textarea, will only keep one child node as the value
-        for (const c of Array.from(parent.childNodes)) {
+        for (const c of childNodeArray) {
           if (c.nodeType === parent.TEXT_NODE) {
-            parent.removeChild(c);
+            parent.removeChild(c as Node & RRNode);
           }
         }
       }
 
       if (previous && previous.nextSibling && previous.nextSibling.parentNode) {
-        parent.insertBefore(target, previous.nextSibling);
+        (parent as TNode).insertBefore(
+          target as TNode,
+          previous.nextSibling as TNode,
+        );
       } else if (next && next.parentNode) {
         // making sure the parent contains the reference nodes
         // before we insert target before next.
-        parent.contains(next)
-          ? parent.insertBefore(target, next)
-          : parent.insertBefore(target, null);
+        (parent as TNode).contains(next as TNode)
+          ? (parent as TNode).insertBefore(target as TNode, next as TNode)
+          : (parent as TNode).insertBefore(target as TNode, null);
       } else {
         /**
          * Sometimes the document changes and the MutationObserver is disconnected, so the removal of child elements can't be detected and recorded. After the change of document, we may get another mutation which adds a new html element, while the old html element still exists in the dom, and we need to remove the old html element first to avoid collision.
          */
         if (parent === targetDoc) {
           while (targetDoc.firstChild) {
-            targetDoc.removeChild(targetDoc.firstChild);
+            (targetDoc as TNode).removeChild(targetDoc.firstChild as TNode);
           }
         }
 
-        parent.appendChild(target);
+        (parent as TNode).appendChild(target as TNode);
       }
+      /**
+       * https://github.com/rrweb-io/rrweb/pull/887
+       * Remove any virtual style rules for stylesheets if a new text node is appended.
+       */
+      if (
+        this.usingVirtualDom &&
+        target.nodeName === '#text' &&
+        parent.nodeName === 'STYLE' &&
+        (parent as RRStyleElement).rules?.length > 0
+      )
+        (parent as RRStyleElement).rules = [];
 
-      if (isIframeINode(target)) {
+      if (isSerializedIframe(target, this.mirror)) {
+        const targetId = this.mirror.getId(target as HTMLIFrameElement);
         const mutationInQueue = this.newDocumentQueue.find(
-          (m) => m.parentId === target.__sn.id,
+          (m) => m.parentId === targetId,
         );
         if (mutationInQueue) {
-          this.attachDocumentToIframe(mutationInQueue, target);
+          this.attachDocumentToIframe(
+            mutationInQueue,
+            target as HTMLIFrameElement,
+          );
           this.newDocumentQueue = this.newDocumentQueue.filter(
             (m) => m !== mutationInQueue,
           );
@@ -1697,7 +1762,7 @@ export class Replayer {
       appendNode(mutation);
     });
 
-    let startTime = Date.now();
+    const startTime = Date.now();
     while (queue.length) {
       // transform queue to resolve tree
       const resolveTrees = queueToResolveTrees(queue);
@@ -1710,7 +1775,7 @@ export class Replayer {
         break;
       }
       for (const tree of resolveTrees) {
-        let parent = this.mirror.getNode(tree.value.parentId);
+        const parent = mirror.getNode(tree.value.parentId);
         if (!parent) {
           this.debug(
             'Drop resolve tree since there is no parent for the root node.',
@@ -1728,43 +1793,46 @@ export class Replayer {
       Object.assign(this.legacy_missingNodeRetryMap, legacy_missingNodeMap);
     }
 
-    d.texts.forEach((mutation) => {
-      let target = this.mirror.getNode(mutation.id);
+    uniqueTextMutations(d.texts).forEach((mutation) => {
+      const target = mirror.getNode(mutation.id);
       if (!target) {
         if (d.removes.find((r) => r.id === mutation.id)) {
           // no need to warn, element was already removed
           return;
         }
         return this.warnNodeNotFound(d, mutation.id);
-      }
-      /**
-       * apply text content to real parent directly
-       */
-      if (this.fragmentParentMap.has(target)) {
-        target = this.fragmentParentMap.get(target)!;
       }
       target.textContent = mutation.value;
+
+      /**
+       * https://github.com/rrweb-io/rrweb/pull/865
+       * Remove any virtual style rules for stylesheets whose contents are replaced.
+       */
+      if (this.usingVirtualDom) {
+        const parent = target.parentNode as RRStyleElement;
+        if (parent?.rules?.length > 0) parent.rules = [];
+      }
     });
     d.attributes.forEach((mutation) => {
-      let target = this.mirror.getNode(mutation.id);
+      const target = mirror.getNode(mutation.id);
       if (!target) {
         if (d.removes.find((r) => r.id === mutation.id)) {
           // no need to warn, element was already removed
           return;
         }
         return this.warnNodeNotFound(d, mutation.id);
-      }
-      if (this.fragmentParentMap.has(target)) {
-        target = this.fragmentParentMap.get(target)!;
       }
       for (const attributeName in mutation.attributes) {
         if (typeof attributeName === 'string') {
           const value = mutation.attributes[attributeName];
           if (value === null) {
-            ((target as Node) as Element).removeAttribute(attributeName);
+            (target as Element | RRElement).removeAttribute(attributeName);
           } else if (typeof value === 'string') {
             try {
-              ((target as Node) as Element).setAttribute(attributeName, value);
+              (target as Element | RRElement).setAttribute(
+                attributeName,
+                value,
+              );
             } catch (error) {
               if (this.config.showWarning) {
                 console.warn(
@@ -1774,9 +1842,9 @@ export class Replayer {
               }
             }
           } else if (attributeName === 'style') {
-            let styleValues = value as styleAttributeValue;
-            const targetEl = (target as Node) as HTMLElement;
-            for (var s in styleValues) {
+            const styleValues = value ;
+            const targetEl = target as HTMLElement | RRElement;
+            for (const s in styleValues) {
               if (styleValues[s] === false) {
                 targetEl.style.removeProperty(s);
               } else if (styleValues[s] instanceof Array) {
@@ -1804,23 +1872,24 @@ export class Replayer {
     if (!target) {
       return this.debugNodeNotFound(d, d.id);
     }
-    if ((target as Node) === this.iframe.contentDocument) {
+    const sn = this.mirror.getMeta(target);
+    if (target === this.iframe.contentDocument) {
       this.iframe.contentWindow!.scrollTo({
         top: d.y,
         left: d.x,
         behavior: isSync ? 'auto' : 'smooth',
       });
-    } else if (target.__sn.type === NodeType.Document) {
+    } else if (sn?.type === NodeType.Document) {
       // nest iframe content document
-      ((target as unknown) as Document).defaultView!.scrollTo({
+      (target as Document).defaultView!.scrollTo({
         top: d.y,
         left: d.x,
         behavior: isSync ? 'auto' : 'smooth',
       });
     } else {
       try {
-        ((target as Node) as Element).scrollTop = d.y;
-        ((target as Node) as Element).scrollLeft = d.x;
+        (target as Element).scrollTop = d.y;
+        (target as Element).scrollLeft = d.x;
       } catch (error) {
         /**
          * Seldomly we may found scroll target was removed before
@@ -1836,20 +1905,8 @@ export class Replayer {
       return this.debugNodeNotFound(d, d.id);
     }
     try {
-      ((target as Node) as HTMLInputElement).checked = d.isChecked;
-      ((target as Node) as HTMLInputElement).value = d.text;
-    } catch (error) {
-      // for safe
-    }
-  }
-
-  private applyText(d: textMutation, mutation: mutationData) {
-    const target = this.mirror.getNode(d.id);
-    if (!target) {
-      return this.debugNodeNotFound(mutation, d.id);
-    }
-    try {
-      ((target as Node) as HTMLElement).textContent = d.value;
+      (target as HTMLInputElement).checked = d.isChecked;
+      (target as HTMLInputElement).value = d.text;
     } catch (error) {
       // for safe
     }
@@ -1857,29 +1914,32 @@ export class Replayer {
 
   private legacy_resolveMissingNode(
     map: missingNodeMap,
-    parent: Node,
-    target: Node,
+    parent: Node | RRNode,
+    target: Node | RRNode,
     targetMutation: addedNodeMutation,
   ) {
     const { previousId, nextId } = targetMutation;
     const previousInMap = previousId && map[previousId];
     const nextInMap = nextId && map[nextId];
     if (previousInMap) {
-      const { node, mutation } = previousInMap as missingNode;
-      parent.insertBefore(node, target);
+      const { node, mutation } = previousInMap ;
+      parent.insertBefore(node as Node & RRNode, target as Node & RRNode);
       delete map[mutation.node.id];
       delete this.legacy_missingNodeRetryMap[mutation.node.id];
       if (mutation.previousId || mutation.nextId) {
-        this.legacy_resolveMissingNode(map, parent, node as Node, mutation);
+        this.legacy_resolveMissingNode(map, parent, node, mutation);
       }
     }
     if (nextInMap) {
-      const { node, mutation } = nextInMap as missingNode;
-      parent.insertBefore(node, target.nextSibling);
+      const { node, mutation } = nextInMap ;
+      parent.insertBefore(
+        node as Node & RRNode,
+        target.nextSibling as Node & RRNode,
+      );
       delete map[mutation.node.id];
       delete this.legacy_missingNodeRetryMap[mutation.node.id];
       if (mutation.previousId || mutation.nextId) {
-        this.legacy_resolveMissingNode(map, parent, node as Node, mutation);
+        this.legacy_resolveMissingNode(map, parent, node, mutation);
       }
     }
   }
@@ -1905,7 +1965,7 @@ export class Replayer {
     if (!isSync) {
       this.drawMouseTail({ x: _x, y: _y });
     }
-    this.hoverElements((target as Node) as Element);
+    this.hoverElements(target as Element);
   }
 
   private drawMouseTail(position: { x: number; y: number }) {
@@ -1980,101 +2040,8 @@ export class Replayer {
     });
   }
 
-  /**
-   * Replace the virtual parent with the real parent.
-   * @param frag fragment document, the virtual parent
-   * @param parent real parent element
-   */
-  private restoreRealParent(frag: INode, parent: INode) {
-    this.mirror.map[parent.__sn.id] = parent;
-    /**
-     * If we have already set value attribute on textarea,
-     * then we could not apply text content as default value any more.
-     */
-    if (
-      parent.__sn.type === NodeType.Element &&
-      parent.__sn.tagName === 'textarea' &&
-      frag.textContent
-    ) {
-      ((parent as unknown) as HTMLTextAreaElement).value = frag.textContent;
-    }
-    parent.appendChild(frag);
-    // restore state of elements after they are mounted
-    this.restoreState(parent);
-  }
-
-  /**
-   * store state of elements before unmounted from dom recursively
-   * the state should be restored in the handler of event ReplayerEvents.Flush
-   * e.g. browser would lose scroll position after the process that we add children of parent node to Fragment Document as virtual dom
-   */
-  private storeState(parent: INode) {
-    if (parent) {
-      if (parent.nodeType === parent.ELEMENT_NODE) {
-        const parentElement = (parent as unknown) as HTMLElement;
-        if (parentElement.scrollLeft || parentElement.scrollTop) {
-          // store scroll position state
-          this.elementStateMap.set(parent, {
-            scroll: [parentElement.scrollLeft, parentElement.scrollTop],
-          });
-        }
-        if (parentElement.tagName === 'STYLE')
-          storeCSSRules(
-            parentElement as HTMLStyleElement,
-            this.virtualStyleRulesMap,
-          );
-        const children = parentElement.children;
-        for (const child of Array.from(children)) {
-          this.storeState((child as unknown) as INode);
-        }
-      }
-    }
-  }
-
-  /**
-   * restore the state of elements recursively, which was stored before elements were unmounted from dom in virtual parent mode
-   * this function corresponds to function storeState
-   */
-  private restoreState(parent: INode) {
-    if (parent.nodeType === parent.ELEMENT_NODE) {
-      const parentElement = (parent as unknown) as HTMLElement;
-      if (this.elementStateMap.has(parent)) {
-        const storedState = this.elementStateMap.get(parent)!;
-        // restore scroll position
-        if (storedState.scroll) {
-          parentElement.scrollLeft = storedState.scroll[0];
-          parentElement.scrollTop = storedState.scroll[1];
-        }
-        this.elementStateMap.delete(parent);
-      }
-      const children = parentElement.children;
-      for (const child of Array.from(children)) {
-        this.restoreState((child as unknown) as INode);
-      }
-    }
-  }
-
-  private restoreNodeSheet(node: INode) {
-    const storedRules = this.virtualStyleRulesMap.get(node);
-    if (node.nodeName !== 'STYLE') {
-      return;
-    }
-
-    if (!storedRules) {
-      return;
-    }
-
-    const styleNode = (node as unknown) as HTMLStyleElement;
-
-    applyVirtualStyleRulesToNode(storedRules, styleNode);
-  }
-
   private warnNodeNotFound(d: incrementalData, id: number) {
-    if (this.treeIndex.idRemoved(id)) {
-      this.warn(`Node with id '${id}' was previously removed. `, d);
-    } else {
-      this.warn(`Node with id '${id}' not found. `, d);
-    }
+    this.warn(`Node with id '${id}' not found. `, d);
   }
 
   private warnCanvasMutationFailed(
@@ -2091,15 +2058,7 @@ export class Replayer {
      * is microtask, so events fired on a removed DOM may emit
      * snapshots in the reverse order.
      */
-    if (this.treeIndex.idRemoved(id)) {
-      this.debug(
-        REPLAY_CONSOLE_PREFIX,
-        `Node with id '${id}' was previously removed. `,
-        d,
-      );
-    } else {
-      this.debug(REPLAY_CONSOLE_PREFIX, `Node with id '${id}' not found. `, d);
-    }
+    this.debug(REPLAY_CONSOLE_PREFIX, `Node with id '${id}' not found. `, d);
   }
 
   private warn(...args: Parameters<typeof console.warn>) {

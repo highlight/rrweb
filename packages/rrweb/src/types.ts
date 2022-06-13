@@ -1,17 +1,19 @@
-import {
+import type {
   serializedNodeWithId,
-  idNodeMap,
+  Mirror,
   INode,
   MaskInputOptions,
   SlimDOMOptions,
   MaskInputFn,
   MaskTextFn,
 } from '@highlight-run/rrweb-snapshot';
-import { PackFn, UnpackFn } from './packer/base';
-import { IframeManager } from './record/iframe-manager';
-import { ShadowDomManager } from './record/shadow-dom-manager';
+import type { PackFn, UnpackFn } from './packer/base';
+import type { IframeManager } from './record/iframe-manager';
+import type { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
-import { CanvasManager } from './record/observers/canvas/canvas-manager';
+import type { RRNode } from '@highlight-run/rrdom/es/virtual-dom';
+import type { CanvasManager } from './record/observers/canvas/canvas-manager';
+import type { StylesheetManager } from './record/stylesheet-manager';
 
 export enum EventType {
   DomContentLoaded,
@@ -176,6 +178,11 @@ export type eventWithTime = event & {
   delay?: number;
 };
 
+export type canvasEventWithTime = eventWithTime & {
+  type: EventType.IncrementalSnapshot;
+  data: canvasMutationData;
+};
+
 export type blockClass = string | RegExp;
 
 export type maskTextClass = string | RegExp;
@@ -208,6 +215,12 @@ export type SamplingStrategy = Partial<{
    * 'last' will only record the last input value while input a sequence of chars
    */
   input: 'all' | 'last';
+  /**
+   * 'all' will record every single canvas call
+   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
+   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
+   */
+  canvas: 'all' | number;
 }>;
 
 export type RecordPlugin<TOptions = unknown> = {
@@ -280,6 +293,7 @@ export type observerParam = {
   doc: Document;
   mirror: Mirror;
   iframeManager: IframeManager;
+  stylesheetManager: StylesheetManager;
   shadowDomManager: ShadowDomManager;
   canvasManager: CanvasManager;
   enableStrictPrivacy: boolean,
@@ -307,6 +321,7 @@ export type MutationBufferParam = Pick<
   | 'doc'
   | 'mirror'
   | 'iframeManager'
+  | 'stylesheetManager'
   | 'shadowDomManager'
   | 'canvasManager'
   | 'enableStrictPrivacy'
@@ -430,10 +445,15 @@ export enum CanvasContext {
   WebGL2,
 }
 
-export type SerializedWebGlArg =
+export type SerializedCanvasArg =
   | {
       rr_type: 'ArrayBuffer';
       base64: string; // base64
+    }
+  | {
+      rr_type: 'Blob';
+      data: Array<CanvasArg>;
+      type?: string;
     }
   | {
       rr_type: string;
@@ -441,17 +461,20 @@ export type SerializedWebGlArg =
     }
   | {
       rr_type: string;
-      args: SerializedWebGlArg[];
+      args: Array<CanvasArg>;
     }
   | {
       rr_type: string;
       index: number;
-    }
+    };
+
+export type CanvasArg =
+  | SerializedCanvasArg
   | string
   | number
   | boolean
   | null
-  | SerializedWebGlArg[];
+  | CanvasArg[];
 
 type mouseInteractionParam = {
   type: MouseInteractions;
@@ -530,6 +553,25 @@ export type canvasManagerMutationCallback = (
   p: canvasMutationWithType,
 ) => void;
 
+export type ImageBitmapDataURLWorkerParams = {
+  id: number;
+  bitmap: ImageBitmap;
+  width: number;
+  height: number;
+};
+
+export type ImageBitmapDataURLWorkerResponse =
+  | {
+      id: number;
+    }
+  | {
+      id: number;
+      type: string;
+      base64: string;
+      width: number;
+      height: number;
+    };
+
 export type fontParam = {
   family: string;
   fontSource: string;
@@ -585,11 +627,13 @@ export type DocumentDimension = {
   absoluteScale: number;
 };
 
-export type Mirror = {
-  map: idNodeMap;
-  getId: (n: INode) => number;
+export type DeprecatedMirror = {
+  map: {
+    [key: number]: INode;
+  };
+  getId: (n: Node) => number;
   getNode: (id: number) => INode | null;
-  removeNodeFromMap: (n: INode) => void;
+  removeNodeFromMap: (n: Node) => void;
   has: (id: number) => boolean;
   reset: () => void;
 };
@@ -632,6 +676,7 @@ export type playerConfig = {
         strokeStyle?: string;
       };
   unpackFn?: UnpackFn;
+  useVirtualDom: boolean;
   plugins?: ReplayPlugin[];
   inactiveThreshold: number;
   inactiveSkipTime: number;
@@ -644,7 +689,7 @@ export type playerMetaData = {
 };
 
 export type missingNode = {
-  node: Node;
+  node: Node | RRNode;
   mutation: addedNodeMutation;
 };
 export type missingNodeMap = {
@@ -686,12 +731,6 @@ export enum ReplayerEvents {
   StateChange = 'state-change',
   PlayBack = 'play-back',
 }
-
-// store the state that would be changed during the process(unmount from dom and mount again)
-export type ElementState = {
-  // [scrollLeft,scrollTop]
-  scroll?: [number, number];
-};
 
 export type KeepIframeSrcFn = (src: string) => boolean;
 

@@ -1,5 +1,8 @@
-import { INode, MaskInputOptions, maskInputValue } from '@highlight-run/rrweb-snapshot';
-import { FontFaceSet } from 'css-font-loading-module';
+import {
+  MaskInputOptions,
+  maskInputValue,
+} from '@highlight-run/rrweb-snapshot';
+import type { FontFaceSet } from 'css-font-loading-module';
 import {
   throttle,
   on,
@@ -8,7 +11,8 @@ import {
   getWindowWidth,
   isBlocked,
   isTouchEvent,
-  patch, isCanvasNode,
+  patch,
+  isCanvasNode,
 } from '../utils';
 import {
   mutationCallBack,
@@ -108,9 +112,9 @@ export function initMutationObserver(
       typeof MutationObserver
     >)[angularZoneSymbol];
   }
-  const observer = new mutationObserverCtor(
-    mutationBuffer.processMutations.bind(mutationBuffer),
-  );
+  const observer = new (mutationObserverCtor as new (
+    callback: MutationCallback,
+  ) => MutationObserver)(mutationBuffer.processMutations.bind(mutationBuffer));
   observer.observe(rootEl, {
     attributes: true,
     attributeOldValue: true,
@@ -173,7 +177,7 @@ function initMoveObserver({
       positions.push({
         x: clientX,
         y: clientY,
-        id: mirror.getId(target as INode),
+        id: mirror.getId(target as Node),
         timeOffset: Date.now() - timeBaseline,
       });
       // it is possible DragEvent is undefined even on devices
@@ -223,9 +227,9 @@ function initMouseInteractionObserver({
       const target = getEventTarget(event) as Node;
       /* Start of Highlight Code */
       if (
-          isBlocked(target as Node, blockClass) ||
-          // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
-          isCanvasNode(target as Node)
+        isBlocked(target, blockClass, true) ||
+        // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
+        isCanvasNode(target)
       ) {
         return;
       }
@@ -234,7 +238,7 @@ function initMouseInteractionObserver({
       if (!e) {
         return;
       }
-      const id = mirror.getId(target as INode);
+      const id = mirror.getId(target);
       const { clientX, clientY } = e;
       mouseInteractionCb({
         type: MouseInteractions[eventKey],
@@ -273,10 +277,10 @@ export function initScrollObserver({
 >): listenerHandler {
   const updatePosition = throttle<UIEvent>((evt) => {
     const target = getEventTarget(evt);
-    if (!target || isBlocked(target as Node, blockClass)) {
+    if (!target || isBlocked(target as Node, blockClass, true)) {
       return;
     }
-    const id = mirror.getId(target as INode);
+    const id = mirror.getId(target as Node);
     if (target === doc) {
       const scrollEl = (doc.scrollingElement || doc.documentElement)!;
       scrollCb({
@@ -350,7 +354,7 @@ function initInputObserver({
       !target ||
       !(target as Element).tagName ||
       INPUT_TAGS.indexOf((target as Element).tagName) < 0 ||
-      isBlocked(target as Node, blockClass)
+      isBlocked(target as Node, blockClass, true)
     ) {
       return;
     }
@@ -414,7 +418,7 @@ function initInputObserver({
       lastInputValue.isChecked !== v.isChecked
     ) {
       lastInputValueMap.set(target, v);
-      const id = mirror.getId(target as INode);
+      const id = mirror.getId(target as Node);
       inputCb({
         ...v,
         id,
@@ -503,7 +507,7 @@ function initStyleSheetObserver(
     rule: string,
     index?: number,
   ) {
-    const id = mirror.getId(this.ownerNode as INode);
+    const id = mirror.getId(this.ownerNode);
     if (id !== -1) {
       styleSheetRuleCb({
         id,
@@ -515,7 +519,7 @@ function initStyleSheetObserver(
 
   const deleteRule = win.CSSStyleSheet.prototype.deleteRule;
   win.CSSStyleSheet.prototype.deleteRule = function (index: number) {
-    const id = mirror.getId(this.ownerNode as INode);
+    const id = mirror.getId(this.ownerNode);
     if (id !== -1) {
       styleSheetRuleCb({
         id,
@@ -555,12 +559,12 @@ function initStyleSheetObserver(
 
   Object.entries(supportedNestedCSSRuleTypes).forEach(([typeKey, type]) => {
     unmodifiedFunctions[typeKey] = {
-      insertRule: (type as GroupingCSSRuleTypes).prototype.insertRule,
-      deleteRule: (type as GroupingCSSRuleTypes).prototype.deleteRule,
+      insertRule: type.prototype.insertRule,
+      deleteRule: type.prototype.deleteRule,
     };
 
     type.prototype.insertRule = function (rule: string, index?: number) {
-      const id = mirror.getId(this.parentStyleSheet.ownerNode as INode);
+      const id = mirror.getId(this.parentStyleSheet.ownerNode);
       if (id !== -1) {
         styleSheetRuleCb({
           id,
@@ -579,7 +583,7 @@ function initStyleSheetObserver(
     };
 
     type.prototype.deleteRule = function (index: number) {
-      const id = mirror.getId(this.parentStyleSheet.ownerNode as INode);
+      const id = mirror.getId(this.parentStyleSheet.ownerNode);
       if (id !== -1) {
         styleSheetRuleCb({
           id,
@@ -611,9 +615,7 @@ function initStyleDeclarationObserver(
     value: string,
     priority: string,
   ) {
-    const id = mirror.getId(
-      (this.parentRule?.parentStyleSheet?.ownerNode as unknown) as INode,
-    );
+    const id = mirror.getId(this.parentRule?.parentStyleSheet?.ownerNode);
     if (id !== -1) {
       styleDeclarationCb({
         id,
@@ -633,9 +635,7 @@ function initStyleDeclarationObserver(
     this: CSSStyleDeclaration,
     property: string,
   ) {
-    const id = mirror.getId(
-      (this.parentRule?.parentStyleSheet?.ownerNode as unknown) as INode,
-    );
+    const id = mirror.getId(this.parentRule?.parentStyleSheet?.ownerNode);
     if (id !== -1) {
       styleDeclarationCb({
         id,
@@ -663,13 +663,13 @@ function initMediaInteractionObserver({
   const handler = (type: MediaInteractions) =>
     throttle((event: Event) => {
       const target = getEventTarget(event);
-      if (!target || isBlocked(target as Node, blockClass)) {
+      if (!target || isBlocked(target as Node, blockClass, true)) {
         return;
       }
       const { currentTime, volume, muted } = target as HTMLMediaElement;
       mediaInteractionCb({
         type,
-        id: mirror.getId(target as INode),
+        id: mirror.getId(target as Node),
         currentTime,
         volume,
         muted,

@@ -1,5 +1,5 @@
-import { INode } from '@highlight-run/rrweb-snapshot';
-import {
+import type { ICanvas, Mirror } from '@highlight-run/rrweb-snapshot';
+import type {
   blockClass,
   canvasManagerMutationCallback,
   canvasMutationCallback,
@@ -7,11 +7,14 @@ import {
   canvasMutationWithType,
   IWindow,
   listenerHandler,
-  Mirror,
+  CanvasArg,
 } from '../../../types';
+import { CanvasContext } from '../../../types';
 import initCanvas2DMutationObserver from './2d';
 import initCanvasContextObserver from './canvas';
 import initCanvasWebGLMutationObserver from './webgl';
+import ImageBitmapDataURLWorker from 'web-worker:../../workers/image-bitmap-data-url-worker.ts';
+import type { ImageBitmapDataURLRequestWorker } from '../../workers/image-bitmap-data-url-worker';
 
 export type RafStamps = { latestId: number; invokeId: number | null };
 
@@ -27,8 +30,8 @@ export class CanvasManager {
 
   private mutationCb: canvasMutationCallback;
   private resetObservers?: listenerHandler;
-  private frozen: boolean = false;
-  private locked: boolean = false;
+  private frozen = false;
+  private locked = false;
 
   public reset() {
     this.pendingCanvasMutations.clear();
@@ -52,17 +55,21 @@ export class CanvasManager {
   }
 
   constructor(options: {
-    recordCanvas: boolean | number;
+    recordCanvas: boolean;
     mutationCb: canvasMutationCallback;
     win: IWindow;
     blockClass: blockClass;
     mirror: Mirror;
+    sampling?: 'all' | number;
   }) {
+    const { sampling = 'all', win, blockClass, recordCanvas } = options;
     this.mutationCb = options.mutationCb;
     this.mirror = options.mirror;
 
-    if (options.recordCanvas === true)
-      this.initCanvasMutationObserver(options.win, options.blockClass);
+    if (recordCanvas && sampling === 'all')
+      this.initCanvasMutationObserver(win, blockClass);
+    if (recordCanvas && typeof sampling === 'number')
+      this.initCanvasFPSObserver(sampling, win, blockClass);
   }
 
   private processMutation: canvasManagerMutationCallback = function (
@@ -81,6 +88,111 @@ export class CanvasManager {
 
     this.pendingCanvasMutations.get(target)!.push(mutation);
   };
+
+  private initCanvasFPSObserver(
+    fps: number,
+    win: IWindow,
+    blockClass: blockClass,
+  ) {
+    const canvasContextReset = initCanvasContextObserver(win, blockClass);
+    const snapshotInProgressMap: Map<number, boolean> = new Map();
+    const worker = new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
+    worker.onmessage = (e) => {
+      const { id } = e.data;
+      snapshotInProgressMap.set(id, false);
+
+      if (!('base64' in e.data)) return;
+
+      const { base64, type, width, height } = e.data;
+      this.mutationCb({
+        id,
+        type: CanvasContext['2D'],
+        commands: [
+          {
+            property: 'clearRect', // wipe canvas
+            args: [0, 0, width, height],
+          },
+          {
+            property: 'drawImage', // draws (semi-transparent) image
+            args: [
+              {
+                rr_type: 'ImageBitmap',
+                args: [
+                  {
+                    rr_type: 'Blob',
+                    data: [{ rr_type: 'ArrayBuffer', base64 }],
+                    type,
+                  },
+                ],
+              } as CanvasArg,
+              0,
+              0,
+            ],
+          },
+        ],
+      });
+    };
+
+    const timeBetweenSnapshots = 1000 / fps;
+    let lastSnapshotTime = 0;
+    let rafId: number;
+
+    const takeCanvasSnapshots = (timestamp: DOMHighResTimeStamp) => {
+      if (
+        lastSnapshotTime &&
+        timestamp - lastSnapshotTime < timeBetweenSnapshots
+      ) {
+        rafId = requestAnimationFrame(takeCanvasSnapshots);
+        return;
+      }
+      lastSnapshotTime = timestamp;
+
+      win.document
+        .querySelectorAll(`canvas:not(.${blockClass} *)`)
+        .forEach(async (canvas: HTMLCanvasElement) => {
+          const id = this.mirror.getId(canvas);
+          if (snapshotInProgressMap.get(id)) return;
+          snapshotInProgressMap.set(id, true);
+          if (['webgl', 'webgl2'].includes((canvas as ICanvas).__context)) {
+            // if the canvas hasn't been modified recently,
+            // its contents won't be in memory and `createImageBitmap`
+            // will return a transparent imageBitmap
+
+            const context = canvas.getContext((canvas as ICanvas).__context) as
+              | WebGLRenderingContext
+              | WebGL2RenderingContext
+              | null;
+            if (
+              context?.getContextAttributes()?.preserveDrawingBuffer === false
+            ) {
+              // Hack to load canvas back into memory so `createImageBitmap` can grab it's contents.
+              // Context: https://twitter.com/Juice10/status/1499775271758704643
+              // This hack might change the background color of the canvas in the unlikely event that
+              // the canvas background was changed but clear was not called directly afterwards.
+              context?.clear(context.COLOR_BUFFER_BIT);
+            }
+          }
+          const bitmap = await createImageBitmap(canvas);
+          worker.postMessage(
+            {
+              id,
+              bitmap,
+              width: canvas.width,
+              height: canvas.height,
+            },
+            [bitmap],
+          );
+        });
+      rafId = requestAnimationFrame(takeCanvasSnapshots);
+    };
+
+    rafId = requestAnimationFrame(takeCanvasSnapshots);
+
+    this.resetObservers = () => {
+      canvasContextReset();
+      cancelAnimationFrame(rafId);
+    };
+  }
 
   private initCanvasMutationObserver(
     win: IWindow,
@@ -126,7 +238,7 @@ export class CanvasManager {
   flushPendingCanvasMutations() {
     this.pendingCanvasMutations.forEach(
       (values: canvasMutationCommand[], canvas: HTMLCanvasElement) => {
-        const id = this.mirror.getId((canvas as unknown) as INode);
+        const id = this.mirror.getId(canvas);
         this.flushPendingCanvasMutationFor(canvas, id);
       },
     );

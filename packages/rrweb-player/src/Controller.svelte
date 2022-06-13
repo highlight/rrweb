@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { EventType } from 'rrweb';
-  import type { Replayer } from 'rrweb';
-  import type { playerMetaData } from 'rrweb/typings/types';
+  import { EventType } from '@highlight-run/rrweb';
+  import type { Replayer } from '@highlight-run/rrweb';
+  import type { playerMetaData } from '@highlight-run/rrweb/typings/types';
   import type {
     PlayerMachineState,
     SpeedMachineState,
-  } from 'rrweb/typings/replay/machine';
+  } from '@highlight-run/rrweb/typings/replay/machine';
   import {
     onMount,
     onDestroy,
@@ -186,20 +186,20 @@
   };
 
   export const triggerUpdateMeta = () => {
-    Promise.resolve().then(() => {
+    return Promise.resolve().then(() => {
       meta = replayer.getMetaData();
     })
   }
 
   onMount(() => {
-    playerState = replayer.service.state.value as typeof playerState;
-    speedState = replayer.speedService.state.value as typeof speedState;
+    playerState = replayer.service.state.value;
+    speedState = replayer.speedService.state.value ;
     replayer.on(
       'state-change',
       (states: { player?: PlayerMachineState; speed?: SpeedMachineState }) => {
         const { player, speed } = states;
         if (player?.value && playerState !== player.value) {
-          playerState = player.value as typeof playerState;
+          playerState = player.value ;
           switch (playerState) {
             case 'playing':
               loopTimer();
@@ -212,7 +212,7 @@
           }
         }
         if (speed?.value && speedState !== speed.value) {
-          speedState = speed.value as typeof speedState;
+          speedState = speed.value ;
         }
       },
     );
@@ -338,7 +338,7 @@
         class="rr-progress"
         class:disabled={speedState === 'skipping'}
         bind:this={progress}
-        on:click={(event) => handleProgressClick(event)}>
+        on:click={handleProgressClick}>
         <div
           class="rr-progress__step"
           bind:this={step}

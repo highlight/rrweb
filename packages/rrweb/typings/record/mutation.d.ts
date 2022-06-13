@@ -1,4 +1,4 @@
-import { mutationRecord, MutationBufferParam } from '../types';
+import type { mutationRecord, MutationBufferParam } from '../types';
 export default class MutationBuffer {
     private frozen;
     private locked;
@@ -25,6 +25,7 @@ export default class MutationBuffer {
     private doc;
     private mirror;
     private iframeManager;
+    private stylesheetManager;
     private shadowDomManager;
     private canvasManager;
     private enableStrictPrivacy;

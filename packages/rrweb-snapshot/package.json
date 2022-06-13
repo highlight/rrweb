@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb-snapshot",
-  "version": "1.1.15",
+  "version": "1.1.21",
   "description": "rrweb's component to take a snapshot of DOM, aka DOM serializer",
   "scripts": {
     "prepare": "npm run prepack",
@@ -11,7 +11,8 @@
     "bundle:es-only": "cross-env ES_ONLY=true rollup --config",
     "dev": "yarn bundle:es-only --watch",
     "typings": "tsc -d --declarationDir typings",
-    "prepublish": "npm run typings && npm run bundle"
+    "prepublish": "npm run typings && npm run bundle",
+    "lint": "yarn eslint src"
   },
   "repository": {
     "type": "git",
@@ -55,8 +56,7 @@
     "ts-jest": "^27.0.5",
     "ts-node": "^7.0.1",
     "tslib": "^1.9.3",
-    "tslint": "^4.5.1",
     "typescript": "^3.9.7"
   },
-  "gitHead": "d5100d35eae775154ce9db13c101a623d0a8bc12"
+  "gitHead": "5db953fd4478f89aabf8af047f8b03046a05e6e9"
 }

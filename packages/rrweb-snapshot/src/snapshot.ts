@@ -3,8 +3,6 @@ import {
   serializedNodeWithId,
   NodeType,
   attributes,
-  INode,
-  idNodeMap,
   MaskInputOptions,
   SlimDOMOptions,
   DataURLOptions,
@@ -12,12 +10,15 @@ import {
   MaskInputFn,
   KeepIframeSrcFn,
   ICanvas,
+  serializedElementNodeWithId,
 } from './types';
 import {
+  Mirror,
   is2DCanvasBlank,
   isElement,
   isShadowRoot,
-  maskInputValue, obfuscateText,
+  maskInputValue,
+  obfuscateText,
 } from './utils';
 
 let _id = 1;
@@ -155,7 +156,7 @@ function getAbsoluteSrcsetString(doc: Document, attributeValue: string) {
 
   function collectCharacters(regEx: RegExp) {
     let chars: string;
-    let match = regEx.exec(attributeValue.substring(pos));
+    const match = regEx.exec(attributeValue.substring(pos));
     if (match) {
       chars = match[0];
       pos += chars.length;
@@ -164,7 +165,7 @@ function getAbsoluteSrcsetString(doc: Document, attributeValue: string) {
     return '';
   }
 
-  let output = [];
+  const output = [];
   while (true) {
     collectCharacters(SRCSET_COMMAS_OR_SPACES);
     if (pos >= attributeValue.length) {
@@ -183,7 +184,7 @@ function getAbsoluteSrcsetString(doc: Document, attributeValue: string) {
       url = absoluteToDoc(doc, url);
       let inParens = false;
       while (true) {
-        let c = attributeValue.charAt(pos);
+        const c = attributeValue.charAt(pos);
         if (c === '') {
           output.push((url + descriptorsStr).trim());
           break;
@@ -269,8 +270,7 @@ export function _isBlockedElement(
       return true;
     }
   } else {
-    // tslint:disable-next-line: prefer-for-of
-    for (let eIndex = 0; eIndex < element.classList.length; eIndex++) {
+    for (let eIndex = element.classList.length; eIndex--; ) {
       const className = element.classList[eIndex];
       if (blockClass.test(className)) {
         return true;
@@ -284,44 +284,50 @@ export function _isBlockedElement(
   return false;
 }
 
-export function needMaskingText(
+export function classMatchesRegex(
   node: Node | null,
+  regex: RegExp,
+  checkAncestors: boolean,
+): boolean {
+  if (!node) return false;
+  if (node.nodeType !== node.ELEMENT_NODE) {
+    if (!checkAncestors) return false;
+    return classMatchesRegex(node.parentNode, regex, checkAncestors);
+  }
+
+  for (let eIndex = (node as HTMLElement).classList.length; eIndex--; ) {
+    const className = (node as HTMLElement).classList[eIndex];
+    if (regex.test(className)) {
+      return true;
+    }
+  }
+  if (!checkAncestors) return false;
+  return classMatchesRegex(node.parentNode, regex, checkAncestors);
+}
+
+export function needMaskingText(
+  node: Node,
   maskTextClass: string | RegExp,
   maskTextSelector: string | null,
 ): boolean {
-  if (!node) {
-    return false;
+  const el: HTMLElement | null =
+    node.nodeType === node.ELEMENT_NODE
+      ? (node as HTMLElement)
+      : node.parentElement;
+  if (el === null) return false;
+
+  if (typeof maskTextClass === 'string') {
+    if (el.classList.contains(maskTextClass)) return true;
+    if (el.closest(`.${maskTextClass}`)) return true;
+  } else {
+    if (classMatchesRegex(el, maskTextClass, true)) return true;
   }
-  if (node.nodeType === node.ELEMENT_NODE) {
-    if (typeof maskTextClass === 'string') {
-      if ((node as HTMLElement).classList.contains(maskTextClass)) {
-        return true;
-      }
-    } else {
-      // tslint:disable-next-line: prefer-for-of
-      for (
-        let eIndex = 0;
-        eIndex < (node as HTMLElement).classList.length;
-        eIndex++
-      ) {
-        const className = (node as HTMLElement).classList[eIndex];
-        if (maskTextClass.test(className)) {
-          return true;
-        }
-      }
-    }
-    if (maskTextSelector) {
-      if ((node as HTMLElement).matches(maskTextSelector)) {
-        return true;
-      }
-    }
-    return needMaskingText(node.parentNode, maskTextClass, maskTextSelector);
+
+  if (maskTextSelector) {
+    if (el.matches(maskTextSelector)) return true;
+    if (el.closest(maskTextSelector)) return true;
   }
-  if (node.nodeType === node.TEXT_NODE) {
-    // check parent node since text node do not have class name
-    return needMaskingText(node.parentNode, maskTextClass, maskTextSelector);
-  }
-  return needMaskingText(node.parentNode, maskTextClass, maskTextSelector);
+  return false;
 }
 
 // https://stackoverflow.com/a/36155560
@@ -373,10 +379,45 @@ function onceIframeLoaded(
   iframeEl.addEventListener('load', listener);
 }
 
+function isStylesheetLoaded(link: HTMLLinkElement) {
+  if (!link.getAttribute('href')) return true; // nothing to load
+  return link.sheet !== null;
+}
+
+function onceStylesheetLoaded(
+  link: HTMLLinkElement,
+  listener: () => unknown,
+  iframeLoadTimeout: number,
+) {
+  let fired = false;
+  let styleSheetLoaded: StyleSheet | null;
+  try {
+    styleSheetLoaded = link.sheet;
+  } catch (error) {
+    return;
+  }
+
+  if (styleSheetLoaded) return;
+
+  const timer = setTimeout(() => {
+    if (!fired) {
+      listener();
+      fired = true;
+    }
+  }, iframeLoadTimeout);
+
+  link.addEventListener('load', () => {
+    clearTimeout(timer);
+    fired = true;
+    listener();
+  });
+}
+
 function serializeNode(
   n: Node,
   options: {
     doc: Document;
+    mirror: Mirror;
     blockClass: string | RegExp;
     blockSelector: string | null;
     maskTextClass: string | RegExp;
@@ -389,6 +430,10 @@ function serializeNode(
     inlineImages: boolean;
     recordCanvas: boolean;
     keepIframeSrcFn: KeepIframeSrcFn;
+    /**
+     * `newlyAddedElement: true` skips scrollTop and scrollLeft check
+     */
+    newlyAddedElement?: boolean;
     /** Highlight Options Start */
     enableStrictPrivacy: boolean;
     /** Highlight Options End */
@@ -396,6 +441,7 @@ function serializeNode(
 ): serializedNode | false {
   const {
     doc,
+    mirror,
     blockClass,
     blockSelector,
     maskTextClass,
@@ -408,21 +454,18 @@ function serializeNode(
     inlineImages,
     recordCanvas,
     keepIframeSrcFn,
-      enableStrictPrivacy,
+    newlyAddedElement = false,
+    enableStrictPrivacy,
   } = options;
   // Only record root id when document object is not the base document
-  let rootId: number | undefined;
-  if (((doc as unknown) as INode).__sn) {
-    const docId = ((doc as unknown) as INode).__sn.id;
-    rootId = docId === 1 ? undefined : docId;
-  }
+  const rootId = getRootId(doc, mirror);
   switch (n.nodeType) {
     case n.DOCUMENT_NODE:
-      if ((n as HTMLDocument).compatMode !== 'CSS1Compat') {
+      if ((n as Document).compatMode !== 'CSS1Compat') {
         return {
           type: NodeType.Document,
           childNodes: [],
-          compatMode: (n as HTMLDocument).compatMode, // probably "BackCompat"
+          compatMode: (n as Document).compatMode, // probably "BackCompat"
           rootId,
         };
       } else {
@@ -441,263 +484,29 @@ function serializeNode(
         rootId,
       };
     case n.ELEMENT_NODE:
-      let needBlock = _isBlockedElement(
-        n as HTMLElement,
+      return serializeElementNode(n as HTMLElement, {
+        doc,
         blockClass,
         blockSelector,
-      );
-      const tagName = getValidTagName(n as HTMLElement);
-      let attributes: attributes = {};
-      for (const { name, value } of Array.from((n as HTMLElement).attributes)) {
-        attributes[name] = transformAttribute(doc, tagName, name, value);
-      }
-      // remote css
-      if (tagName === 'link' && inlineStylesheet) {
-        const stylesheet = Array.from(doc.styleSheets).find((s) => {
-          return s.href === (n as HTMLLinkElement).href;
-        });
-        let cssText: string | null = null;
-        if (stylesheet) {
-          cssText = getCssRulesString(stylesheet as CSSStyleSheet);
-        }
-        if (cssText) {
-          delete attributes.rel;
-          delete attributes.href;
-          attributes._cssText = absoluteToStylesheet(
-            cssText,
-            stylesheet!.href!,
-          );
-        }
-      }
-      // dynamic stylesheet
-      if (
-        tagName === 'style' &&
-        (n as HTMLStyleElement).sheet &&
-        // TODO: Currently we only try to get dynamic stylesheet when it is an empty style element
-        !(
-          (n as HTMLElement).innerText ||
-          (n as HTMLElement).textContent ||
-          ''
-        ).trim().length
-      ) {
-        const cssText = getCssRulesString(
-          (n as HTMLStyleElement).sheet as CSSStyleSheet,
-        );
-        if (cssText) {
-          attributes._cssText = absoluteToStylesheet(cssText, getHref());
-        }
-      }
-      // form fields
-      if (
-        tagName === 'input' ||
-        tagName === 'textarea' ||
-        tagName === 'select'
-      ) {
-        const value = (n as HTMLInputElement | HTMLTextAreaElement).value;
-        if (
-          attributes.type !== 'radio' &&
-          attributes.type !== 'checkbox' &&
-          attributes.type !== 'submit' &&
-          attributes.type !== 'button' &&
-          value
-        ) {
-          attributes.value = maskInputValue({
-            type: attributes.type,
-            tagName,
-            value,
-            maskInputOptions,
-            maskInputFn,
-          });
-        } else if ((n as HTMLInputElement).checked) {
-          attributes.checked = (n as HTMLInputElement).checked;
-        }
-      }
-      if (tagName === 'option') {
-        if ((n as HTMLOptionElement).selected && !maskInputOptions['select']) {
-          attributes.selected = true;
-        } else {
-          // ignore the html attribute (which corresponds to DOM (n as HTMLOptionElement).defaultSelected)
-          // if it's already been changed
-          delete attributes.selected;
-        }
-      }
-      // canvas image data
-      if (tagName === 'canvas' && recordCanvas) {
-        if ((n as ICanvas).__context === '2d') {
-          // only record this on 2d canvas
-          if (!is2DCanvasBlank(n as HTMLCanvasElement)) {
-            attributes.rr_dataURL = (n as HTMLCanvasElement).toDataURL(
-              dataURLOptions.type,
-              dataURLOptions.quality,
-            );
-          }
-        } else if (!('__context' in n)) {
-          // context is unknown, better not call getContext to trigger it
-          const canvasDataURL = (n as HTMLCanvasElement).toDataURL(
-            dataURLOptions.type,
-            dataURLOptions.quality,
-          );
-
-          // create blank canvas of same dimensions
-          const blankCanvas = document.createElement('canvas');
-          blankCanvas.width = (n as HTMLCanvasElement).width;
-          blankCanvas.height = (n as HTMLCanvasElement).height;
-          const blankCanvasDataURL = blankCanvas.toDataURL(
-            dataURLOptions.type,
-            dataURLOptions.quality,
-          );
-
-          // no need to save dataURL if it's the same as blank canvas
-          if (canvasDataURL !== blankCanvasDataURL) {
-            attributes.rr_dataURL = canvasDataURL;
-          }
-        }
-      }
-      // save image offline
-      if (tagName === 'img' && inlineImages) {
-        if (!canvasService) {
-          canvasService = doc.createElement('canvas');
-          canvasCtx = canvasService.getContext('2d');
-        }
-        const image = n as HTMLImageElement;
-        const oldValue = image.crossOrigin;
-        image.crossOrigin = 'anonymous';
-        const recordInlineImage = () => {
-          try {
-            canvasService!.width = image.naturalWidth;
-            canvasService!.height = image.naturalHeight;
-            canvasCtx!.drawImage(image, 0, 0);
-            attributes.rr_dataURL = canvasService!.toDataURL(
-              dataURLOptions.type,
-              dataURLOptions.quality,
-            );
-          } catch (err) {
-            console.warn(
-              `Cannot inline img src=${image.currentSrc}! Error: ${err}`,
-            );
-          }
-          oldValue
-            ? (attributes.crossOrigin = oldValue)
-            : delete attributes.crossOrigin;
-        };
-        // The image content may not have finished loading yet.
-        if (image.complete && image.naturalWidth !== 0) recordInlineImage();
-        else image.onload = recordInlineImage;
-      }
-      // media elements
-      if (tagName === 'audio' || tagName === 'video') {
-        attributes.rr_mediaState = (n as HTMLMediaElement).paused
-          ? 'paused'
-          : 'played';
-        attributes.rr_mediaCurrentTime = (n as HTMLMediaElement).currentTime;
-      }
-      // scroll
-      if ((n as HTMLElement).scrollLeft) {
-        attributes.rr_scrollLeft = (n as HTMLElement).scrollLeft;
-      }
-      if ((n as HTMLElement).scrollTop) {
-        attributes.rr_scrollTop = (n as HTMLElement).scrollTop;
-      }
-      // block element
-      if (needBlock || (tagName === 'img' && enableStrictPrivacy)) {
-        const { width, height } = (n as HTMLElement).getBoundingClientRect();
-        attributes = {
-          class: attributes.class,
-          rr_width: `${width}px`,
-          rr_height: `${height}px`,
-        };
-        needBlock = true;
-      }
-      // iframe
-      if (tagName === 'iframe' && !keepIframeSrcFn(attributes.src as string)) {
-        if (!(n as HTMLIFrameElement).contentDocument) {
-          // we can't record it directly as we can't see into it
-          // preserve the src attribute so a decision can be taken at replay time
-          attributes.rr_src = attributes.src;
-        }
-        delete attributes.src; // prevent auto loading
-      }
-      return {
-        type: NodeType.Element,
-        tagName,
-        attributes,
-        childNodes: [],
-        isSVG: isSVGElement(n as Element) || undefined,
-        needBlock,
+        inlineStylesheet,
+        maskInputOptions,
+        maskInputFn,
+        dataURLOptions,
+        inlineImages,
+        recordCanvas,
+        keepIframeSrcFn,
+        newlyAddedElement,
+        enableStrictPrivacy,
         rootId,
-      };
+      });
     case n.TEXT_NODE:
-      // The parent node may not be a html element which has a tagName attribute.
-      // So just let it be undefined which is ok in this use case.
-      const parentTagName =
-        n.parentNode && (n.parentNode as HTMLElement).tagName;
-      let textContent = (n as Text).textContent;
-      const isStyle = parentTagName === 'STYLE' ? true : undefined;
-      const isScript = parentTagName === 'SCRIPT' ? true : undefined;
-      /** Determines if this node has been handled already. */
-      let textContentHandled = false;
-      if (isStyle && textContent) {
-        try {
-          // try to read style sheet
-          if (n.nextSibling || n.previousSibling) {
-            // This is not the only child of the stylesheet.
-            // We can't read all of the sheet's .cssRules and expect them
-            // to _only_ include the current rule(s) added by the text node.
-            // So we'll be conservative and keep textContent as-is.
-          } else if ((n.parentNode as HTMLStyleElement).sheet?.cssRules) {
-            textContent = stringifyStyleSheet(
-              (n.parentNode as HTMLStyleElement).sheet!,
-            );
-          }
-        } catch (err) {
-          console.warn(
-            `Cannot get CSS styles from text's parentNode. Error: ${err}`,
-            n,
-          );
-        }
-        textContent = absoluteToStylesheet(textContent, getHref());
-        textContentHandled = true;
-      }
-      if (isScript) {
-        textContent = 'SCRIPT_PLACEHOLDER';
-        textContentHandled = true;
-      } else if (parentTagName === 'NOSCRIPT') {
-        textContent = '';
-        textContentHandled = true;
-      }
-      if (
-        !isStyle &&
-        !isScript &&
-        needMaskingText(n, maskTextClass, maskTextSelector) &&
-        textContent
-      ) {
-        textContent = maskTextFn
-          ? maskTextFn(textContent)
-          : textContent.replace(/[\S]/g, '*');
-      }
-      /* Start of Highlight */
-      // Randomizes the text content to a string of the same length.
-      if (enableStrictPrivacy && !textContentHandled && parentTagName) {
-        const IGNORE_TAG_NAMES = new Set([
-          'HEAD',
-          'TITLE',
-          'STYLE',
-          'SCRIPT',
-          'HTML',
-          'BODY',
-          'NOSCRIPT',
-        ]);
-        if (!IGNORE_TAG_NAMES.has(parentTagName) && textContent) {
-          textContent = obfuscateText(textContent);
-        }
-      }
-      /* End of Highlight */
-      return {
-        type: NodeType.Text,
-        textContent: textContent || '',
-        isStyle,
+      return serializeTextNode(n as Text, {
+        maskTextClass,
+        maskTextSelector,
+        maskTextFn,
+        enableStrictPrivacy,
         rootId,
-      };
+      });
     case n.CDATA_SECTION_NODE:
       return {
         type: NodeType.CDATA,
@@ -713,6 +522,325 @@ function serializeNode(
     default:
       return false;
   }
+}
+
+function getRootId(doc: Document, mirror: Mirror): number | undefined {
+  if (!mirror.hasNode(doc)) return undefined;
+  const docId = mirror.getId(doc);
+  return docId === 1 ? undefined : docId;
+}
+
+function serializeTextNode(
+  n: Text,
+  options: {
+    maskTextClass: string | RegExp;
+    maskTextSelector: string | null;
+    maskTextFn: MaskTextFn | undefined;
+    enableStrictPrivacy: boolean;
+    rootId: number | undefined;
+  },
+): serializedNode {
+  const {
+    maskTextClass,
+    maskTextSelector,
+    maskTextFn,
+    enableStrictPrivacy,
+    rootId,
+  } = options;
+  // The parent node may not be a html element which has a tagName attribute.
+  // So just let it be undefined which is ok in this use case.
+  const parentTagName = n.parentNode && (n.parentNode as HTMLElement).tagName;
+  let textContent = n.textContent;
+  const isStyle = parentTagName === 'STYLE' ? true : undefined;
+  const isScript = parentTagName === 'SCRIPT' ? true : undefined;
+  /** Determines if this node has been handled already. */
+  let textContentHandled = false;
+  if (isStyle && textContent) {
+    try {
+      // try to read style sheet
+      if (n.nextSibling || n.previousSibling) {
+        // This is not the only child of the stylesheet.
+        // We can't read all of the sheet's .cssRules and expect them
+        // to _only_ include the current rule(s) added by the text node.
+        // So we'll be conservative and keep textContent as-is.
+      } else if ((n.parentNode as HTMLStyleElement).sheet?.cssRules) {
+        textContent = stringifyStyleSheet(
+          (n.parentNode as HTMLStyleElement).sheet!,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `Cannot get CSS styles from text's parentNode. Error: ${err}`,
+        n,
+      );
+    }
+    textContent = absoluteToStylesheet(textContent, getHref());
+    textContentHandled = true;
+  }
+  if (isScript) {
+    textContent = 'SCRIPT_PLACEHOLDER';
+    textContentHandled = true;
+  } else if (parentTagName === 'NOSCRIPT') {
+    textContent = '';
+    textContentHandled = true;
+  }
+  if (
+    !isStyle &&
+    !isScript &&
+    textContent &&
+    needMaskingText(n, maskTextClass, maskTextSelector)
+  ) {
+    textContent = maskTextFn
+      ? maskTextFn(textContent)
+      : textContent.replace(/[\S]/g, '*');
+  }
+
+  /* Start of Highlight */
+  // Randomizes the text content to a string of the same length.
+  if (enableStrictPrivacy && !textContentHandled && parentTagName) {
+    const IGNORE_TAG_NAMES = new Set([
+      'HEAD',
+      'TITLE',
+      'STYLE',
+      'SCRIPT',
+      'HTML',
+      'BODY',
+      'NOSCRIPT',
+    ]);
+    if (!IGNORE_TAG_NAMES.has(parentTagName) && textContent) {
+      textContent = obfuscateText(textContent);
+    }
+  }
+  /* End of Highlight */
+
+  return {
+    type: NodeType.Text,
+    textContent: textContent || '',
+    isStyle,
+    rootId,
+  };
+}
+
+function serializeElementNode(
+  n: HTMLElement,
+  options: {
+    doc: Document;
+    blockClass: string | RegExp;
+    blockSelector: string | null;
+    inlineStylesheet: boolean;
+    maskInputOptions: MaskInputOptions;
+    maskInputFn: MaskInputFn | undefined;
+    dataURLOptions?: DataURLOptions;
+    inlineImages: boolean;
+    recordCanvas: boolean;
+    keepIframeSrcFn: KeepIframeSrcFn;
+    /**
+     * `newlyAddedElement: true` skips scrollTop and scrollLeft check
+     */
+    newlyAddedElement?: boolean;
+    enableStrictPrivacy: boolean;
+    rootId: number | undefined;
+  },
+): serializedNode | false {
+  const {
+    doc,
+    blockClass,
+    blockSelector,
+    inlineStylesheet,
+    maskInputOptions = {},
+    maskInputFn,
+    dataURLOptions = {},
+    inlineImages,
+    recordCanvas,
+    keepIframeSrcFn,
+    newlyAddedElement = false,
+    enableStrictPrivacy,
+    rootId,
+  } = options;
+  let needBlock = _isBlockedElement(n, blockClass, blockSelector);
+  const tagName = getValidTagName(n);
+  let attributes: attributes = {};
+  const len = n.attributes.length;
+  for (let i = 0; i < len; i++) {
+    const attr = n.attributes[i];
+    attributes[attr.name] = transformAttribute(
+      doc,
+      tagName,
+      attr.name,
+      attr.value,
+    );
+  }
+  // remote css
+  if (tagName === 'link' && inlineStylesheet) {
+    const stylesheet = Array.from(doc.styleSheets).find((s) => {
+      return s.href === (n as HTMLLinkElement).href;
+    });
+    let cssText: string | null = null;
+    if (stylesheet) {
+      cssText = getCssRulesString(stylesheet);
+    }
+    if (cssText) {
+      delete attributes.rel;
+      delete attributes.href;
+      attributes._cssText = absoluteToStylesheet(cssText, stylesheet!.href!);
+    }
+  }
+  // dynamic stylesheet
+  if (
+    tagName === 'style' &&
+    (n as HTMLStyleElement).sheet &&
+    // TODO: Currently we only try to get dynamic stylesheet when it is an empty style element
+    !(n.innerText || n.textContent || '').trim().length
+  ) {
+    const cssText = getCssRulesString(
+      (n as HTMLStyleElement).sheet as CSSStyleSheet,
+    );
+    if (cssText) {
+      attributes._cssText = absoluteToStylesheet(cssText, getHref());
+    }
+  }
+  // form fields
+  if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+    const value = (n as HTMLInputElement | HTMLTextAreaElement).value;
+    if (
+      attributes.type !== 'radio' &&
+      attributes.type !== 'checkbox' &&
+      attributes.type !== 'submit' &&
+      attributes.type !== 'button' &&
+      value
+    ) {
+      attributes.value = maskInputValue({
+        type: attributes.type,
+        tagName,
+        value,
+        maskInputOptions,
+        maskInputFn,
+      });
+    } else if ((n as HTMLInputElement).checked) {
+      attributes.checked = (n as HTMLInputElement).checked;
+    }
+  }
+  if (tagName === 'option') {
+    if ((n as HTMLOptionElement).selected && !maskInputOptions['select']) {
+      attributes.selected = true;
+    } else {
+      // ignore the html attribute (which corresponds to DOM (n as HTMLOptionElement).defaultSelected)
+      // if it's already been changed
+      delete attributes.selected;
+    }
+  }
+  // canvas image data
+  if (tagName === 'canvas' && recordCanvas) {
+    if ((n as ICanvas).__context === '2d') {
+      // only record this on 2d canvas
+      if (!is2DCanvasBlank(n as HTMLCanvasElement)) {
+        attributes.rr_dataURL = (n as HTMLCanvasElement).toDataURL(
+          dataURLOptions.type,
+          dataURLOptions.quality,
+        );
+      }
+    } else if (!('__context' in n)) {
+      // context is unknown, better not call getContext to trigger it
+      const canvasDataURL = (n as HTMLCanvasElement).toDataURL(
+        dataURLOptions.type,
+        dataURLOptions.quality,
+      );
+
+      // create blank canvas of same dimensions
+      const blankCanvas = document.createElement('canvas');
+      blankCanvas.width = (n as HTMLCanvasElement).width;
+      blankCanvas.height = (n as HTMLCanvasElement).height;
+      const blankCanvasDataURL = blankCanvas.toDataURL(
+        dataURLOptions.type,
+        dataURLOptions.quality,
+      );
+
+      // no need to save dataURL if it's the same as blank canvas
+      if (canvasDataURL !== blankCanvasDataURL) {
+        attributes.rr_dataURL = canvasDataURL;
+      }
+    }
+  }
+  // save image offline
+  if (tagName === 'img' && inlineImages) {
+    if (!canvasService) {
+      canvasService = doc.createElement('canvas');
+      canvasCtx = canvasService.getContext('2d');
+    }
+    const image = n as HTMLImageElement;
+    const oldValue = image.crossOrigin;
+    image.crossOrigin = 'anonymous';
+    const recordInlineImage = () => {
+      try {
+        canvasService!.width = image.naturalWidth;
+        canvasService!.height = image.naturalHeight;
+        canvasCtx!.drawImage(image, 0, 0);
+        attributes.rr_dataURL = canvasService!.toDataURL(
+          dataURLOptions.type,
+          dataURLOptions.quality,
+        );
+      } catch (err) {
+        console.warn(
+          `Cannot inline img src=${image.currentSrc}! Error: ${err}`,
+        );
+      }
+      oldValue
+        ? (attributes.crossOrigin = oldValue)
+        : image.removeAttribute('crossorigin');
+    };
+    // The image content may not have finished loading yet.
+    if (image.complete && image.naturalWidth !== 0) recordInlineImage();
+    else image.onload = recordInlineImage;
+  }
+  // media elements
+  if (tagName === 'audio' || tagName === 'video') {
+    attributes.rr_mediaState = (n as HTMLMediaElement).paused
+      ? 'paused'
+      : 'played';
+    attributes.rr_mediaCurrentTime = (n as HTMLMediaElement).currentTime;
+  }
+  // Scroll
+  if (!newlyAddedElement) {
+    // `scrollTop` and `scrollLeft` are expensive calls because they trigger reflow.
+    // Since `scrollTop` & `scrollLeft` are always 0 when an element is added to the DOM.
+    // And scrolls also get picked up by rrweb's ScrollObserver
+    // So we can safely skip the `scrollTop/Left` calls for newly added elements
+    if (n.scrollLeft) {
+      attributes.rr_scrollLeft = n.scrollLeft;
+    }
+    if (n.scrollTop) {
+      attributes.rr_scrollTop = n.scrollTop;
+    }
+  }
+  // block element
+  if (needBlock || (tagName === 'img' && enableStrictPrivacy)) {
+    const { width, height } = n.getBoundingClientRect();
+    attributes = {
+      class: attributes.class,
+      rr_width: `${width}px`,
+      rr_height: `${height}px`,
+    };
+    needBlock = true;
+  }
+  // iframe
+  if (tagName === 'iframe' && !keepIframeSrcFn(attributes.src as string)) {
+    if (!(n as HTMLIFrameElement).contentDocument) {
+      // we can't record it directly as we can't see into it
+      // preserve the src attribute so a decision can be taken at replay time
+      attributes.rr_src = attributes.src;
+    }
+    delete attributes.src; // prevent auto loading
+  }
+
+  return {
+    type: NodeType.Element,
+    tagName,
+    attributes,
+    childNodes: [],
+    isSVG: isSVGElement(n as Element) || undefined,
+    needBlock,
+    rootId,
+  };
 }
 
 function lowerIfExists(maybeAttr: string | number | boolean): string {
@@ -815,10 +943,10 @@ function slimDOMExcluded(
 }
 
 export function serializeNodeWithId(
-  n: Node | INode,
+  n: Node,
   options: {
     doc: Document;
-    map: idNodeMap;
+    mirror: Mirror;
     blockClass: string | RegExp;
     blockSelector: string | null;
     maskTextClass: string | RegExp;
@@ -834,15 +962,24 @@ export function serializeNodeWithId(
     inlineImages?: boolean;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
-    onSerialize?: (n: INode) => unknown;
-    onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
+    onSerialize?: (n: Node) => unknown;
+    onIframeLoad?: (
+      iframeNode: HTMLIFrameElement,
+      node: serializedElementNodeWithId,
+    ) => unknown;
     iframeLoadTimeout?: number;
+    onStylesheetLoad?: (
+      linkNode: HTMLLinkElement,
+      node: serializedElementNodeWithId,
+    ) => unknown;
+    stylesheetLoadTimeout?: number;
+    newlyAddedElement?: boolean;
     enableStrictPrivacy: boolean;
   },
 ): serializedNodeWithId | null {
   const {
     doc,
-    map,
+    mirror,
     blockClass,
     blockSelector,
     maskTextClass,
@@ -859,12 +996,16 @@ export function serializeNodeWithId(
     onSerialize,
     onIframeLoad,
     iframeLoadTimeout = 5000,
+    onStylesheetLoad,
+    stylesheetLoadTimeout = 5000,
     keepIframeSrcFn = () => false,
+    newlyAddedElement = false,
     enableStrictPrivacy,
   } = options;
   let { preserveWhiteSpace = true } = options;
   const _serializedNode = serializeNode(n, {
     doc,
+    mirror,
     blockClass,
     blockSelector,
     maskTextClass,
@@ -877,6 +1018,7 @@ export function serializeNodeWithId(
     inlineImages,
     recordCanvas,
     keepIframeSrcFn,
+    newlyAddedElement,
     enableStrictPrivacy,
   });
   if (!_serializedNode) {
@@ -885,10 +1027,10 @@ export function serializeNodeWithId(
     return null;
   }
 
-  let id;
-  // Try to reuse the previous id
-  if ('__sn' in n) {
-    id = n.__sn.id;
+  let id: number | undefined;
+  if (mirror.hasNode(n)) {
+    // Reuse the previous id
+    id = mirror.getId(n);
   } else if (
     slimDOMExcluded(_serializedNode, slimDOMOptions) ||
     (!preserveWhiteSpace &&
@@ -900,14 +1042,16 @@ export function serializeNodeWithId(
   } else {
     id = genId();
   }
-  const serializedNode = Object.assign(_serializedNode, { id });
-  (n as INode).__sn = serializedNode;
   if (id === IGNORED_NODE) {
     return null; // slimDOM
   }
-  map[id] = n as INode;
+
+  const serializedNode = Object.assign(_serializedNode, { id });
+
+  mirror.add(n, serializedNode);
+
   if (onSerialize) {
-    onSerialize(n as INode);
+    onSerialize(n);
   }
   let recordChild = !skipChild;
   if (serializedNode.type === NodeType.Element) {
@@ -918,7 +1062,7 @@ export function serializeNodeWithId(
     if (serializedNode.needBlock && serializedNode.tagName === 'img') {
       const clone = n.cloneNode();
       ((clone as unknown) as HTMLImageElement).src = '';
-      map[id] = clone as INode;
+      mirror.add(clone, serializedNode);
     }
     /** Highlight Code End */
 
@@ -933,15 +1077,15 @@ export function serializeNodeWithId(
   ) {
     if (
       slimDOMOptions.headWhitespace &&
-      _serializedNode.type === NodeType.Element &&
-      _serializedNode.tagName === 'head'
+      serializedNode.type === NodeType.Element &&
+      serializedNode.tagName === 'head'
       // would impede performance: || getComputedStyle(n)['white-space'] === 'normal'
     ) {
       preserveWhiteSpace = false;
     }
     const bypassOptions = {
       doc,
-      map,
+      mirror,
       blockClass,
       blockSelector,
       maskTextClass,
@@ -959,6 +1103,8 @@ export function serializeNodeWithId(
       onSerialize,
       onIframeLoad,
       iframeLoadTimeout,
+      onStylesheetLoad,
+      stylesheetLoadTimeout,
       keepIframeSrcFn,
       enableStrictPrivacy,
     };
@@ -995,7 +1141,7 @@ export function serializeNodeWithId(
         if (iframeDoc && onIframeLoad) {
           const serializedIframeNode = serializeNodeWithId(iframeDoc, {
             doc: iframeDoc,
-            map,
+            mirror,
             blockClass,
             blockSelector,
             maskTextClass,
@@ -1013,17 +1159,71 @@ export function serializeNodeWithId(
             onSerialize,
             onIframeLoad,
             iframeLoadTimeout,
+            onStylesheetLoad,
+            stylesheetLoadTimeout,
             keepIframeSrcFn,
             enableStrictPrivacy,
           });
 
           if (serializedIframeNode) {
-            onIframeLoad(n as INode, serializedIframeNode);
+            onIframeLoad(
+              n as HTMLIFrameElement,
+              serializedIframeNode as serializedElementNodeWithId,
+            );
           }
         }
       },
       iframeLoadTimeout,
     );
+  }
+
+  // <link rel=stylesheet href=...>
+  if (
+    serializedNode.type === NodeType.Element &&
+    serializedNode.tagName === 'link' &&
+    serializedNode.attributes.rel === 'stylesheet'
+  ) {
+    onceStylesheetLoaded(
+      n as HTMLLinkElement,
+      () => {
+        if (onStylesheetLoad) {
+          const serializedLinkNode = serializeNodeWithId(n, {
+            doc,
+            mirror,
+            blockClass,
+            blockSelector,
+            maskTextClass,
+            maskTextSelector,
+            skipChild: false,
+            inlineStylesheet,
+            maskInputOptions,
+            maskTextFn,
+            maskInputFn,
+            slimDOMOptions,
+            dataURLOptions,
+            inlineImages,
+            recordCanvas,
+            preserveWhiteSpace,
+            onSerialize,
+            onIframeLoad,
+            iframeLoadTimeout,
+            onStylesheetLoad,
+            stylesheetLoadTimeout,
+            keepIframeSrcFn,
+            enableStrictPrivacy,
+          });
+
+          if (serializedLinkNode) {
+            onStylesheetLoad(
+              n as HTMLLinkElement,
+              serializedLinkNode as serializedElementNodeWithId,
+            );
+          }
+        }
+      },
+      stylesheetLoadTimeout,
+    );
+    if (isStylesheetLoaded(n as HTMLLinkElement) === false) return null; // add stylesheet in later mutation
   }
 
   return serializedNode;
@@ -1032,6 +1232,7 @@ export function serializeNodeWithId(
 function snapshot(
   n: Document,
   options?: {
+    mirror?: Mirror;
     blockClass?: string | RegExp;
     blockSelector?: string | null;
     maskTextClass?: string | RegExp;
@@ -1045,14 +1246,23 @@ function snapshot(
     inlineImages?: boolean;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
-    onSerialize?: (n: INode) => unknown;
-    onIframeLoad?: (iframeINode: INode, node: serializedNodeWithId) => unknown;
+    onSerialize?: (n: Node) => unknown;
+    onIframeLoad?: (
+      iframeNode: HTMLIFrameElement,
+      node: serializedElementNodeWithId,
+    ) => unknown;
     iframeLoadTimeout?: number;
+    onStylesheetLoad?: (
+      linkNode: HTMLLinkElement,
+      node: serializedElementNodeWithId,
+    ) => unknown;
+    stylesheetLoadTimeout?: number;
     keepIframeSrcFn?: KeepIframeSrcFn;
     enableStrictPrivacy: boolean;
   },
-): [serializedNodeWithId | null, idNodeMap] {
+): serializedNodeWithId | null {
   const {
+    mirror = new Mirror(),
     blockClass = 'highlight-block',
     blockSelector = null,
     maskTextClass = 'highlight-mask',
@@ -1069,10 +1279,11 @@ function snapshot(
     onSerialize,
     onIframeLoad,
     iframeLoadTimeout,
+    onStylesheetLoad,
+    stylesheetLoadTimeout,
     keepIframeSrcFn = () => false,
     enableStrictPrivacy = false,
   } = options || {};
-  const idNodeMap: idNodeMap = {};
   const maskInputOptions: MaskInputOptions =
     maskAllInputs === true
       ? {
@@ -1116,32 +1327,32 @@ function snapshot(
       : slimDOM === false
       ? {}
       : slimDOM;
-  return [
-    serializeNodeWithId(n, {
-      doc: n,
-      map: idNodeMap,
-      blockClass,
-      blockSelector,
-      maskTextClass,
-      maskTextSelector,
-      skipChild: false,
-      inlineStylesheet,
-      maskInputOptions,
-      maskTextFn,
-      maskInputFn,
-      slimDOMOptions,
-      dataURLOptions,
-      inlineImages,
-      recordCanvas,
-      preserveWhiteSpace,
-      onSerialize,
-      onIframeLoad,
-      iframeLoadTimeout,
-      keepIframeSrcFn,
-      enableStrictPrivacy,
-    }),
-    idNodeMap,
-  ];
+  return serializeNodeWithId(n, {
+    doc: n,
+    mirror,
+    blockClass,
+    blockSelector,
+    maskTextClass,
+    maskTextSelector,
+    skipChild: false,
+    inlineStylesheet,
+    maskInputOptions,
+    maskTextFn,
+    maskInputFn,
+    slimDOMOptions,
+    dataURLOptions,
+    inlineImages,
+    recordCanvas,
+    preserveWhiteSpace,
+    onSerialize,
+    onIframeLoad,
+    iframeLoadTimeout,
+    onStylesheetLoad,
+    stylesheetLoadTimeout,
+    keepIframeSrcFn,
+    newlyAddedElement: false,
+    enableStrictPrivacy,
+  });
 }
 
 export function visitSnapshot(

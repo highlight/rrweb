@@ -150,7 +150,7 @@ setInterval(save, 10 * 1000);
 | hooks                | {}                 | 各类事件的回调<br />类型详见[列表](https://github.com/rrweb-io/rrweb/blob/9488deb6d54a5f04350c063d942da5e96ab74075/src/types.ts#L207)                                                 |
 | packFn               | -                  | 数据压缩函数，详见[优化存储策略](./docs/recipes/optimize-storage.zh_CN.md)                                                                                                            |
 | sampling             | -                  | 数据抽样策略，详见[优化存储策略](./docs/recipes/optimize-storage.zh_CN.md)                                                                                                            |
-| recordCanvas         | false              | 是否记录 canvas 内容                                                                                                                                                                  |
+| recordCanvas         | false              | 是否记录 canvas 内容, 可用选项：false, true                                                                                                                                           |
 | inlineImages         | false              | 是否将图片内容记内联录制                                                                                                                                                              |
 | collectFonts         | false              | 是否记录页面中的字体文件                                                                                                                                                              |
 | userTriggeredOnInput | false              | [什么是 `userTriggered`](https://github.com/rrweb-io/rrweb/pull/495)                                                                                                                  |
@@ -295,10 +295,11 @@ replayer.pause(5000);
 | insertStyleRules    | []            | 可以传入多个 CSS rule string，用于自定义回放时 iframe 内的样式                                                                                                                                       |
 | triggerFocus        | true          | 回放时是否回放 focus 交互                                                                                                                                                                            |
 | UNSAFE_replayCanvas | false         | 回放时是否回放 canvas 内容，**开启后将会关闭沙盒策略，导致一定风险**                                                                                                                                 |
+| pauseAnimation      | true          | 当播放器停止播放时，是否将 CSS 动画也停止播放                                                                                                                                                        |
 | mouseTail           | true          | 是否在回放时增加鼠标轨迹。传入 false 可关闭，传入对象可以定制轨迹持续时间、样式等，配置详见[类型](https://github.com/rrweb-io/rrweb/blob/9488deb6d54a5f04350c063d942da5e96ab74075/src/types.ts#L407) |
 | unpackFn            | -             | 数据解压缩函数，详见[优化存储策略](./docs/recipes/optimize-storage.zh_CN.md)                                                                                                                         |
-| logConfig           | -             | console logger 数据播放设置，详见[console 录制和播放](./docs/recipes/console.zh_CN.md)                                                                                                               |
 | plugins             | []            | 加载插件以获得额外的回放功能. [什么是插件？](./docs/recipes/plugin.zh_CN.md)                                                                                                                         |
+| useVirtualDom       | true          | 在播放器跳转到一个新的时间点的过程中，是否使用 Virtual Dom 优化                                                                                                                                      |
 
 #### 使用 rrweb-player
 
@@ -323,7 +324,7 @@ npm install --save rrweb-player
 ```
 
 ```js
-import rrwebPlayer from 'rrweb-player';
+import rrwebPlayer from '@highlight-run/rrweb-player';
 import 'rrweb-player/dist/style.css';
 ```
 

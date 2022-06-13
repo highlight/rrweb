@@ -1,12 +1,12 @@
-import {
+import type {
   mutationCallBack,
-  Mirror,
   scrollCallback,
   MutationBufferParam,
   SamplingStrategy,
 } from '../types';
 import { initMutationObserver, initScrollObserver } from './observer';
 import { patch } from '../utils';
+import type { Mirror } from '@highlight-run/rrweb-snapshot';
 
 type BypassOptions = Omit<
   MutationBufferParam,

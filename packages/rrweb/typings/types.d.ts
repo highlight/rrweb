@@ -1,9 +1,11 @@
-import { serializedNodeWithId, idNodeMap, INode, MaskInputOptions, SlimDOMOptions, MaskInputFn, MaskTextFn } from '@highlight-run/rrweb-snapshot';
-import { PackFn, UnpackFn } from './packer/base';
-import { IframeManager } from './record/iframe-manager';
-import { ShadowDomManager } from './record/shadow-dom-manager';
+import type { serializedNodeWithId, Mirror, INode, MaskInputOptions, SlimDOMOptions, MaskInputFn, MaskTextFn } from '@highlight-run/rrweb-snapshot';
+import type { PackFn, UnpackFn } from './packer/base';
+import type { IframeManager } from './record/iframe-manager';
+import type { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
-import { CanvasManager } from './record/observers/canvas/canvas-manager';
+import type { RRNode } from '@highlight-run/rrdom/es/virtual-dom';
+import type { CanvasManager } from './record/observers/canvas/canvas-manager';
+import type { StylesheetManager } from './record/stylesheet-manager';
 export declare enum EventType {
     DomContentLoaded = 0,
     Load = 1,
@@ -121,6 +123,10 @@ export declare type eventWithTime = event & {
     timestamp: number;
     delay?: number;
 };
+export declare type canvasEventWithTime = eventWithTime & {
+    type: EventType.IncrementalSnapshot;
+    data: canvasMutationData;
+};
 export declare type blockClass = string | RegExp;
 export declare type maskTextClass = string | RegExp;
 export declare type SamplingStrategy = Partial<{
@@ -130,6 +136,7 @@ export declare type SamplingStrategy = Partial<{
     scroll: number;
     media: number;
     input: 'all' | 'last';
+    canvas: 'all' | number;
 }>;
 export declare type RecordPlugin<TOptions = unknown> = {
     name: string;
@@ -194,6 +201,7 @@ export declare type observerParam = {
     doc: Document;
     mirror: Mirror;
     iframeManager: IframeManager;
+    stylesheetManager: StylesheetManager;
     shadowDomManager: ShadowDomManager;
     canvasManager: CanvasManager;
     enableStrictPrivacy: boolean;
@@ -203,7 +211,7 @@ export declare type observerParam = {
         options: unknown;
     }>;
 };
-export declare type MutationBufferParam = Pick<observerParam, 'mutationCb' | 'blockClass' | 'blockSelector' | 'maskTextClass' | 'maskTextSelector' | 'inlineStylesheet' | 'maskInputOptions' | 'maskTextFn' | 'maskInputFn' | 'recordCanvas' | 'inlineImages' | 'slimDOMOptions' | 'doc' | 'mirror' | 'iframeManager' | 'shadowDomManager' | 'canvasManager' | 'enableStrictPrivacy'>;
+export declare type MutationBufferParam = Pick<observerParam, 'mutationCb' | 'blockClass' | 'blockSelector' | 'maskTextClass' | 'maskTextSelector' | 'inlineStylesheet' | 'maskInputOptions' | 'maskTextFn' | 'maskInputFn' | 'recordCanvas' | 'inlineImages' | 'slimDOMOptions' | 'doc' | 'mirror' | 'iframeManager' | 'stylesheetManager' | 'shadowDomManager' | 'canvasManager' | 'enableStrictPrivacy'>;
 export declare type hooksParam = {
     mutation?: mutationCallBack;
     mousemove?: mousemoveCallBack;
@@ -299,19 +307,24 @@ export declare enum CanvasContext {
     WebGL = 1,
     WebGL2 = 2
 }
-export declare type SerializedWebGlArg = {
+export declare type SerializedCanvasArg = {
     rr_type: 'ArrayBuffer';
     base64: string;
+} | {
+    rr_type: 'Blob';
+    data: Array<CanvasArg>;
+    type?: string;
 } | {
     rr_type: string;
     src: string;
 } | {
     rr_type: string;
-    args: SerializedWebGlArg[];
+    args: Array<CanvasArg>;
 } | {
     rr_type: string;
     index: number;
-} | string | number | boolean | null | SerializedWebGlArg[];
+};
+export declare type CanvasArg = SerializedCanvasArg | string | number | boolean | null | CanvasArg[];
 declare type mouseInteractionParam = {
     type: MouseInteractions;
     id: number;
@@ -369,6 +382,21 @@ export declare type canvasMutationWithType = {
 } & canvasMutationCommand;
 export declare type canvasMutationCallback = (p: canvasMutationParam) => void;
 export declare type canvasManagerMutationCallback = (target: HTMLCanvasElement, p: canvasMutationWithType) => void;
+export declare type ImageBitmapDataURLWorkerParams = {
+    id: number;
+    bitmap: ImageBitmap;
+    width: number;
+    height: number;
+};
+export declare type ImageBitmapDataURLWorkerResponse = {
+    id: number;
+} | {
+    id: number;
+    type: string;
+    base64: string;
+    width: number;
+    height: number;
+};
 export declare type fontParam = {
     family: string;
     fontSource: string;
@@ -409,11 +437,13 @@ export declare type DocumentDimension = {
     relativeScale: number;
     absoluteScale: number;
 };
-export declare type Mirror = {
-    map: idNodeMap;
-    getId: (n: INode) => number;
+export declare type DeprecatedMirror = {
+    map: {
+        [key: number]: INode;
+    };
+    getId: (n: Node) => number;
     getNode: (id: number) => INode | null;
-    removeNodeFromMap: (n: INode) => void;
+    removeNodeFromMap: (n: Node) => void;
     has: (id: number) => boolean;
     reset: () => void;
 };
@@ -449,6 +479,7 @@ export declare type playerConfig = {
         strokeStyle?: string;
     };
     unpackFn?: UnpackFn;
+    useVirtualDom: boolean;
     plugins?: ReplayPlugin[];
     inactiveThreshold: number;
     inactiveSkipTime: number;
@@ -459,7 +490,7 @@ export declare type playerMetaData = {
     totalTime: number;
 };
 export declare type missingNode = {
-    node: Node;
+    node: Node | RRNode;
     mutation: addedNodeMutation;
 };
 export declare type missingNodeMap = {
@@ -494,9 +525,6 @@ export declare enum ReplayerEvents {
     StateChange = "state-change",
     PlayBack = "play-back"
 }
-export declare type ElementState = {
-    scroll?: [number, number];
-};
 export declare type KeepIframeSrcFn = (src: string) => boolean;
 declare global {
     interface Window {

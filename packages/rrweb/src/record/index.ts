@@ -1,13 +1,18 @@
-import { snapshot, MaskInputOptions, SlimDOMOptions } from '@highlight-run/rrweb-snapshot';
+import {
+  snapshot,
+  MaskInputOptions,
+  SlimDOMOptions,
+  createMirror,
+} from '@highlight-run/rrweb-snapshot';
 import { initObservers, mutationBuffers } from './observer';
 import {
   on,
   getWindowWidth,
   getWindowHeight,
   polyfill,
-  isIframeINode,
   hasShadowRoot,
-  createMirror,
+  isSerializedIframe,
+  isSerializedStylesheet,
 } from '../utils';
 import {
   EventType,
@@ -23,6 +28,7 @@ import {
 import { IframeManager } from './iframe-manager';
 import { ShadowDomManager } from './shadow-dom-manager';
 import { CanvasManager } from './observers/canvas/canvas-manager';
+import { StylesheetManager } from './stylesheet-manager';
 
 function wrapEvent(e: event): eventWithTime {
   return {
@@ -74,6 +80,9 @@ function record<T = eventWithTime>(
   if (mousemoveWait !== undefined && sampling.mousemove === undefined) {
     sampling.mousemove = mousemoveWait;
   }
+
+  // reset mirror in case `record` this was called earlier
+  mirror.reset();
 
   const maskInputOptions: MaskInputOptions =
     maskAllInputs === true
@@ -209,12 +218,17 @@ function record<T = eventWithTime>(
     mutationCb: wrappedMutationEmit,
   });
 
+  const stylesheetManager = new StylesheetManager({
+    mutationCb: wrappedMutationEmit,
+  });
+
   const canvasManager = new CanvasManager({
     recordCanvas,
     mutationCb: wrappedCanvasMutationEmit,
     win: window,
     blockClass,
     mirror,
+    sampling: sampling.canvas,
   });
 
   const shadowDomManager = new ShadowDomManager({
@@ -234,6 +248,7 @@ function record<T = eventWithTime>(
       sampling,
       slimDOMOptions,
       iframeManager,
+      stylesheetManager,
       canvasManager,
       enableStrictPrivacy
     },
@@ -254,7 +269,8 @@ function record<T = eventWithTime>(
     );
 
     mutationBuffers.forEach((buf) => buf.lock()); // don't allow any mirror modifications during snapshotting
-    const [node, idNodeMap] = snapshot(document, {
+    const node = snapshot(document, {
+      mirror,
       blockClass,
       blockSelector,
       maskTextClass,
@@ -267,18 +283,22 @@ function record<T = eventWithTime>(
       inlineImages,
       enableStrictPrivacy,
       onSerialize: (n) => {
-        if (isIframeINode(n)) {
-          iframeManager.addIframe(n);
+        if (isSerializedIframe(n, mirror)) {
+          iframeManager.addIframe(n as HTMLIFrameElement);
+        }
+        if (isSerializedStylesheet(n, mirror)) {
+          stylesheetManager.addStylesheet(n as HTMLLinkElement);
         }
         if (hasShadowRoot(n)) {
           shadowDomManager.addShadowRoot(n.shadowRoot, document);
         }
       },
       onIframeLoad: (iframe, childSn) => {
-        iframeManager.attachIframe(iframe, childSn);
-        shadowDomManager.observeAttachShadow(
-          (iframe as Node) as HTMLIFrameElement,
-        );
+        iframeManager.attachIframe(iframe, childSn, mirror);
+        shadowDomManager.observeAttachShadow(iframe);
+      },
+      onStylesheetLoad: (linkEl, childSn) => {
+        stylesheetManager.attachStylesheet(linkEl, childSn, mirror);
       },
       keepIframeSrcFn,
     });
@@ -287,7 +307,6 @@ function record<T = eventWithTime>(
       return console.warn('Failed to snapshot the document');
     }
 
-    mirror.map = idNodeMap;
     wrappedEmit(
       wrapEvent({
         type: EventType.FullSnapshot,
@@ -432,6 +451,7 @@ function record<T = eventWithTime>(
           slimDOMOptions,
           mirror,
           iframeManager,
+          stylesheetManager,
           shadowDomManager,
           canvasManager,
           enableStrictPrivacy,

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Replayer, unpack } from 'rrweb';
-  import type { eventWithTime } from 'rrweb/typings/types';
+  import { Replayer, unpack } from '@highlight-run/rrweb';
+  import type { eventWithTime } from '@highlight-run/rrweb/typings/types';
   import {
     inlineCss,
     openFullscreen,
@@ -12,14 +12,14 @@
   } from './utils';
   import Controller from './Controller.svelte';
 
-  export let width: number = 1024;
-  export let height: number = 576;
+  export let width = 1024;
+  export let height = 576;
   export let events: eventWithTime[] = [];
-  export let skipInactive: boolean = true;
-  export let autoPlay: boolean = true;
+  export let skipInactive = true;
+  export let autoPlay = true;
   export let speedOption: number[] = [1, 2, 4, 8];
-  export let speed: number = 1;
-  export let showController: boolean = true;
+  export let speed = 1;
+  export let showController = true;
   export let tags: Record<string, string> = {};
 
   let replayer: Replayer;

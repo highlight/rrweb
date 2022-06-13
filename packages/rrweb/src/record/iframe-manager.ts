@@ -1,5 +1,5 @@
-import { serializedNodeWithId, INode } from '@highlight-run/rrweb-snapshot';
-import { mutationCallBack } from '../types';
+import type { Mirror, serializedNodeWithId } from '@highlight-run/rrweb-snapshot';
+import type { mutationCallBack } from '../types';
 
 export class IframeManager {
   private iframes: WeakMap<HTMLIFrameElement, true> = new WeakMap();
@@ -18,11 +18,15 @@ export class IframeManager {
     this.loadListener = cb;
   }
 
-  public attachIframe(iframeEl: INode, childSn: serializedNodeWithId) {
+  public attachIframe(
+    iframeEl: HTMLIFrameElement,
+    childSn: serializedNodeWithId,
+    mirror: Mirror,
+  ) {
     this.mutationCb({
       adds: [
         {
-          parentId: iframeEl.__sn.id,
+          parentId: mirror.getId(iframeEl),
           nextId: null,
           node: childSn,
         },
@@ -32,6 +36,6 @@ export class IframeManager {
       attributes: [],
       isAttachIframe: true,
     });
-    this.loadListener?.((iframeEl as unknown) as HTMLIFrameElement);
+    this.loadListener?.(iframeEl);
   }
 }

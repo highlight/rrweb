@@ -1,4 +1,4 @@
-/* tslint:disable: no-console */
+/* eslint:disable: no-console */
 
 const fs = require('fs');
 const path = require('path');
@@ -13,11 +13,11 @@ function getCode() {
   return fs.readFileSync(bundlePath, 'utf8');
 }
 
-(async () => {
+void (async () => {
   const code = getCode();
   let events = [];
 
-  start();
+  await start();
 
   const fakeGoto = async (page, url) => {
     const intercept = async (request) => {
@@ -119,7 +119,7 @@ function getCode() {
     await page.evaluate(`;${code}
       window.__IS_RECORDING__ = true
       rrweb.record({
-        emit: event => window._replLog(event),
+        emit: event => console.log(event),
         recordCanvas: true,
         collectFonts: true
       });
@@ -169,7 +169,9 @@ function getCode() {
     });
     await page.evaluate(`${code}
       const events = ${JSON.stringify(events)};
-      const replayer = new rrweb.Replayer(events);
+      const replayer = new rrweb.Replayer(events, {
+        UNSAFE_replayCanvas: true
+      });
       replayer.play();
     `);
   }
