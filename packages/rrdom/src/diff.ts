@@ -283,22 +283,22 @@ function diffChildren(
     ) {
       try {
         parentNode.insertBefore(oldStartNode, oldEndNode.nextSibling);
+      } catch (e) {
+        console.error(e, parentNode, oldStartNode, oldEndNode);
         diff(oldStartNode, newEndNode, replayer, rrnodeMirror);
         oldStartNode = oldChildren[++oldStartIndex];
         newEndNode = newChildren[--newEndIndex];
-      } catch (e) {
-        console.error(e, parentNode, oldStartNode, oldEndNode);
       }
     } else if (
       replayer.mirror.getId(oldEndNode) === rrnodeMirror.getId(newStartNode)
     ) {
       try {
         parentNode.insertBefore(oldEndNode, oldStartNode);
+      } catch (e) {
+        console.error(e, parentNode, oldEndNode, oldStartNode);
         diff(oldEndNode, newStartNode, replayer, rrnodeMirror);
         oldEndNode = oldChildren[--oldEndIndex];
         newStartNode = newChildren[++newStartIndex];
-      } catch (e) {
-        console.error(e, parentNode, oldEndNode, oldStartNode);
       }
     } else {
       if (!oldIdToIndex) {
@@ -314,10 +314,10 @@ function diffChildren(
         const nodeToMove = oldChildren[indexInOld]!;
         try {
           parentNode.insertBefore(nodeToMove, oldStartNode);
-          diff(nodeToMove, newStartNode, replayer, rrnodeMirror);
-          oldChildren[indexInOld] = undefined;
         } catch (e) {
           console.error(e, parentNode, nodeToMove, oldStartNode);
+          diff(nodeToMove, newStartNode, replayer, rrnodeMirror);
+          oldChildren[indexInOld] = undefined;
         }
       } else {
         const newNode = createOrGetNode(
@@ -341,9 +341,9 @@ function diffChildren(
         }
         try {
           parentNode.insertBefore(newNode, oldStartNode || null);
-          diff(newNode, newStartNode, replayer, rrnodeMirror);
         } catch (e) {
           console.error(e, parentNode, newNode, oldStartNode || null);
+          diff(newNode, newStartNode, replayer, rrnodeMirror);
         }
       }
       newStartNode = newChildren[++newStartIndex];
@@ -367,9 +367,9 @@ function diffChildren(
       );
       try {
         parentNode.insertBefore(newNode, referenceNode);
-        diff(newNode, newChildren[newStartIndex], replayer, rrnodeMirror);
       } catch (e) {
         console.error(e, parentNode, newNode, referenceNode);
+        diff(newNode, newChildren[newStartIndex], replayer, rrnodeMirror);
       }
     }
   } else if (newStartIndex > newEndIndex) {
