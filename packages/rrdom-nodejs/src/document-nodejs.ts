@@ -13,7 +13,7 @@ import {
   ClassList,
   IRRDocument,
   CSSStyleDeclaration,
-} from 'rrdom';
+} from '@highlight-run/rrdom';
 const nwsapi = require('nwsapi');
 const cssom = require('cssom');
 const cssstyle = require('cssstyle');

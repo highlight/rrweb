@@ -222,10 +222,6 @@ function record<T = eventWithTime>(
     mutationCb: wrappedMutationEmit,
   });
 
-  const stylesheetManager = new StylesheetManager({
-    mutationCb: wrappedMutationEmit,
-  });
-
   const canvasManager = new CanvasManager({
     recordCanvas,
     mutationCb: wrappedCanvasMutationEmit,

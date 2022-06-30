@@ -1,18 +1,16 @@
 import {
+  IMirror,
+  Mirror as NodeMirror,
   NodeType as RRNodeType,
   createMirror as createNodeMirror,
-} from 'rrweb-snapshot';
-import type {
-  Mirror as NodeMirror,
-  IMirror,
   serializedNodeWithId,
-} from 'rrweb-snapshot';
+} from '@highlight-run/rrweb-snapshot';
 import type {
   canvasMutationData,
   canvasEventWithTime,
   inputData,
   scrollData,
-} from 'rrweb/src/types';
+} from '@highlight-run/rrweb/src/types';
 import type { VirtualStyleRules } from './diff';
 import {
   BaseRRNode as RRNode,
