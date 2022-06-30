@@ -30,12 +30,11 @@
     "url": "https://github.com/rrweb-io/rrweb/issues"
   },
   "devDependencies": {
-    "@highlight-run/rrweb-snapshot": ">1.1.15",
     "@rollup/plugin-commonjs": "^20.0.0",
     "@types/jest": "^27.4.1",
+    "@types/puppeteer": "^5.4.4",
     "@typescript-eslint/eslint-plugin": "^5.23.0",
     "@typescript-eslint/parser": "^5.23.0",
-    "@types/puppeteer": "^5.4.4",
     "eslint": "^8.15.0",
     "jest": "^27.5.1",
     "puppeteer": "^9.1.1",
@@ -47,7 +46,7 @@
     "typescript": "^4.7.3"
   },
   "dependencies": {
-    "rrweb-snapshot": "^1.1.14"
+    "@highlight-run/rrweb-snapshot": ">=1.1.22"
   },
-  "gitHead": "c43f25b8babc23a90f15f8224248c2fe9c757537"
+  "gitHead": "1cae2eddaa23681de007ada0e52b7fc514019249"
 }
