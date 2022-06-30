@@ -3,7 +3,7 @@ import type { PackFn, UnpackFn } from './packer/base';
 import type { IframeManager } from './record/iframe-manager';
 import type { ShadowDomManager } from './record/shadow-dom-manager';
 import type { Replayer } from './replay';
-import type { RRNode } from '@highlight-run/rrdom/es/virtual-dom';
+import type { RRNode } from '@highlight-run/rrdom';
 import type { CanvasManager } from './record/observers/canvas/canvas-manager';
 import type { StylesheetManager } from './record/stylesheet-manager';
 export declare enum EventType {
@@ -187,6 +187,7 @@ export declare type observerParam = {
     maskInputOptions: MaskInputOptions;
     maskInputFn?: MaskInputFn;
     maskTextFn?: MaskTextFn;
+    keepIframeSrcFn: KeepIframeSrcFn;
     inlineStylesheet: boolean;
     styleSheetRuleCb: styleSheetRuleCallback;
     styleDeclarationCb: styleDeclarationCallback;
@@ -211,7 +212,7 @@ export declare type observerParam = {
         options: unknown;
     }>;
 };
-export declare type MutationBufferParam = Pick<observerParam, 'mutationCb' | 'blockClass' | 'blockSelector' | 'maskTextClass' | 'maskTextSelector' | 'inlineStylesheet' | 'maskInputOptions' | 'maskTextFn' | 'maskInputFn' | 'recordCanvas' | 'inlineImages' | 'slimDOMOptions' | 'doc' | 'mirror' | 'iframeManager' | 'stylesheetManager' | 'shadowDomManager' | 'canvasManager' | 'enableStrictPrivacy'>;
+export declare type MutationBufferParam = Pick<observerParam, 'mutationCb' | 'blockClass' | 'blockSelector' | 'maskTextClass' | 'maskTextSelector' | 'inlineStylesheet' | 'maskInputOptions' | 'maskTextFn' | 'maskInputFn' | 'keepIframeSrcFn' | 'recordCanvas' | 'inlineImages' | 'slimDOMOptions' | 'doc' | 'mirror' | 'iframeManager' | 'stylesheetManager' | 'shadowDomManager' | 'canvasManager' | 'enableStrictPrivacy'>;
 export declare type hooksParam = {
     mutation?: mutationCallBack;
     mousemove?: mousemoveCallBack;

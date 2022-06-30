@@ -373,7 +373,8 @@ function onceIframeLoaded(
     // iframe was already loaded, make sure we wait to trigger the listener
     // till _after_ the mutation that found this iframe has had time to process
     setTimeout(listener, 0);
-    return;
+
+    return iframeEl.addEventListener('load', listener); // keep listing for future loads
   }
   // use default listener
   iframeEl.addEventListener('load', listener);
@@ -387,7 +388,7 @@ function isStylesheetLoaded(link: HTMLLinkElement) {
 function onceStylesheetLoaded(
   link: HTMLLinkElement,
   listener: () => unknown,
-  iframeLoadTimeout: number,
+  styleSheetLoadTimeout: number,
 ) {
   let fired = false;
   let styleSheetLoaded: StyleSheet | null;
@@ -404,7 +405,7 @@ function onceStylesheetLoaded(
       listener();
       fired = true;
     }
-  }, iframeLoadTimeout);
+  }, styleSheetLoadTimeout);
 
   link.addEventListener('load', () => {
     clearTimeout(timer);
