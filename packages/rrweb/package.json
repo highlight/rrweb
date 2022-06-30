@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb",
-  "version": "2.0.10",
+  "version": "2.0.13",
   "description": "record and replay the web",
   "scripts": {
     "prepare": "npm run prepack",
@@ -74,13 +74,13 @@
     "typescript": "^4.6.2"
   },
   "dependencies": {
+    "@highlight-run/rrdom": ">=0.1.10",
     "@highlight-run/rrweb-snapshot": ">1.1.15",
     "@types/css-font-loading-module": "0.0.7",
     "@xstate/fsm": "^1.4.0",
     "base64-arraybuffer": "^1.0.1",
     "fflate": "^0.4.4",
-    "@highlight-run/rrdom": ">0.1.2",
     "mitt": "^1.1.3"
   },
-  "gitHead": "5db953fd4478f89aabf8af047f8b03046a05e6e9"
+  "gitHead": "787f6c182cf4264d332640d34bf91d5b0cf326db"
 }
