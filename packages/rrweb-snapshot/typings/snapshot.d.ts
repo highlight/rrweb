@@ -16,6 +16,7 @@ export declare function serializeNodeWithId(n: Node, options: {
     maskTextSelector: string | null;
     skipChild: boolean;
     inlineStylesheet: boolean;
+    newlyAddedElement?: boolean;
     maskInputOptions?: MaskInputOptions;
     maskTextFn: MaskTextFn | undefined;
     maskInputFn: MaskInputFn | undefined;
@@ -28,10 +29,9 @@ export declare function serializeNodeWithId(n: Node, options: {
     onSerialize?: (n: Node) => unknown;
     onIframeLoad?: (iframeNode: HTMLIFrameElement, node: serializedElementNodeWithId) => unknown;
     iframeLoadTimeout?: number;
+    enableStrictPrivacy: boolean;
     onStylesheetLoad?: (linkNode: HTMLLinkElement, node: serializedElementNodeWithId) => unknown;
     stylesheetLoadTimeout?: number;
-    newlyAddedElement?: boolean;
-    enableStrictPrivacy: boolean;
 }): serializedNodeWithId | null;
 declare function snapshot(n: Document, options?: {
     mirror?: Mirror;

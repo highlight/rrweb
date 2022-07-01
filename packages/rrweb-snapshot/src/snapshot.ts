@@ -954,6 +954,7 @@ export function serializeNodeWithId(
     maskTextSelector: string | null;
     skipChild: boolean;
     inlineStylesheet: boolean;
+    newlyAddedElement?: boolean;
     maskInputOptions?: MaskInputOptions;
     maskTextFn: MaskTextFn | undefined;
     maskInputFn: MaskInputFn | undefined;
@@ -969,13 +970,12 @@ export function serializeNodeWithId(
       node: serializedElementNodeWithId,
     ) => unknown;
     iframeLoadTimeout?: number;
+    enableStrictPrivacy: boolean;
     onStylesheetLoad?: (
       linkNode: HTMLLinkElement,
       node: serializedElementNodeWithId,
     ) => unknown;
     stylesheetLoadTimeout?: number;
-    newlyAddedElement?: boolean;
-    enableStrictPrivacy: boolean;
   },
 ): serializedNodeWithId | null {
   const {
@@ -1212,6 +1212,54 @@ export function serializeNodeWithId(
             stylesheetLoadTimeout,
             keepIframeSrcFn,
             enableStrictPrivacy,
+          });
+
+          if (serializedLinkNode) {
+            onStylesheetLoad(
+              n as HTMLLinkElement,
+              serializedLinkNode as serializedElementNodeWithId,
+            );
+          }
+        }
+      },
+      stylesheetLoadTimeout,
+    );
+    if (isStylesheetLoaded(n as HTMLLinkElement) === false) return null; // add stylesheet in later mutation
+  }
+
+  // <link rel=stylesheet href=...>
+  if (
+    serializedNode.type === NodeType.Element &&
+    serializedNode.tagName === 'link' &&
+    serializedNode.attributes.rel === 'stylesheet'
+  ) {
+    onceStylesheetLoaded(
+      n as HTMLLinkElement,
+      () => {
+        if (onStylesheetLoad) {
+          const serializedLinkNode = serializeNodeWithId(n, {
+            doc,
+            mirror,
+            blockClass,
+            blockSelector,
+            maskTextClass,
+            maskTextSelector,
+            skipChild: false,
+            inlineStylesheet,
+            maskInputOptions,
+            maskTextFn,
+            maskInputFn,
+            slimDOMOptions,
+            dataURLOptions,
+            inlineImages,
+            recordCanvas,
+            preserveWhiteSpace,
+            onSerialize,
+            onIframeLoad,
+            iframeLoadTimeout,
+            onStylesheetLoad,
+            stylesheetLoadTimeout,
+            keepIframeSrcFn,
           });
 
           if (serializedLinkNode) {
