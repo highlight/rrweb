@@ -40,6 +40,6 @@
     "clean": "rm -rf dist node_modules packages/**/.turbo packages/**/build packages/**/es packages/**/dist packages/**/lib packages/**/node_modules"
   },
   "resolutions": {
-    "**/jsdom/cssom": "^0.5.0"
+    "**/jsdom/cssom": "https://registry.npmjs.org/rrweb-cssom/-/rrweb-cssom-0.6.0.tgz"
   }
 }
