@@ -80,7 +80,7 @@
     "@xstate/fsm": "^1.4.0",
     "base64-arraybuffer": "^1.0.1",
     "fflate": "^0.4.4",
-    "mitt": "^1.1.3"
+    "mitt": "^3.0.0"
   },
   "gitHead": "315c4f04654f4d748b158fc399779e6bedcbb535"
 }
