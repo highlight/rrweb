@@ -6,6 +6,7 @@ import {
   needMaskingText,
   maskInputValue, obfuscateText,
   Mirror,
+  isNativeShadowDom,
 } from '@highlight-run/rrweb-snapshot';
 import type {
   mutationRecord,
@@ -614,7 +615,10 @@ export default class MutationBuffer {
             this.removes.push({
               parentId,
               id: nodeId,
-              isShadow: isShadowRoot(m.target) ? true : undefined,
+              isShadow:
+                isShadowRoot(m.target) && isNativeShadowDom(m.target)
+                  ? true
+                  : undefined,
             });
           }
           this.mapRemoves.push(n);
