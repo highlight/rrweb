@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb-snapshot",
-  "version": "1.1.22",
+  "version": "1.1.23",
   "description": "rrweb's component to take a snapshot of DOM, aka DOM serializer",
   "scripts": {
     "prepare": "npm run prepack",
