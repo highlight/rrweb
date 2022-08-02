@@ -29,6 +29,7 @@ import { IframeManager } from './iframe-manager';
 import { ShadowDomManager } from './shadow-dom-manager';
 import { CanvasManager } from './observers/canvas/canvas-manager';
 import { StylesheetManager } from './stylesheet-manager';
+import { obfuscateText } from '@highlight-run/rrweb-snapshot';
 
 function wrapEvent(e: event): eventWithTime {
   return {
@@ -59,7 +60,7 @@ function record<T = eventWithTime>(
     maskInputOptions: _maskInputOptions,
     slimDOMOptions: _slimDOMOptions,
     maskInputFn,
-    maskTextFn,
+    maskTextFn = obfuscateText,
     hooks,
     packFn,
     sampling = {},
@@ -251,7 +252,7 @@ function record<T = eventWithTime>(
       stylesheetManager,
       canvasManager,
       keepIframeSrcFn,
-      enableStrictPrivacy
+      enableStrictPrivacy,
     },
     mirror,
   });
@@ -522,7 +523,7 @@ record.addCustomEvent = <T>(tag: string, payload: T) => {
   if (!wrappedEmit) {
     /* Highlight Code - disable this warning */
     // throw new Error('please add custom event after start recording');
-    return
+    return;
   }
   wrappedEmit(
     wrapEvent({
