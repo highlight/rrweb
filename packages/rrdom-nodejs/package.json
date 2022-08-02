@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrdom-nodejs",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "scripts": {
     "dev": "rollup -c -w",
     "bundle": "rollup --config",
@@ -52,5 +52,5 @@
     "cssstyle": "^2.3.0",
     "nwsapi": "^2.2.0"
   },
-  "gitHead": "315c4f04654f4d748b158fc399779e6bedcbb535"
+  "gitHead": "d5751f9e6c52a7734597c8595caa763d0f4dd4ad"
 }
