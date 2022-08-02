@@ -1280,6 +1280,7 @@ export function serializeNodeWithId(
             onSerialize,
             onIframeLoad,
             iframeLoadTimeout,
+            enableStrictPrivacy,
             onStylesheetLoad,
             stylesheetLoadTimeout,
             keepIframeSrcFn,

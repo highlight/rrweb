@@ -4,7 +4,8 @@ import {
   IGNORED_NODE,
   isShadowRoot,
   needMaskingText,
-  maskInputValue, obfuscateText,
+  maskInputValue,
+  obfuscateText,
   Mirror,
   isNativeShadowDom,
 } from '@highlight-run/rrweb-snapshot';
@@ -324,7 +325,6 @@ export default class MutationBuffer {
         onStylesheetLoad: (link, childSn) => {
           this.stylesheetManager.attachStylesheet(link, childSn, this.mirror);
         },
-        newlyAddedElement: true,
       });
       if (sn) {
         adds.push({
@@ -404,25 +404,25 @@ export default class MutationBuffer {
 
     const payload = {
       texts: this.texts
-          .map((text) => {
-            let value = text.value;
-            if (this.enableStrictPrivacy && value) {
-              value = obfuscateText(value);
-            }
-            return {
-              id: this.mirror.getId(text.node),
-              value,
-            };
-          })
-          // text mutation's id was not in the mirror map means the target node has been removed
-          .filter((text) => this.mirror.has(text.id)),
+        .map((text) => {
+          let value = text.value;
+          if (this.enableStrictPrivacy && value) {
+            value = obfuscateText(value);
+          }
+          return {
+            id: this.mirror.getId(text.node),
+            value,
+          };
+        })
+        // text mutation's id was not in the mirror map means the target node has been removed
+        .filter((text) => this.mirror.has(text.id)),
       attributes: this.attributes
-          .map((attribute) => ({
-            id: this.mirror.getId(attribute.node),
-            attributes: attribute.attributes,
-          }))
-          // attribute mutation's id was not in the mirror map means the target node has been removed
-          .filter((attribute) => this.mirror.has(attribute.id)),
+        .map((attribute) => ({
+          id: this.mirror.getId(attribute.node),
+          attributes: attribute.attributes,
+        }))
+        // attribute mutation's id was not in the mirror map means the target node has been removed
+        .filter((attribute) => this.mirror.has(attribute.id)),
       removes: this.removes,
       adds,
     };
