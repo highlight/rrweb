@@ -19,6 +19,7 @@ import {
   isShadowRoot,
   maskInputValue,
   obfuscateText,
+  isNativeShadowDom,
 } from './utils';
 
 let _id = 1;
@@ -103,7 +104,14 @@ export function absoluteToStylesheet(
 ): string {
   return (cssText || '').replace(
     URL_IN_CSS_REF,
-    (origin, quote1, path1, quote2, path2, path3) => {
+    (
+      origin: string,
+      quote1: string,
+      path1: string,
+      quote2: string,
+      path2: string,
+      path3: string,
+    ) => {
       const filePath = path1 || path2 || path3;
       const maybeQuote = quote1 || quote2 || '';
       if (!filePath) {
@@ -137,7 +145,9 @@ export function absoluteToStylesheet(
   );
 }
 
+// eslint-disable-next-line no-control-regex
 const SRCSET_NOT_SPACES = /^[^ \t\n\r\u000c]+/; // Don't use \s, to avoid matching non-breaking space
+// eslint-disable-next-line no-control-regex
 const SRCSET_COMMAS_OR_SPACES = /^[, \t\n\r\u000c]+/;
 function getAbsoluteSrcsetString(doc: Document, attributeValue: string) {
   /*
@@ -166,6 +176,7 @@ function getAbsoluteSrcsetString(doc: Document, attributeValue: string) {
   }
 
   const output = [];
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     collectCharacters(SRCSET_COMMAS_OR_SPACES);
     if (pos >= attributeValue.length) {
@@ -183,6 +194,7 @@ function getAbsoluteSrcsetString(doc: Document, attributeValue: string) {
       let descriptorsStr = '';
       url = absoluteToDoc(doc, url);
       let inParens = false;
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const c = attributeValue.charAt(pos);
         if (c === '') {
@@ -238,7 +250,11 @@ export function transformAttribute(
   value: string,
 ): string {
   // relative path in attribute
-  if (name === 'src' || (name === 'href' && value)) {
+  if (
+    name === 'src' ||
+    (name === 'href' && value && !(tagName === 'use' && value[0] === '#'))
+  ) {
+    // href starts with a # is an id pointer for svg
     return absoluteToDoc(doc, value);
   } else if (name === 'xlink:href' && value && value[0] !== '#') {
     // xlink:href starts with # is an id pointer
@@ -571,7 +587,7 @@ function serializeTextNode(
       }
     } catch (err) {
       console.warn(
-        `Cannot get CSS styles from text's parentNode. Error: ${err}`,
+        `Cannot get CSS styles from text's parentNode. Error: ${err as string}`,
         n,
       );
     }
@@ -782,7 +798,7 @@ function serializeElementNode(
         );
       } catch (err) {
         console.warn(
-          `Cannot inline img src=${image.currentSrc}! Error: ${err}`,
+          `Cannot inline img src=${image.currentSrc}! Error: ${err as string}`,
         );
       }
       oldValue
@@ -954,6 +970,7 @@ export function serializeNodeWithId(
     maskTextSelector: string | null;
     skipChild: boolean;
     inlineStylesheet: boolean;
+    newlyAddedElement?: boolean;
     maskInputOptions?: MaskInputOptions;
     maskTextFn: MaskTextFn | undefined;
     maskInputFn: MaskInputFn | undefined;
@@ -969,13 +986,12 @@ export function serializeNodeWithId(
       node: serializedElementNodeWithId,
     ) => unknown;
     iframeLoadTimeout?: number;
+    enableStrictPrivacy: boolean;
     onStylesheetLoad?: (
       linkNode: HTMLLinkElement,
       node: serializedElementNodeWithId,
     ) => unknown;
     stylesheetLoadTimeout?: number;
-    newlyAddedElement?: boolean;
-    enableStrictPrivacy: boolean;
   },
 ): serializedNodeWithId | null {
   const {
@@ -1069,7 +1085,9 @@ export function serializeNodeWithId(
 
     // this property was not needed in replay side
     delete serializedNode.needBlock;
-    if ((n as HTMLElement).shadowRoot) serializedNode.isShadowHost = true;
+    const shadowRoot = (n as HTMLElement).shadowRoot;
+    if (shadowRoot && isNativeShadowDom(shadowRoot))
+      serializedNode.isShadowHost = true;
   }
   if (
     (serializedNode.type === NodeType.Document ||
@@ -1120,14 +1138,19 @@ export function serializeNodeWithId(
       for (const childN of Array.from(n.shadowRoot.childNodes)) {
         const serializedChildNode = serializeNodeWithId(childN, bypassOptions);
         if (serializedChildNode) {
-          serializedChildNode.isShadow = true;
+          isNativeShadowDom(n.shadowRoot) &&
+            (serializedChildNode.isShadow = true);
           serializedNode.childNodes.push(serializedChildNode);
         }
       }
     }
   }
 
-  if (n.parentNode && isShadowRoot(n.parentNode)) {
+  if (
+    n.parentNode &&
+    isShadowRoot(n.parentNode) &&
+    isNativeShadowDom(n.parentNode)
+  ) {
     serializedNode.isShadow = true;
   }
 
@@ -1212,6 +1235,55 @@ export function serializeNodeWithId(
             stylesheetLoadTimeout,
             keepIframeSrcFn,
             enableStrictPrivacy,
+          });
+
+          if (serializedLinkNode) {
+            onStylesheetLoad(
+              n as HTMLLinkElement,
+              serializedLinkNode as serializedElementNodeWithId,
+            );
+          }
+        }
+      },
+      stylesheetLoadTimeout,
+    );
+    if (isStylesheetLoaded(n as HTMLLinkElement) === false) return null; // add stylesheet in later mutation
+  }
+
+  // <link rel=stylesheet href=...>
+  if (
+    serializedNode.type === NodeType.Element &&
+    serializedNode.tagName === 'link' &&
+    serializedNode.attributes.rel === 'stylesheet'
+  ) {
+    onceStylesheetLoaded(
+      n as HTMLLinkElement,
+      () => {
+        if (onStylesheetLoad) {
+          const serializedLinkNode = serializeNodeWithId(n, {
+            doc,
+            mirror,
+            blockClass,
+            blockSelector,
+            maskTextClass,
+            maskTextSelector,
+            skipChild: false,
+            inlineStylesheet,
+            maskInputOptions,
+            maskTextFn,
+            maskInputFn,
+            slimDOMOptions,
+            dataURLOptions,
+            inlineImages,
+            recordCanvas,
+            preserveWhiteSpace,
+            onSerialize,
+            onIframeLoad,
+            iframeLoadTimeout,
+            enableStrictPrivacy,
+            onStylesheetLoad,
+            stylesheetLoadTimeout,
+            keepIframeSrcFn,
           });
 
           if (serializedLinkNode) {

@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrdom",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "homepage": "https://github.com/rrweb-io/rrweb/tree/main/packages/rrdom#readme",
   "license": "MIT",
   "main": "lib/rrdom.js",
@@ -46,7 +46,7 @@
     "typescript": "^4.7.3"
   },
   "dependencies": {
-    "@highlight-run/rrweb-snapshot": "1.1.24"
+    "@highlight-run/rrweb-snapshot": "1.1.25"
   },
-  "gitHead": "1cae2eddaa23681de007ada0e52b7fc514019249"
+  "gitHead": "d5751f9e6c52a7734597c8595caa763d0f4dd4ad"
 }

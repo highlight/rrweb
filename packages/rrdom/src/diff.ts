@@ -128,8 +128,8 @@ export function diff(
           const newMediaRRElement = newRRElement as RRMediaElement;
           if (newMediaRRElement.paused !== undefined)
             newMediaRRElement.paused
-              ? oldMediaElement.pause()
-              : oldMediaElement.play();
+              ? void oldMediaElement.pause()
+              : void oldMediaElement.play();
           if (newMediaRRElement.muted !== undefined)
             oldMediaElement.muted = newMediaRRElement.muted;
           if (newMediaRRElement.volume !== undefined)
@@ -139,14 +139,27 @@ export function diff(
           break;
         }
         case 'CANVAS':
-          (newTree as RRCanvasElement).canvasMutations.forEach(
-            (canvasMutation) =>
+          {
+            const rrCanvasElement = newTree as RRCanvasElement;
+            // This canvas element is created with initial data in an iframe element. https://github.com/rrweb-io/rrweb/pull/944
+            if (rrCanvasElement.rr_dataURL !== null) {
+              const image = document.createElement('img');
+              image.onload = () => {
+                const ctx = (oldElement as HTMLCanvasElement).getContext('2d');
+                if (ctx) {
+                  ctx.drawImage(image, 0, 0, image.width, image.height);
+                }
+              };
+              image.src = rrCanvasElement.rr_dataURL;
+            }
+            rrCanvasElement.canvasMutations.forEach((canvasMutation) =>
               replayer.applyCanvas(
                 canvasMutation.event,
                 canvasMutation.mutation,
                 oldTree as HTMLCanvasElement,
               ),
-          );
+            );
+          }
           break;
         case 'STYLE':
           applyVirtualStyleRulesToNode(
@@ -409,10 +422,7 @@ export function createOrGetNode(
       let tagName = (rrNode as IRRElement).tagName.toLowerCase();
       tagName = SVGTagMap[tagName] || tagName;
       if (sn && 'isSVG' in sn && sn?.isSVG) {
-        node = document.createElementNS(
-          NAMESPACES['svg'],
-          (rrNode as IRRElement).tagName.toLowerCase(),
-        );
+        node = document.createElementNS(NAMESPACES['svg'], tagName);
       } else node = document.createElement((rrNode as IRRElement).tagName);
       break;
     }
