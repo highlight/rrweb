@@ -172,6 +172,11 @@ export class CanvasManager {
               context?.clear(context.COLOR_BUFFER_BIT);
             }
           }
+          // canvas is not yet ready... this retry on the next sampling iteration.
+          // we don't want to crash the worker if the canvas is not yet rendered.
+          if (canvas.width === 0 || canvas.height === 0) {
+            return;
+          }
           const bitmap = await createImageBitmap(canvas);
           worker.postMessage(
             {
