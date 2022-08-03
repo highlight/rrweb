@@ -508,6 +508,7 @@ function serializeNode(
         inlineStylesheet,
         maskInputOptions,
         maskInputFn,
+        maskTextClass,
         dataURLOptions,
         inlineImages,
         recordCanvas,
@@ -647,6 +648,7 @@ function serializeElementNode(
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
     maskInputFn: MaskInputFn | undefined;
+    maskTextClass: string | RegExp;
     dataURLOptions?: DataURLOptions;
     inlineImages: boolean;
     recordCanvas: boolean;
@@ -666,6 +668,7 @@ function serializeElementNode(
     inlineStylesheet,
     maskInputOptions = {},
     maskInputFn,
+    maskTextClass,
     dataURLOptions = {},
     inlineImages,
     recordCanvas,
@@ -674,7 +677,9 @@ function serializeElementNode(
     enableStrictPrivacy,
     rootId,
   } = options;
-  let needBlock = _isBlockedElement(n, blockClass, blockSelector);
+  let needBlock =
+    _isBlockedElement(n, blockClass, blockSelector) ||
+    _isBlockedElement(n, maskTextClass, blockSelector);
   const tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
