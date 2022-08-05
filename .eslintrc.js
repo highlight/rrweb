@@ -19,5 +19,6 @@ module.exports = {
   plugins: ['@typescript-eslint', 'eslint-plugin-tsdoc'],
   rules: {
     'tsdoc/syntax': 'warn',
+    'no-console': 'error',
   },
 };
