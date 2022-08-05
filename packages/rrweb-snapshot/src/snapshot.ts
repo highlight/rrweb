@@ -677,9 +677,8 @@ function serializeElementNode(
     enableStrictPrivacy,
     rootId,
   } = options;
-  let needBlock =
-    _isBlockedElement(n, blockClass, blockSelector) ||
-    _isBlockedElement(n, maskTextClass, null);
+  let needBlock = _isBlockedElement(n, blockClass, blockSelector);
+  const needMask = _isBlockedElement(n, maskTextClass, null);
   const tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
@@ -784,7 +783,7 @@ function serializeElementNode(
     }
   }
   // save image offline
-  if (tagName === 'img' && inlineImages && !needBlock) {
+  if (tagName === 'img' && inlineImages && !needBlock && !needMask) {
     if (!canvasService) {
       canvasService = doc.createElement('canvas');
       canvasCtx = canvasService.getContext('2d');
@@ -835,14 +834,16 @@ function serializeElementNode(
     }
   }
   // block element
-  if (needBlock || (tagName === 'img' && enableStrictPrivacy)) {
+  if (needBlock || needMask || (tagName === 'img' && enableStrictPrivacy)) {
     const { width, height } = n.getBoundingClientRect();
     attributes = {
       class: attributes.class,
       rr_width: `${width}px`,
       rr_height: `${height}px`,
     };
-    needBlock = true;
+    if (enableStrictPrivacy) {
+      needBlock = true;
+    }
   }
   // iframe
   if (tagName === 'iframe' && !keepIframeSrcFn(attributes.src as string)) {
@@ -853,9 +854,6 @@ function serializeElementNode(
     }
     delete attributes.src; // prevent auto loading
   }
-  if (needBlock && tagName === 'img') {
-    delete attributes.src; // delete image src
-  }
 
   return {
     type: NodeType.Element,
@@ -864,6 +862,7 @@ function serializeElementNode(
     childNodes: [],
     isSVG: isSVGElement(n as Element) || undefined,
     needBlock,
+    needMask,
     rootId,
   };
 }
@@ -1082,7 +1081,10 @@ export function serializeNodeWithId(
   let strictPrivacy = enableStrictPrivacy;
   if (serializedNode.type === NodeType.Element) {
     recordChild = recordChild && !serializedNode.needBlock;
-    strictPrivacy = !!serializedNode.needBlock;
+    strictPrivacy =
+      enableStrictPrivacy ||
+      !!serializedNode.needBlock ||
+      !!serializedNode.needMask;
 
     /** Highlight Code Begin */
     // Remove the image's src if enableStrictPrivacy.
@@ -1093,8 +1095,9 @@ export function serializeNodeWithId(
     }
     /** Highlight Code End */
 
-    // this property was not needed in replay side
+    // these properties was not needed in replay side
     delete serializedNode.needBlock;
+    delete serializedNode.needMask;
     const shadowRoot = (n as HTMLElement).shadowRoot;
     if (shadowRoot && isNativeShadowDom(shadowRoot))
       serializedNode.isShadowHost = true;
