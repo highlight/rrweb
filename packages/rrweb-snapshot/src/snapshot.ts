@@ -679,7 +679,7 @@ function serializeElementNode(
   } = options;
   let needBlock =
     _isBlockedElement(n, blockClass, blockSelector) ||
-    _isBlockedElement(n, maskTextClass, blockSelector);
+    _isBlockedElement(n, maskTextClass, null);
   const tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
@@ -784,7 +784,7 @@ function serializeElementNode(
     }
   }
   // save image offline
-  if (tagName === 'img' && inlineImages) {
+  if (tagName === 'img' && inlineImages && !needBlock) {
     if (!canvasService) {
       canvasService = doc.createElement('canvas');
       canvasCtx = canvasService.getContext('2d');
@@ -852,6 +852,9 @@ function serializeElementNode(
       attributes.rr_src = attributes.src;
     }
     delete attributes.src; // prevent auto loading
+  }
+  if (needBlock && tagName === 'img') {
+    delete attributes.src; // delete image src
   }
 
   return {
@@ -1076,12 +1079,16 @@ export function serializeNodeWithId(
     onSerialize(n);
   }
   let recordChild = !skipChild;
+  let strictPrivacy = enableStrictPrivacy;
   if (serializedNode.type === NodeType.Element) {
     recordChild = recordChild && !serializedNode.needBlock;
+    strictPrivacy = !!serializedNode.needBlock;
+
+    console.log('vadim strictPrivacy', { strictPrivacy, enableStrictPrivacy });
 
     /** Highlight Code Begin */
     // Remove the image's src if enableStrictPrivacy.
-    if (serializedNode.needBlock && serializedNode.tagName === 'img') {
+    if (strictPrivacy && serializedNode.tagName === 'img') {
       const clone = n.cloneNode();
       ((clone as unknown) as HTMLImageElement).src = '';
       mirror.add(clone, serializedNode);
@@ -1130,7 +1137,7 @@ export function serializeNodeWithId(
       onStylesheetLoad,
       stylesheetLoadTimeout,
       keepIframeSrcFn,
-      enableStrictPrivacy,
+      enableStrictPrivacy: strictPrivacy,
     };
     for (const childN of Array.from(n.childNodes)) {
       const serializedChildNode = serializeNodeWithId(childN, bypassOptions);
