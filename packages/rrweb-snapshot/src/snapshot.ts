@@ -1084,8 +1084,6 @@ export function serializeNodeWithId(
     recordChild = recordChild && !serializedNode.needBlock;
     strictPrivacy = !!serializedNode.needBlock;
 
-    console.log('vadim strictPrivacy', { strictPrivacy, enableStrictPrivacy });
-
     /** Highlight Code Begin */
     // Remove the image's src if enableStrictPrivacy.
     if (strictPrivacy && serializedNode.tagName === 'img') {
