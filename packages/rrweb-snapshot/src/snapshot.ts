@@ -783,7 +783,13 @@ function serializeElementNode(
     }
   }
   // save image offline
-  if (tagName === 'img' && inlineImages && !needBlock && !needMask) {
+  if (
+    tagName === 'img' &&
+    inlineImages &&
+    !needBlock &&
+    !needMask &&
+    !enableStrictPrivacy
+  ) {
     if (!canvasService) {
       canvasService = doc.createElement('canvas');
       canvasCtx = canvasService.getContext('2d');
