@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb-player",
-  "version": "0.7.24",
+  "version": "0.7.25",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^22.0.0",
     "@rollup/plugin-node-resolve": "^13.2.1",
@@ -23,7 +23,7 @@
     "typescript": "^4.7.3"
   },
   "dependencies": {
-    "@highlight-run/rrweb": "2.1.2",
+    "@highlight-run/rrweb": "2.1.7",
     "@tsconfig/svelte": "^1.0.1"
   },
   "scripts": {
