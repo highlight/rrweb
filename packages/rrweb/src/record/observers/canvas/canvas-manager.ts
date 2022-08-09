@@ -63,6 +63,7 @@ export class CanvasManager {
     sampling?: 'all' | number;
     resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high';
     resizeFactor?: number;
+    maxSnapshotDimension?: number;
   }) {
     const { sampling = 'all', win, blockClass, recordCanvas } = options;
     this.mutationCb = options.mutationCb;
@@ -77,6 +78,7 @@ export class CanvasManager {
         blockClass,
         options.resizeQuality,
         options.resizeFactor,
+        options.maxSnapshotDimension,
       );
   }
 
@@ -103,6 +105,7 @@ export class CanvasManager {
     blockClass: blockClass,
     resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high',
     resizeFactor?: number,
+    maxSnapshotDimension?: number,
   ) {
     const canvasContextReset = initCanvasContextObserver(win, blockClass);
     const snapshotInProgressMap: Map<number, boolean> = new Map();
@@ -190,8 +193,16 @@ export class CanvasManager {
           if (canvas.width === 0 || canvas.height === 0) {
             return;
           }
+          if (maxSnapshotDimension) {
+            const maxDim = Math.max(canvas.width, canvas.height);
+            resizeFactor = Math.min(
+              resizeFactor || 1,
+              maxSnapshotDimension / maxDim,
+            );
+          }
           const width = canvas.width * (resizeFactor || 1);
           const height = canvas.height * (resizeFactor || 1);
+
           const bitmap = await createImageBitmap(canvas, {
             resizeQuality: resizeQuality || 'low',
             resizeWidth: width,

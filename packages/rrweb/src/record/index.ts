@@ -232,6 +232,7 @@ function record<T = eventWithTime>(
     sampling: sampling?.canvas?.fps,
     resizeQuality: sampling?.canvas?.resizeQuality,
     resizeFactor: sampling?.canvas?.resizeFactor,
+    maxSnapshotDimension: sampling?.canvas?.maxSnapshotDimension,
   });
 
   const shadowDomManager = new ShadowDomManager({

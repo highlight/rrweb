@@ -197,6 +197,14 @@ export type CanvasSamplingStrategy = Partial<{
    * The quality of canvas snapshots
    */
   resizeQuality: 'pixelated' | 'low' | 'medium' | 'high';
+  /**
+   * The maximum dimension to take canvas snapshots at.
+   * This setting takes precedence over resizeFactor if the resulting image size
+   * from the resizeFactor calculation is larger than this value.
+   * Eg: set to 600 to ensure that the canvas is saved with images no larger than 600px
+   * in either dimension (while preserving the original canvas aspect ratio).
+   */
+  maxSnapshotDimension: number;
 }>;
 
 export type SamplingStrategy = Partial<{
