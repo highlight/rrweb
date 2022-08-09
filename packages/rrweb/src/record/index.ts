@@ -229,7 +229,9 @@ function record<T = eventWithTime>(
     win: window,
     blockClass,
     mirror,
-    sampling: sampling.canvas,
+    sampling: sampling?.canvas?.fps,
+    resizeQuality: sampling?.canvas?.resizeQuality,
+    resizeFactor: sampling?.canvas?.resizeFactor,
   });
 
   const shadowDomManager = new ShadowDomManager({

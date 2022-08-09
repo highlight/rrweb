@@ -61,6 +61,8 @@ export class CanvasManager {
     blockClass: blockClass;
     mirror: Mirror;
     sampling?: 'all' | number;
+    resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high';
+    resizeFactor?: number;
   }) {
     const { sampling = 'all', win, blockClass, recordCanvas } = options;
     this.mutationCb = options.mutationCb;
@@ -69,7 +71,13 @@ export class CanvasManager {
     if (recordCanvas && sampling === 'all')
       this.initCanvasMutationObserver(win, blockClass);
     if (recordCanvas && typeof sampling === 'number')
-      this.initCanvasFPSObserver(sampling, win, blockClass);
+      this.initCanvasFPSObserver(
+        sampling,
+        win,
+        blockClass,
+        options.resizeQuality,
+        options.resizeFactor,
+      );
   }
 
   private processMutation: canvasManagerMutationCallback = (
@@ -93,6 +101,8 @@ export class CanvasManager {
     fps: number,
     win: IWindow,
     blockClass: blockClass,
+    resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high',
+    resizeFactor?: number,
   ) {
     const canvasContextReset = initCanvasContextObserver(win, blockClass);
     const snapshotInProgressMap: Map<number, boolean> = new Map();
@@ -103,14 +113,14 @@ export class CanvasManager {
 
       if (!('base64' in e.data)) return;
 
-      const { base64, type, width, height } = e.data;
+      const { base64, type, canvasWidth, canvasHeight } = e.data;
       this.mutationCb({
         id,
         type: CanvasContext['2D'],
         commands: [
           {
             property: 'clearRect', // wipe canvas
-            args: [0, 0, width, height],
+            args: [0, 0, canvasWidth, canvasHeight],
           },
           {
             property: 'drawImage', // draws (semi-transparent) image
@@ -127,6 +137,8 @@ export class CanvasManager {
               } as CanvasArg,
               0,
               0,
+              canvasWidth,
+              canvasHeight,
             ],
           },
         ],
@@ -178,13 +190,21 @@ export class CanvasManager {
           if (canvas.width === 0 || canvas.height === 0) {
             return;
           }
-          const bitmap = await createImageBitmap(canvas);
+          const width = canvas.width * (resizeFactor || 1);
+          const height = canvas.height * (resizeFactor || 1);
+          const bitmap = await createImageBitmap(canvas, {
+            resizeQuality: resizeQuality || 'low',
+            resizeWidth: width,
+            resizeHeight: height,
+          });
           worker.postMessage(
             {
               id,
               bitmap,
-              width: canvas.width,
-              height: canvas.height,
+              width,
+              height,
+              canvasWidth: canvas.width,
+              canvasHeight: canvas.height,
             },
             [bitmap],
           );

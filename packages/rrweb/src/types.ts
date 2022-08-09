@@ -185,6 +185,20 @@ export type blockClass = string | RegExp;
 
 export type maskTextClass = string | RegExp;
 
+export type CanvasSamplingStrategy = Partial<{
+  fps: 'all' | number;
+  /**
+   * 'all' will record every single canvas call
+   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
+   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
+   */
+  resizeFactor: number;
+  /**
+   * The quality of canvas snapshots
+   */
+  resizeQuality: 'pixelated' | 'low' | 'medium' | 'high';
+}>;
+
 export type SamplingStrategy = Partial<{
   /**
    * false means not to record mouse/touch move events
@@ -213,12 +227,8 @@ export type SamplingStrategy = Partial<{
    * 'last' will only record the last input value while input a sequence of chars
    */
   input: 'all' | 'last';
-  /**
-   * 'all' will record every single canvas call
-   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
-   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
-   */
-  canvas: 'all' | number;
+
+  canvas: CanvasSamplingStrategy;
 }>;
 
 export type RecordPlugin<TOptions = unknown> = {
@@ -299,7 +309,7 @@ export type observerParam = {
   stylesheetManager: StylesheetManager;
   shadowDomManager: ShadowDomManager;
   canvasManager: CanvasManager;
-  enableStrictPrivacy: boolean,
+  enableStrictPrivacy: boolean;
   plugins: Array<{
     observer: (
       cb: (...arg: Array<unknown>) => void,
@@ -566,6 +576,8 @@ export type ImageBitmapDataURLWorkerParams = {
   bitmap: ImageBitmap;
   width: number;
   height: number;
+  canvasWidth: number;
+  canvasHeight: number;
 };
 
 export type ImageBitmapDataURLWorkerResponse =
@@ -578,6 +590,8 @@ export type ImageBitmapDataURLWorkerResponse =
       base64: string;
       width: number;
       height: number;
+      canvasWidth: number;
+      canvasHeight: number;
     };
 
 export type fontParam = {

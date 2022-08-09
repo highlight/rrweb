@@ -45,14 +45,14 @@ worker.onmessage = async function (e) {
   if (!('OffscreenCanvas' in globalThis))
     return worker.postMessage({ id: e.data.id });
 
-  const { id, bitmap, width, height } = e.data;
+  const { id, bitmap, width, height, canvasWidth, canvasHeight } = e.data;
 
   const transparentBase64 = getTransparentBlobFor(width, height);
 
   const offscreen = new OffscreenCanvas(width, height);
   const ctx = offscreen.getContext('2d')!;
 
-  ctx.drawImage(bitmap, 0, 0);
+  ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
   const blob = await offscreen.convertToBlob(); // takes a while
   const type = blob.type;
@@ -73,6 +73,8 @@ worker.onmessage = async function (e) {
     base64,
     width,
     height,
+    canvasWidth,
+    canvasHeight,
   });
   lastBlobMap.set(id, base64);
 };
