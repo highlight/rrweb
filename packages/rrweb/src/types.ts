@@ -185,6 +185,32 @@ export type blockClass = string | RegExp;
 
 export type maskTextClass = string | RegExp;
 
+export type CanvasSamplingStrategy = Partial<{
+  /**
+   * 'all' will record every single canvas call
+   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
+   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
+   */
+  fps: 'all' | number;
+  /**
+   * A scaling to apply to canvas shapshotting. Adjusts the resolution at which
+   * canvases are recorded by this multiple.
+   */
+  resizeFactor: number;
+  /**
+   * The quality of canvas snapshots
+   */
+  resizeQuality: 'pixelated' | 'low' | 'medium' | 'high';
+  /**
+   * The maximum dimension to take canvas snapshots at.
+   * This setting takes precedence over resizeFactor if the resulting image size
+   * from the resizeFactor calculation is larger than this value.
+   * Eg: set to 600 to ensure that the canvas is saved with images no larger than 600px
+   * in either dimension (while preserving the original canvas aspect ratio).
+   */
+  maxSnapshotDimension: number;
+}>;
+
 export type SamplingStrategy = Partial<{
   /**
    * false means not to record mouse/touch move events
@@ -213,12 +239,8 @@ export type SamplingStrategy = Partial<{
    * 'last' will only record the last input value while input a sequence of chars
    */
   input: 'all' | 'last';
-  /**
-   * 'all' will record every single canvas call
-   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
-   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
-   */
-  canvas: 'all' | number;
+
+  canvas: CanvasSamplingStrategy;
 }>;
 
 export type RecordPlugin<TOptions = unknown> = {
@@ -299,7 +321,7 @@ export type observerParam = {
   stylesheetManager: StylesheetManager;
   shadowDomManager: ShadowDomManager;
   canvasManager: CanvasManager;
-  enableStrictPrivacy: boolean,
+  enableStrictPrivacy: boolean;
   plugins: Array<{
     observer: (
       cb: (...arg: Array<unknown>) => void,
@@ -566,6 +588,8 @@ export type ImageBitmapDataURLWorkerParams = {
   bitmap: ImageBitmap;
   width: number;
   height: number;
+  canvasWidth: number;
+  canvasHeight: number;
 };
 
 export type ImageBitmapDataURLWorkerResponse =
@@ -578,6 +602,8 @@ export type ImageBitmapDataURLWorkerResponse =
       base64: string;
       width: number;
       height: number;
+      canvasWidth: number;
+      canvasHeight: number;
     };
 
 export type fontParam = {
