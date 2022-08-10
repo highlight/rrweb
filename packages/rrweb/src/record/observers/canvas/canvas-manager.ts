@@ -193,15 +193,13 @@ export class CanvasManager {
           if (canvas.width === 0 || canvas.height === 0) {
             return;
           }
+          let scale = resizeFactor || 1;
           if (maxSnapshotDimension) {
             const maxDim = Math.max(canvas.width, canvas.height);
-            resizeFactor = Math.min(
-              resizeFactor || 1,
-              maxSnapshotDimension / maxDim,
-            );
+            scale = Math.min(scale, maxSnapshotDimension / maxDim);
           }
-          const width = canvas.width * (resizeFactor || 1);
-          const height = canvas.height * (resizeFactor || 1);
+          const width = canvas.width * scale;
+          const height = canvas.height * scale;
 
           const bitmap = await createImageBitmap(canvas, {
             resizeQuality: resizeQuality || 'low',
