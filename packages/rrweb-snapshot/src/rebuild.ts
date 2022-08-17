@@ -401,6 +401,18 @@ export function buildNodeWithSN(
   if (!node) {
     return null;
   }
+  if (n.type === NodeType.Element && n.tagName === 'iframe') {
+    console.log('vadim iframe node', n, node, n.childNodes[0]);
+    if (n.childNodes[0]?.type === NodeType.Document) {
+      if (n.childNodes[0]?.childNodes[1]?.type === NodeType.Element) {
+        const iframeBody = n.childNodes[0]?.childNodes[1]?.childNodes[2];
+        console.log('vadim iframe body', iframeBody);
+        // if (iframeBody.type === NodeType.Element) {
+        //   (iframeBody as Element).setAttribute('_onload', '');
+        // }
+      }
+    }
+  }
   if (n.rootId) {
     console.assert(
       (mirror.getNode(n.rootId) as Document) === doc,

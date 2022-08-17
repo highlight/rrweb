@@ -1,25 +1,25 @@
 import {
+  attributes,
+  DataURLOptions,
+  ICanvas,
+  KeepIframeSrcFn,
+  MaskInputFn,
+  MaskInputOptions,
+  MaskTextFn,
+  NodeType,
+  serializedElementNodeWithId,
   serializedNode,
   serializedNodeWithId,
-  NodeType,
-  attributes,
-  MaskInputOptions,
   SlimDOMOptions,
-  DataURLOptions,
-  MaskTextFn,
-  MaskInputFn,
-  KeepIframeSrcFn,
-  ICanvas,
-  serializedElementNodeWithId,
 } from './types';
 import {
-  Mirror,
   is2DCanvasBlank,
   isElement,
+  isNativeShadowDom,
   isShadowRoot,
   maskInputValue,
+  Mirror,
   obfuscateText,
-  isNativeShadowDom,
 } from './utils';
 
 let _id = 1;
@@ -98,6 +98,7 @@ let canvasCtx: CanvasRenderingContext2D | null;
 const URL_IN_CSS_REF = /url\((?:(')([^']*)'|(")(.*?)"|([^)]*))\)/gm;
 const RELATIVE_PATH = /^(?!www\.|(?:http|ftp)s?:\/\/|[A-Za-z]:\\|\/\/|#).*/;
 const DATA_URI = /^(data:)([^,]*),(.*)/i;
+
 export function absoluteToStylesheet(
   cssText: string | null,
   href: string,
@@ -149,15 +150,16 @@ export function absoluteToStylesheet(
 const SRCSET_NOT_SPACES = /^[^ \t\n\r\u000c]+/; // Don't use \s, to avoid matching non-breaking space
 // eslint-disable-next-line no-control-regex
 const SRCSET_COMMAS_OR_SPACES = /^[, \t\n\r\u000c]+/;
+
 function getAbsoluteSrcsetString(doc: Document, attributeValue: string) {
   /*
-    run absoluteToDoc over every url in the srcset
-
-    this is adapted from https://github.com/albell/parse-srcset/
-    without the parsing of the descriptors (we return these as-is)
-    parce-srcset is in turn based on
-    https://html.spec.whatwg.org/multipage/embedded-content.html#parse-a-srcset-attribute
-  */
+      run absoluteToDoc over every url in the srcset
+  
+      this is adapted from https://github.com/albell/parse-srcset/
+      without the parsing of the descriptors (we return these as-is)
+      parce-srcset is in turn based on
+      https://html.spec.whatwg.org/multipage/embedded-content.html#parse-a-srcset-attribute
+    */
   if (attributeValue.trim() === '') {
     return attributeValue;
   }
@@ -798,6 +800,8 @@ function serializeElementNode(
     const oldValue = image.crossOrigin;
     image.crossOrigin = 'anonymous';
     const recordInlineImage = () => {
+      attributes.rr_dataURL =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAnElEQVR42u3RAQ0AAAgDIE1u9FvDOahAVzLFGS1ECEKEIEQIQoQgRIgQIQgRghAhCBGCECEIQYgQhAhBiBCECEEIQoQgRAhChCBECEIQIgQhQhAiBCFCEIIQIQgRghAhCBGCEIQIQYgQhAhBiBCEIEQIQoQgRAhChCAEIUIQIgQhQhAiBCEIEYIQIQgRghAhCBEiRAhChCBECEK+W3uw+TnWoJc/AAAAAElFTkSuQmCC';
       try {
         canvasService!.width = image.naturalWidth;
         canvasService!.height = image.naturalHeight;
@@ -815,6 +819,8 @@ function serializeElementNode(
         ? (attributes.crossOrigin = oldValue)
         : image.removeAttribute('crossorigin');
     };
+    attributes.rr_dataURL =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAnUlEQVR42u3RAQ0AAAQAMAqpKDo1zP4Kz5jq4IwUIgQhQhAiBCFCECJEiBCECEGIEIQIQYgQhCBECEKEIEQIQoQgBCFCECIEIUIQIgQhCBGCECEIEYIQIQhBiBCECEGIEIQIQQhChCBECEKEIEQIQhAiBCFCECIEIUIQghAhCBGCECEIEYIQhAhBiBCECEGIEIQIESIEIUIQIgQh3y3mraeV1ExkFAAAAABJRU5ErkJggg==';
     // The image content may not have finished loading yet.
     if (image.complete && image.naturalWidth !== 0) recordInlineImage();
     else image.onload = recordInlineImage;
