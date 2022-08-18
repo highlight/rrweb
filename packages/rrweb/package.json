@@ -1,6 +1,6 @@
 {
   "name": "@highlight-run/rrweb",
-  "version": "2.1.8",
+  "version": "2.1.9",
   "description": "record and replay the web",
   "scripts": {
     "prepare": "npm run prepack",
