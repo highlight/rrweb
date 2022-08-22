@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@highlight-run/rrdom": "0.1.17",
-    "@highlight-run/rrweb-snapshot": "1.1.30",
+    "@highlight-run/rrweb-snapshot": "1.1.31",
     "cssom": "^0.5.0",
     "cssstyle": "^2.3.0",
     "nwsapi": "^2.2.0"
