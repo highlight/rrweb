@@ -529,6 +529,7 @@ __metadata:
     "@types/node": ^10.11.3
     "@types/puppeteer": ^1.12.4
     cross-env: ^5.2.0
+    eslint: ^8.23.1
     jest: ^27.2.4
     jest-snapshot: ^23.6.0
     jsdom: ^16.4.0
@@ -563,6 +564,7 @@ __metadata:
     base64-arraybuffer: ^1.0.1
     cross-env: ^5.2.0
     esbuild: ^0.14.38
+    eslint: ^8.23.1
     fast-mhtml: ^1.1.9
     fflate: ^0.4.4
     identity-obj-proxy: ^3.0.0
