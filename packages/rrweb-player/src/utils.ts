@@ -15,7 +15,7 @@ declare global {
   }
 }
 
-import { EventType, IncrementalSource } from 'rrweb';
+import { EventType, IncrementalSource } from '@highlight-run/rrweb';
 import type { eventWithTime } from '@highlight-run/rrweb-types';
 
 export function inlineCss(cssObj: Record<string, string>): string {

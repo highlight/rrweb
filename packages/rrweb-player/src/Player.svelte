@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Replayer, unpack } from 'rrweb';
+  import { Replayer, unpack } from '@highlight-run/rrweb';
   import type { eventWithTime } from '@highlight-run/rrweb-types';
   import {
     inlineCss,
