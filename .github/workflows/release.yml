@@ -23,6 +23,8 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish
         if: github.ref == 'refs/heads/master'
-        run: yarn workspace @highlight-run/rrweb npm publish --access public
+        run: |
+          echo npmAuthToken: "$NODE_AUTH_TOKEN" >> ./.yarnrc.yml;
+          yarn workspace @highlight-run/rrweb npm publish --access public;
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
