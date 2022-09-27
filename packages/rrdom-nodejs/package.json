@@ -1,5 +1,6 @@
 {
   "name": "@highlight-run/rrdom-nodejs",
+  "private": true,
   "version": "0.1.7",
   "scripts": {
     "dev": "rollup -c -w",
@@ -46,8 +47,8 @@
     "typescript": "^4.7.3"
   },
   "dependencies": {
-    "@highlight-run/rrdom": "0.1.17",
-    "@highlight-run/rrweb-snapshot": "1.1.31",
+    "@highlight-run/rrdom": "workspace:*",
+    "@highlight-run/rrweb-snapshot": "workspace:*",
     "cssom": "^0.5.0",
     "cssstyle": "^2.3.0",
     "nwsapi": "^2.2.0"
