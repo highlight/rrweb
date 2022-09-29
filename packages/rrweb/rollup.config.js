@@ -134,7 +134,7 @@ function getPlugins(options = {}) {
       extract: true,
       inject: false,
       minimize: minify,
-      sourceMap,
+      sourceMap: true,
     }),
   ];
 }
@@ -153,6 +153,7 @@ for (const c of baseConfigs) {
       extract: false,
       inject: false,
       minimize: true,
+      sourceMap: true,
     }),
   );
   // browser
