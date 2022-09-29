@@ -40,7 +40,7 @@ export type PlayerEvent =
     }
   | {
       type: 'REPLACE_EVENTS';
-      payload: { events: eventWithTime[]; };
+      payload: { events: eventWithTime[] };
     }
   | {
       type: 'END';

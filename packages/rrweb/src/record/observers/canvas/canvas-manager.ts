@@ -109,7 +109,8 @@ export class CanvasManager {
   ) {
     const canvasContextReset = initCanvasContextObserver(win, blockClass);
     const snapshotInProgressMap: Map<number, boolean> = new Map();
-    const worker = new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
+    const worker =
+      new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
     worker.onmessage = (e) => {
       const { id } = e.data;
       snapshotInProgressMap.set(id, false);

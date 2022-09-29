@@ -98,19 +98,18 @@ export function initMutationObserver(
      * window.__rrMutationObserver = MutationObserver
      */
     (window as WindowWithStoredMutationObserver).__rrMutationObserver;
-  const angularZoneSymbol = (window as WindowWithAngularZone)?.Zone?.__symbol__?.(
-    'MutationObserver',
-  );
+  const angularZoneSymbol = (
+    window as WindowWithAngularZone
+  )?.Zone?.__symbol__?.('MutationObserver');
   if (
     angularZoneSymbol &&
-    ((window as unknown) as Record<string, typeof MutationObserver>)[
+    (window as unknown as Record<string, typeof MutationObserver>)[
       angularZoneSymbol
     ]
   ) {
-    mutationObserverCtor = ((window as unknown) as Record<
-      string,
-      typeof MutationObserver
-    >)[angularZoneSymbol];
+    mutationObserverCtor = (
+      window as unknown as Record<string, typeof MutationObserver>
+    )[angularZoneSymbol];
   }
   const observer = new (mutationObserverCtor as new (
     callback: MutationCallback,
@@ -430,9 +429,9 @@ function initInputObserver({
     }
   }
   const events = sampling.input === 'last' ? ['change'] : ['input', 'change'];
-  const handlers: Array<
-    listenerHandler | hookResetter
-  > = events.map((eventName) => on(eventName, eventHandler, doc));
+  const handlers: Array<listenerHandler | hookResetter> = events.map(
+    (eventName) => on(eventName, eventHandler, doc),
+  );
   const propertyDescriptor = Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     'value',
@@ -717,7 +716,7 @@ function initFontObserver({ fontCb, doc }: observerParam): listenerHandler {
   const fontMap = new WeakMap<FontFace, fontParam>();
 
   const originalFontFace = win.FontFace;
-  win.FontFace = (function FontFace(
+  win.FontFace = function FontFace(
     family: string,
     source: string | ArrayBufferLike,
     descriptors?: FontFaceDescriptors,
@@ -733,7 +732,7 @@ function initFontObserver({ fontCb, doc }: observerParam): listenerHandler {
           : JSON.stringify(Array.from(new Uint8Array(source))),
     });
     return fontFace;
-  } as unknown) as typeof FontFace;
+  } as unknown as typeof FontFace;
 
   const restoreHandler = patch(
     doc.fonts,

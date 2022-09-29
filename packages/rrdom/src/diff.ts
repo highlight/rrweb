@@ -190,10 +190,9 @@ export function diff(
         oldTree.textContent !==
         (newTree as IRRText | IRRComment | IRRCDATASection).data
       )
-        oldTree.textContent = (newTree as
-          | IRRText
-          | IRRComment
-          | IRRCDATASection).data;
+        oldTree.textContent = (
+          newTree as IRRText | IRRComment | IRRCDATASection
+        ).data;
       break;
     default:
   }
@@ -533,16 +532,16 @@ export function applyVirtualStyleRulesToNode(
          */
       }
     } else if (rule.type === StyleRuleType.SetProperty) {
-      const nativeRule = (getNestedRule(
+      const nativeRule = getNestedRule(
         sheet.cssRules,
         rule.index,
-      ) as unknown) as CSSStyleRule;
+      ) as unknown as CSSStyleRule;
       nativeRule.style.setProperty(rule.property, rule.value, rule.priority);
     } else if (rule.type === StyleRuleType.RemoveProperty) {
-      const nativeRule = (getNestedRule(
+      const nativeRule = getNestedRule(
         sheet.cssRules,
         rule.index,
-      ) as unknown) as CSSStyleRule;
+      ) as unknown as CSSStyleRule;
       nativeRule.style.removeProperty(rule.property);
     }
   });

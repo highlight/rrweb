@@ -15,15 +15,8 @@
     "preserveConstEnums": true,
     "rootDir": "src",
     "outDir": "build",
-    "lib": [
-      "es6",
-      "dom"
-    ]
+    "lib": ["es6", "dom"]
   },
-  "exclude": [
-    "test"
-  ],
-  "include": [
-    "src"
-  ]
+  "exclude": ["test"],
+  "include": ["src"]
 }

@@ -205,11 +205,13 @@ function buildNode(
              * We need to find and replace the URLs with a proxy URL so we can bypass CORS.
              */
             if (typeof value === 'string') {
-              const regex = /url\(\"https:\/\/\S*(.eot|.woff2|.ttf|.woff)\S*\"\)/gm;
+              const regex =
+                /url\(\"https:\/\/\S*(.eot|.woff2|.ttf|.woff)\S*\"\)/gm;
               let m;
               const fontUrls: { originalUrl: string; proxyUrl: string }[] = [];
 
-              const PROXY_URL = 'https://replay-cors-proxy.highlightrun.workers.dev' as const;
+              const PROXY_URL =
+                'https://replay-cors-proxy.highlightrun.workers.dev' as const;
               while ((m = regex.exec(value)) !== null) {
                 // This is necessary to avoid infinite loops with zero-width matches
                 if (m.index === regex.lastIndex) {
@@ -320,8 +322,8 @@ function buildNode(
               rr_dataURL: string;
             };
             // If the canvas element is created in RRDom runtime (seeking to a time point), the canvas context isn't supported. So the data has to be stored and not handled until diff process. https://github.com/rrweb-io/rrweb/pull/944
-            if (((node as unknown) as RRCanvasElement).RRNodeType)
-              ((node as unknown) as RRCanvasElement).rr_dataURL = value;
+            if ((node as unknown as RRCanvasElement).RRNodeType)
+              (node as unknown as RRCanvasElement).rr_dataURL = value;
           } else if (tagName === 'img' && name === 'rr_dataURL') {
             const image = node as HTMLImageElement;
             if (!image.currentSrc.startsWith('data:')) {
