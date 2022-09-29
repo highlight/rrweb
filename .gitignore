@@ -4,6 +4,10 @@
 node_modules
 package-lock.json
 
+# since this repo is referenced from the highlight monorepo which has its own yarn.lock file,
+# don't include yarn.lock files from rrweb to avoid interfering with the monorepo
+yarn.lock
+
 temp
 
 *.log
