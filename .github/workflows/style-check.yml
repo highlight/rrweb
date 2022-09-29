@@ -9,15 +9,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.head_ref }}
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          cache: 'yarn'
-      - name: Install Dependencies
+          node-version: 16.15.0
+          registry-url: https://registry.npmjs.org
+      - name: Install
         run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
       - name: Build Packages
         run: yarn build:all

@@ -1,5 +1,5 @@
 import { eventWithTime, playerConfig } from '@highlight-run/rrweb/typings/types';
-import { Replayer, mirror } from '@highlight-run/rrweb';
+import { Replayer, mirror } from '@highlight-run/rrweb/typings';
 import { SvelteComponent } from 'svelte';
 
 export type RRwebPlayerOptions = {

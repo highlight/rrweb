@@ -1,6 +1,7 @@
 {
   "name": "@highlight-run/rrweb",
   "version": "2.2.0",
+  "private": true,
   "description": "record and replay the web",
   "scripts": {
     "prepare": "npm run prepack",
@@ -9,8 +10,8 @@
     "test:headless": "PUPPETEER_HEADLESS=true npm run test",
     "test:watch": "PUPPETEER_HEADLESS=true npm run test -- --watch",
     "repl": "npm run bundle:browser && node scripts/repl.js",
+    "dev": "rollup --config --watch",
     "live-stream": "yarn bundle:browser && node scripts/stream.js",
-    "dev": "yarn bundle:browser --watch",
     "bundle:browser": "cross-env BROWSER_ONLY=true rollup --config",
     "bundle": "rollup --config",
     "typings": "tsc -d --declarationDir typings",
@@ -28,7 +29,7 @@
     "rrweb"
   ],
   "main": "lib/rrweb-all.js",
-  "module": "es/rrweb/packages/rrweb/src/entries/all.js",
+  "module": "es/rrweb/rrweb/packages/rrweb/src/entries/all.js",
   "unpkg": "dist/rrweb.js",
   "sideEffects": false,
   "typings": "typings/entries/all.d.ts",
@@ -63,7 +64,7 @@
     "identity-obj-proxy": "^3.0.0",
     "ignore-styles": "^5.0.1",
     "inquirer": "^9.0.0",
-    "jest": "^27.5.1",
+    "jest": "27.1.1",
     "jest-image-snapshot": "^4.5.1",
     "jest-snapshot": "^23.6.0",
     "prettier": "2.2.1",
@@ -75,7 +76,7 @@
     "rollup-plugin-typescript2": "^0.31.2",
     "rollup-plugin-web-worker-loader": "^1.6.1",
     "simple-peer-light": "^9.10.0",
-    "ts-jest": "^27.1.3",
+    "ts-jest": "27.1.5",
     "ts-node": "^10.9.1",
     "tslib": "^2.3.1",
     "typescript": "^4.7.3"
