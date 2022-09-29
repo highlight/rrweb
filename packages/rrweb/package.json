@@ -1,6 +1,7 @@
 {
   "name": "@highlight-run/rrweb",
   "version": "2.2.0",
+  "private": true,
   "description": "record and replay the web",
   "scripts": {
     "prepare": "npm run prepack",
@@ -9,7 +10,7 @@
     "test:headless": "PUPPETEER_HEADLESS=true npm run test",
     "test:watch": "PUPPETEER_HEADLESS=true npm run test -- --watch",
     "repl": "npm run bundle:browser && node scripts/repl.js",
-    "dev": "yarn bundle:browser --watch",
+    "dev": "rollup --config --watch",
     "bundle:browser": "cross-env BROWSER_ONLY=true rollup --config",
     "bundle": "rollup --config",
     "typings": "tsc -d --declarationDir typings",
@@ -26,7 +27,7 @@
     "rrweb"
   ],
   "main": "lib/rrweb-all.js",
-  "module": "es/rrweb/packages/rrweb/src/entries/all.js",
+  "module": "es/rrweb/rrweb/packages/rrweb/src/entries/all.js",
   "unpkg": "dist/rrweb.js",
   "sideEffects": false,
   "typings": "typings/entries/all.d.ts",
