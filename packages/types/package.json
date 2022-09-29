@@ -41,7 +41,7 @@
     "vite-plugin-dts": "^1.6.6"
   },
   "dependencies": {
-    "rrweb-snapshot": "^2.0.0-alpha.3"
+    "@highlight-run/rrweb-snapshot": "workspace:*"
   },
   "browserslist": [
     "supports es6-class"

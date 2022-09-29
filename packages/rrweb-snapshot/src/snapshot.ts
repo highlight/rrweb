@@ -1072,7 +1072,7 @@ export function serializeNodeWithId(
     // Remove the image's src if enableStrictPrivacy.
     if (strictPrivacy && serializedNode.tagName === 'img') {
       const clone = n.cloneNode();
-      ((clone as unknown) as HTMLImageElement).src = '';
+      (clone as unknown as HTMLImageElement).src = '';
       mirror.add(clone, serializedNode);
     }
     /** Highlight Code End */

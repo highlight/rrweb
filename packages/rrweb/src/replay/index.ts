@@ -440,7 +440,7 @@ export class Replayer {
       const userInteractionEvents = [
         { timestamp: metadata.startTime },
         ...this.service.state.context.events.filter((ev) =>
-            this.isUserInteraction(ev),
+          this.isUserInteraction(ev),
         ),
         { timestamp: metadata.endTime },
       ];
@@ -448,8 +448,8 @@ export class Replayer {
         const currentInterval = userInteractionEvents[i - 1];
         const _event = userInteractionEvents[i];
         if (
-            _event.timestamp! - currentInterval.timestamp! >
-            SKIP_TIME_THRESHOLD
+          _event.timestamp! - currentInterval.timestamp! >
+          SKIP_TIME_THRESHOLD
         ) {
           allIntervals.push({
             startTime: currentInterval.timestamp!,
@@ -485,8 +485,8 @@ export class Replayer {
           startTime: currentInterval.startTime,
           endTime: allIntervals[allIntervals.length - 1].endTime,
           duration:
-              allIntervals[allIntervals.length - 1].endTime -
-              currentInterval.startTime,
+            allIntervals[allIntervals.length - 1].endTime -
+            currentInterval.startTime,
           active: allIntervals[allIntervals.length - 1].active,
         });
       }
@@ -495,18 +495,18 @@ export class Replayer {
       currentInterval = mergedIntervals[0];
       for (let i = 1; i < mergedIntervals.length; i++) {
         if (
-            (!mergedIntervals[i].active &&
-                mergedIntervals[i].duration >
-                this.config.inactiveThreshold * metadata.totalTime) ||
-            (!mergedIntervals[i - 1].active &&
-                mergedIntervals[i - 1].duration >
-                this.config.inactiveThreshold * metadata.totalTime)
+          (!mergedIntervals[i].active &&
+            mergedIntervals[i].duration >
+              this.config.inactiveThreshold * metadata.totalTime) ||
+          (!mergedIntervals[i - 1].active &&
+            mergedIntervals[i - 1].duration >
+              this.config.inactiveThreshold * metadata.totalTime)
         ) {
           this.activityIntervals.push({
             startTime: currentInterval.startTime,
             endTime: mergedIntervals[i - 1].endTime,
             duration:
-                mergedIntervals[i - 1].endTime - currentInterval.startTime,
+              mergedIntervals[i - 1].endTime - currentInterval.startTime,
             active: mergedIntervals[i - 1].active,
           });
           currentInterval = mergedIntervals[i];
@@ -517,8 +517,8 @@ export class Replayer {
           startTime: currentInterval.startTime,
           endTime: mergedIntervals[mergedIntervals.length - 1].endTime,
           duration:
-              mergedIntervals[mergedIntervals.length - 1].endTime -
-              currentInterval.startTime,
+            mergedIntervals[mergedIntervals.length - 1].endTime -
+            currentInterval.startTime,
           active: mergedIntervals[mergedIntervals.length - 1].active,
         });
       }
@@ -529,9 +529,10 @@ export class Replayer {
 
   public getMetaData(): playerMetaData {
     const firstEvent = this.service.state.context.events[0];
-    const lastEvent = this.service.state.context.events[
-      this.service.state.context.events.length - 1
-    ];
+    const lastEvent =
+      this.service.state.context.events[
+        this.service.state.context.events.length - 1
+      ];
     return {
       startTime: firstEvent.timestamp,
       endTime: lastEvent.timestamp,
@@ -861,9 +862,9 @@ export class Replayer {
     if (this.config.skipInactive && !this.inactiveEndTimestamp) {
       for (const interval of this.getActivityIntervals()) {
         if (
-            timestamp >= interval.startTime! &&
-            timestamp < interval.endTime! &&
-            !interval.active
+          timestamp >= interval.startTime! &&
+          timestamp < interval.endTime! &&
+          !interval.active
         ) {
           this.inactiveEndTimestamp = interval.endTime;
           break;
@@ -873,13 +874,13 @@ export class Replayer {
         const skipTime = this.inactiveEndTimestamp! - timestamp!;
         const payload = {
           speed:
-              (skipTime / SKIP_DURATION_LIMIT) * this.config.inactiveSkipTime <
-              SKIP_TIME_MIN
-                  ? skipTime / SKIP_TIME_MIN
-                  : Math.round(
-                      Math.max(skipTime, SKIP_DURATION_LIMIT) /
-                      this.config.inactiveSkipTime,
-                  ),
+            (skipTime / SKIP_DURATION_LIMIT) * this.config.inactiveSkipTime <
+            SKIP_TIME_MIN
+              ? skipTime / SKIP_TIME_MIN
+              : Math.round(
+                  Math.max(skipTime, SKIP_DURATION_LIMIT) /
+                    this.config.inactiveSkipTime,
+                ),
         };
         this.speedService.send({ type: 'FAST_FORWARD', payload });
         this.emitter.emit(ReplayerEvents.SkipStart, payload);
@@ -995,7 +996,7 @@ export class Replayer {
     const collected: AppendedIframe[] = [];
     const afterAppend = (builtNode: Node, id: number) => {
       this.collectIframeAndAttachDocument(collected, builtNode);
-      const sn = (mirror as TMirror).getMeta((builtNode as unknown) as TNode);
+      const sn = (mirror as TMirror).getMeta(builtNode as unknown as TNode);
       if (
         sn?.type === NodeType.Element &&
         sn?.tagName.toUpperCase() === 'HTML'
