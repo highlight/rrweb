@@ -80,7 +80,9 @@ export function discardPriorSnapshots(
 
 type PlayerAssets = {
   emitter: Emitter;
-  applyEventsSynchronously(events: Array<eventWithTime>): void;
+  applyEventsSynchronously(
+    events: Array<eventWithTime>,
+  ): Generator<number | void, void, void>;
   getCastFn(event: eventWithTime, isSync: boolean): () => void;
 };
 export function createPlayerService(
@@ -199,7 +201,6 @@ export function createPlayerService(
             emitter.emit(ReplayerEvents.PlayBack);
           }
 
-          const syncEvents = new Array<eventWithTime>();
           const actions = new Array<actionWithDelay>();
           for (const event of neededEvents) {
             if (
@@ -210,9 +211,7 @@ export function createPlayerService(
             ) {
               continue;
             }
-            if (event.timestamp < baselineTime) {
-              syncEvents.push(event);
-            } else {
+            if (event.timestamp >= baselineTime) {
               const castFn = getCastFn(event, false);
               actions.push({
                 doAction: () => {
@@ -222,7 +221,6 @@ export function createPlayerService(
               });
             }
           }
-          applyEventsSynchronously(syncEvents);
           emitter.emit(ReplayerEvents.Flush);
           timer.addActions(actions);
           timer.start();

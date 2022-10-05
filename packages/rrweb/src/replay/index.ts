@@ -30,7 +30,11 @@ import type {
 import * as mittProxy from 'mitt';
 import { polyfill as smoothscrollPolyfill } from './smoothscroll';
 import { Timer } from './timer';
-import { createPlayerService, createSpeedService } from './machine';
+import {
+  createPlayerService,
+  createSpeedService,
+  discardPriorSnapshots,
+} from './machine';
 import {
   EventType,
   IncrementalSource,
@@ -60,6 +64,7 @@ import {
   canvasMutationParam,
   canvasEventWithTime,
   SessionInterval,
+  actionWithDelay,
 } from '../types';
 import {
   polyfill,
@@ -119,6 +124,14 @@ export class Replayer {
   // In the fast-forward process, if the virtual-dom optimization is used, this flag value is true.
   public usingVirtualDom = false;
   public virtualDom: RRDocument = new RRDocument();
+
+  private readonly ctx: {
+    events: eventWithTime[];
+    timer: Timer;
+    timeOffset: number;
+    baselineTime: number;
+    lastPlayedEvent: any;
+  };
 
   private mouse: HTMLDivElement;
   private mouseTail: HTMLCanvasElement | null = null;
@@ -255,27 +268,25 @@ export class Replayer {
     });
 
     const timer = new Timer([], config?.speed || defaultConfig.speed);
-    this.service = createPlayerService(
-      {
-        events: events
-          .map((e) => {
-            if (config && config.unpackFn) {
-              return config.unpackFn(e as string);
-            }
-            return e as eventWithTime;
-          })
-          .sort((a1, a2) => a1.timestamp - a2.timestamp),
-        timer,
-        timeOffset: 0,
-        baselineTime: 0,
-        lastPlayedEvent: null,
-      },
-      {
-        getCastFn: this.getCastFn,
-        applyEventsSynchronously: this.applyEventsSynchronously,
-        emitter: this.emitter,
-      },
-    );
+    this.ctx = {
+      events: events
+        .map((e) => {
+          if (config && config.unpackFn) {
+            return config.unpackFn(e as string);
+          }
+          return e as eventWithTime;
+        })
+        .sort((a1, a2) => a1.timestamp - a2.timestamp),
+      timer,
+      timeOffset: 0,
+      baselineTime: 0,
+      lastPlayedEvent: null,
+    };
+    this.service = createPlayerService(this.ctx, {
+      getCastFn: this.getCastFn,
+      applyEventsSynchronously: this.applyEventsSynchronously,
+      emitter: this.emitter,
+    });
     this.service.start();
     this.service.subscribe((state) => {
       this.emitter.emit(ReplayerEvents.StateChange, {
@@ -508,13 +519,26 @@ export class Replayer {
    * and cast event after the offset asynchronously with timer.
    * @param timeOffset - number
    */
-  public play(timeOffset = 0) {
+  public *play(timeOffset = 0) {
     if (this.service.state.matches('paused')) {
       this.service.send({ type: 'PLAY', payload: { timeOffset } });
     } else {
       this.service.send({ type: 'PAUSE' });
       this.service.send({ type: 'PLAY', payload: { timeOffset } });
     }
+
+    const neededEvents = discardPriorSnapshots(
+      this.ctx.events,
+      this.ctx.baselineTime,
+    );
+    const syncEvents = new Array<eventWithTime>();
+    for (const event of neededEvents) {
+      if (event.timestamp < this.ctx.baselineTime) {
+        syncEvents.push(event);
+      }
+    }
+    yield* this.applyEventsSynchronously(syncEvents);
+
     this.iframe.contentDocument
       ?.getElementsByTagName('html')[0]
       ?.classList.remove('rrweb-paused');
@@ -635,7 +659,7 @@ export class Replayer {
     }
   };
 
-  private applyEventsSynchronously = (events: Array<eventWithTime>) => {
+  private *applyEventsSynchronously(events: Array<eventWithTime>) {
     for (const event of events) {
       switch (event.type) {
         case EventType.DomContentLoaded:
@@ -651,7 +675,7 @@ export class Replayer {
           break;
       }
       const castFn = this.getCastFn(event, true);
-      castFn();
+      yield* castFn();
     }
     if (this.touchActive === true) {
       this.mouse.classList.add('touch-active');
@@ -659,114 +683,116 @@ export class Replayer {
       this.mouse.classList.remove('touch-active');
     }
     this.touchActive = null;
-  };
+  }
 
   private getCastFn = (event: eventWithTime, isSync = false) => {
-    let castFn: undefined | (() => void);
+    let castFn: undefined | (() => Generator<number | void, void, void>);
+    const self = this;
     switch (event.type) {
       case EventType.DomContentLoaded:
       case EventType.Load:
         break;
       case EventType.Custom:
-        castFn = () => {
+        castFn = function* () {
           /**
            * emit custom-event and pass the event object.
            *
            * This will add more value to the custom event and allows the client to react for custom-event.
            */
-          this.emitter.emit(ReplayerEvents.CustomEvent, event);
+          self.emitter.emit(ReplayerEvents.CustomEvent, event);
         };
         break;
       case EventType.Meta:
-        castFn = () =>
-          this.emitter.emit(ReplayerEvents.Resize, {
+        castFn = function* () {
+          self.emitter.emit(ReplayerEvents.Resize, {
             width: event.data.width,
             height: event.data.height,
           });
+        };
         break;
       case EventType.FullSnapshot:
-        castFn = () => {
-          if (this.firstFullSnapshot) {
-            if (this.firstFullSnapshot === event) {
+        castFn = function* () {
+          if (self.firstFullSnapshot) {
+            if (self.firstFullSnapshot === event) {
               // we've already built this exact FullSnapshot when the player was mounted, and haven't built any other FullSnapshot since
-              this.firstFullSnapshot = true; // forget as we might need to re-execute this FullSnapshot later e.g. to rebuild after scrubbing
+              self.firstFullSnapshot = true; // forget as we might need to re-execute this FullSnapshot later e.g. to rebuild after scrubbing
               return;
             }
           } else {
             // Timer (requestAnimationFrame) can be faster than setTimeout(..., 1)
-            this.firstFullSnapshot = true;
+            self.firstFullSnapshot = true;
           }
-          this.rebuildFullSnapshot(event, isSync);
-          this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
+          yield* self.rebuildFullSnapshot(event, isSync);
+          self.iframe.contentWindow!.scrollTo(event.data.initialOffset);
         };
         break;
       case EventType.IncrementalSnapshot:
-        castFn = () => {
-          this.applyIncremental(event, isSync);
+        castFn = function* () {
+          yield* self.applyIncremental(event, isSync);
           if (isSync) {
             // do not check skip in sync
             return;
           }
-          this.handleInactivity(event.timestamp);
-          if (event === this.nextUserInteractionEvent) {
-            this.nextUserInteractionEvent = null;
-            this.backToNormal();
+          self.handleInactivity(event.timestamp);
+          if (event === self.nextUserInteractionEvent) {
+            self.nextUserInteractionEvent = null;
+            self.backToNormal();
           }
-          if (this.config.skipInactive && !this.nextUserInteractionEvent) {
-            for (const _event of this.service.state.context.events) {
+          if (self.config.skipInactive && !self.nextUserInteractionEvent) {
+            for (const _event of self.service.state.context.events) {
               if (_event.timestamp <= event.timestamp) {
                 continue;
               }
-              if (this.isUserInteraction(_event)) {
+              if (self.isUserInteraction(_event)) {
                 if (
                   _event.delay! - event.delay! >
                   SKIP_TIME_THRESHOLD *
-                    this.speedService.state.context.timer.speed
+                    self.speedService.state.context.timer.speed
                 ) {
-                  this.nextUserInteractionEvent = _event;
+                  self.nextUserInteractionEvent = _event;
                 }
                 break;
               }
             }
-            if (this.nextUserInteractionEvent) {
+            if (self.nextUserInteractionEvent) {
               const skipTime =
-                this.nextUserInteractionEvent.delay! - event.delay!;
+                self.nextUserInteractionEvent.delay! - event.delay!;
               const payload = {
                 speed: Math.min(
                   Math.round(skipTime / SKIP_TIME_INTERVAL),
-                  this.config.maxSpeed,
+                  self.config.maxSpeed,
                 ),
               };
-              this.speedService.send({ type: 'FAST_FORWARD', payload });
-              this.emitter.emit(ReplayerEvents.SkipStart, payload);
+              self.speedService.send({ type: 'FAST_FORWARD', payload });
+              self.emitter.emit(ReplayerEvents.SkipStart, payload);
             }
           }
         };
         break;
       default:
     }
-    const wrappedCastFn = () => {
+    function* wrappedCastFn() {
       if (castFn) {
-        castFn();
+        yield* castFn();
       }
 
-      for (const plugin of this.config.plugins || []) {
+      for (const plugin of self.config.plugins || []) {
         plugin.handler(event, isSync, { replayer: this });
       }
 
-      this.service.send({ type: 'CAST_EVENT', payload: { event } });
+      self.service.send({ type: 'CAST_EVENT', payload: { event } });
 
       // events are kept sorted by timestamp, check if this is the last event
-      const last_index = this.service.state.context.events.length - 1;
-      if (event === this.service.state.context.events[last_index]) {
+      const last_index = self.service.state.context.events.length - 1;
+      if (event === self.service.state.context.events[last_index]) {
         const finish = () => {
-          if (last_index < this.service.state.context.events.length - 1) {
+          if (last_index < self.service.state.context.events.length - 1) {
             // more events have been added since the setTimeout
             return;
           }
-          this.backToNormal();
-          this.service.send('END');
-          this.emitter.emit(ReplayerEvents.Finish);
+          self.backToNormal();
+          self.service.send('END');
+          self.emitter.emit(ReplayerEvents.Finish);
         };
         if (
           event.type === EventType.IncrementalSnapshot &&
@@ -782,8 +808,8 @@ export class Replayer {
         }
       }
 
-      this.emitter.emit(ReplayerEvents.EventCast, event);
-    };
+      self.emitter.emit(ReplayerEvents.EventCast, event);
+    }
     return wrappedCastFn;
   };
 
@@ -823,7 +849,7 @@ export class Replayer {
   }
   /* End of Highlight Code */
 
-  private rebuildFullSnapshot(
+  private *rebuildFullSnapshot(
     event: fullSnapshotEvent & { timestamp: number },
     isSync = false,
   ) {
@@ -1092,7 +1118,7 @@ export class Replayer {
     }
   }
 
-  private applyIncremental(
+  private *applyIncremental(
     e: incrementalSnapshotEvent & { timestamp: number; delay?: number },
     isSync: boolean,
   ) {
@@ -1100,7 +1126,7 @@ export class Replayer {
     switch (d.source) {
       case IncrementalSource.Mutation: {
         try {
-          this.applyMutation(d, isSync);
+          yield* this.applyMutation(d, isSync);
         } catch (error) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/restrict-template-expressions
           this.warn(`Exception in mutation ${error.message || error}`, d);
@@ -1474,7 +1500,7 @@ export class Replayer {
     }
   }
 
-  private applyMutation(d: mutationData, isSync: boolean) {
+  private *applyMutation(d: mutationData, isSync: boolean) {
     // Only apply virtual dom optimization if the fast-forward process has node mutation. Because the cost of creating a virtual dom tree and executing the diff algorithm is usually higher than directly applying other kind of events.
     if (this.config.useVirtualDom && !this.usingVirtualDom && isSync) {
       this.usingVirtualDom = true;
@@ -1726,9 +1752,9 @@ export class Replayer {
       }
     };
 
-    d.adds.forEach((mutation) => {
-      appendNode(mutation);
-    });
+    for (const mutation of d.adds) {
+      yield appendNode(mutation);
+    }
 
     const startTime = Date.now();
     while (queue.length) {
