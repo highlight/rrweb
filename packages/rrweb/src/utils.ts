@@ -10,7 +10,11 @@ import type {
   textMutation,
 } from './types';
 import type { IMirror, Mirror } from '@highlight-run/rrweb-snapshot';
-import { isShadowRoot, IGNORED_NODE, classMatchesRegex } from '@highlight-run/rrweb-snapshot';
+import {
+  isShadowRoot,
+  IGNORED_NODE,
+  classMatchesRegex,
+} from '@highlight-run/rrweb-snapshot';
 import type { RRNode, RRIFrameElement } from '@highlight-run/rrdom';
 
 export function on(
@@ -276,14 +280,14 @@ export function isTouchEvent(
 export function polyfill(win = window) {
   if ('NodeList' in win && !win.NodeList.prototype.forEach) {
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    win.NodeList.prototype.forEach = (Array.prototype
-      .forEach as unknown) as NodeList['forEach'];
+    win.NodeList.prototype.forEach = Array.prototype
+      .forEach as unknown as NodeList['forEach'];
   }
 
   if ('DOMTokenList' in win && !win.DOMTokenList.prototype.forEach) {
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    win.DOMTokenList.prototype.forEach = (Array.prototype
-      .forEach as unknown) as DOMTokenList['forEach'];
+    win.DOMTokenList.prototype.forEach = Array.prototype
+      .forEach as unknown as DOMTokenList['forEach'];
   }
 
   // https://github.com/Financial-Times/polyfill-service/pull/183
@@ -428,7 +432,7 @@ export function getBaseDimension(
 export function hasShadowRoot<T extends Node | RRNode>(
   n: T,
 ): n is T & { shadowRoot: ShadowRoot } {
-  return Boolean(((n as unknown) as Element)?.shadowRoot);
+  return Boolean((n as unknown as Element)?.shadowRoot);
 }
 
 export function getNestedRule(
