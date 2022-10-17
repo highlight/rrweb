@@ -30,7 +30,7 @@ import {
   BaseRRNode as RRNode,
 } from '../src';
 
-const _typescript = (typescript as unknown) as typeof typescript.default;
+const _typescript = typescript as unknown as typeof typescript.default;
 const printRRDomCode = `
 /**
  * Print the RRDom as a string.
@@ -101,7 +101,7 @@ describe('RRDocument for browser environment', () => {
       // build from element
       expect(mirror.getMeta(document.documentElement)).toBeNull();
       rrNode = buildFromNode(
-        (document.documentElement as unknown) as Node,
+        document.documentElement as unknown as Node,
         rrdom,
         mirror,
       )!;
@@ -222,10 +222,10 @@ describe('RRDocument for browser environment', () => {
       const bundle = await rollup.rollup({
         input: path.resolve(__dirname, '../src/index.ts'),
         plugins: [
-          (resolve() as unknown) as rollup.Plugin,
-          (_typescript({
+          resolve() as unknown as rollup.Plugin,
+          _typescript({
             tsconfigOverride: { compilerOptions: { module: 'ESNext' } },
-          }) as unknown) as rollup.Plugin,
+          }) as unknown as rollup.Plugin,
         ],
       });
       const {
@@ -396,7 +396,7 @@ describe('RRDocument for browser environment', () => {
         expect(dom.mirror.getId(node1)).toEqual(0);
         const node2 = dom.createTextNode('text');
         expect(dom.mirror.getId(node2)).toEqual(-1);
-        expect(dom.mirror.getId((null as unknown) as RRNode)).toEqual(-1);
+        expect(dom.mirror.getId(null as unknown as RRNode)).toEqual(-1);
       });
 
       it('has() should return whether the mirror has an ID', () => {

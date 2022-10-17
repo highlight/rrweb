@@ -1,4 +1,8 @@
-import { MaskInputOptions, maskInputValue, Mirror } from '@highlight-run/rrweb-snapshot';
+import {
+  MaskInputOptions,
+  maskInputValue,
+  Mirror,
+} from '@highlight-run/rrweb-snapshot';
 import type { FontFaceSet } from 'css-font-loading-module';
 import {
   throttle,
@@ -98,19 +102,18 @@ export function initMutationObserver(
      * window.__rrMutationObserver = MutationObserver
      */
     (window as WindowWithStoredMutationObserver).__rrMutationObserver;
-  const angularZoneSymbol = (window as WindowWithAngularZone)?.Zone?.__symbol__?.(
-    'MutationObserver',
-  );
+  const angularZoneSymbol = (
+    window as WindowWithAngularZone
+  )?.Zone?.__symbol__?.('MutationObserver');
   if (
     angularZoneSymbol &&
-    ((window as unknown) as Record<string, typeof MutationObserver>)[
+    (window as unknown as Record<string, typeof MutationObserver>)[
       angularZoneSymbol
     ]
   ) {
-    mutationObserverCtor = ((window as unknown) as Record<
-      string,
-      typeof MutationObserver
-    >)[angularZoneSymbol];
+    mutationObserverCtor = (
+      window as unknown as Record<string, typeof MutationObserver>
+    )[angularZoneSymbol];
   }
   const observer = new (mutationObserverCtor as new (
     callback: MutationCallback,
@@ -232,9 +235,9 @@ function initMouseInteractionObserver({
       const target = getEventTarget(event) as Node;
       /* Start of Highlight Code */
       if (
-          isBlocked(target, blockClass, blockSelector, true) ||
-          // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
-          isCanvasNode(target)
+        isBlocked(target, blockClass, blockSelector, true) ||
+        // We ignore canvas elements for rage click detection because we cannot infer what inside the canvas is getting interacted with.
+        isCanvasNode(target)
       ) {
         return;
       }
@@ -433,9 +436,9 @@ function initInputObserver({
     }
   }
   const events = sampling.input === 'last' ? ['change'] : ['input', 'change'];
-  const handlers: Array<
-    listenerHandler | hookResetter
-  > = events.map((eventName) => on(eventName, eventHandler, doc));
+  const handlers: Array<listenerHandler | hookResetter> = events.map(
+    (eventName) => on(eventName, eventHandler, doc),
+  );
   const currentWindow = doc.defaultView;
   if (!currentWindow) {
     return () => {
@@ -894,12 +897,8 @@ function initMediaInteractionObserver({
       ) {
         return;
       }
-      const {
-        currentTime,
-        volume,
-        muted,
-        playbackRate,
-      } = target as HTMLMediaElement;
+      const { currentTime, volume, muted, playbackRate } =
+        target as HTMLMediaElement;
       mediaInteractionCb({
         type,
         id: mirror.getId(target as Node),
@@ -934,7 +933,7 @@ function initFontObserver({ fontCb, doc }: observerParam): listenerHandler {
   const fontMap = new WeakMap<FontFace, fontParam>();
 
   const originalFontFace = win.FontFace;
-  win.FontFace = (function FontFace(
+  win.FontFace = function FontFace(
     family: string,
     source: string | ArrayBufferLike,
     descriptors?: FontFaceDescriptors,
@@ -950,7 +949,7 @@ function initFontObserver({ fontCb, doc }: observerParam): listenerHandler {
           : JSON.stringify(Array.from(new Uint8Array(source))),
     });
     return fontFace;
-  } as unknown) as typeof FontFace;
+  } as unknown as typeof FontFace;
 
   const restoreHandler = patch(
     doc.fonts,

@@ -82,7 +82,7 @@ export class Mirror implements IMirror<Node> {
 
     if (n.childNodes) {
       n.childNodes.forEach((childNode) =>
-        this.removeNodeFromMap((childNode as unknown) as Node),
+        this.removeNodeFromMap(childNode as unknown as Node),
       );
     }
   }
@@ -196,10 +196,10 @@ export function obfuscateText(text: string): string {
   // If we don't filter does out, our string obfuscation could have more characters than what was originally presented.
   text = text.replace(/[^ -~]+/g, '');
   text =
-      text
-          ?.split(' ')
-          .map((word) => Math.random().toString(20).substr(2, word.length))
-          .join(' ') || '';
+    text
+      ?.split(' ')
+      .map((word) => Math.random().toString(20).substr(2, word.length))
+      .join(' ') || '';
   return text;
 }
 /* End of Highlight Code */
