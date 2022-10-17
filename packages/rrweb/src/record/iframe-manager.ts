@@ -1,4 +1,7 @@
-import type { Mirror, serializedNodeWithId } from '@highlight-run/rrweb-snapshot';
+import type {
+  Mirror,
+  serializedNodeWithId,
+} from '@highlight-run/rrweb-snapshot';
 import type { mutationCallBack } from '../types';
 import type { StylesheetManager } from './stylesheet-manager';
 
