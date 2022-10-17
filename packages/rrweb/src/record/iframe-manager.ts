@@ -1,4 +1,7 @@
-import type { Mirror, serializedNodeWithId } from '@highlight-run/rrweb-snapshot';
+import type {
+  Mirror,
+  serializedNodeWithId,
+} from '@highlight-run/rrweb-snapshot';
 import { genId } from '@highlight-run/rrweb-snapshot';
 import type { CrossOriginIframeMessageEvent } from '../types';
 import CrossOriginIframeMirror from './cross-origin-iframe-mirror';
