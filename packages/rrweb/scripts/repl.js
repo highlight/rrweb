@@ -44,8 +44,7 @@ void (async () => {
       {
         type: 'input',
         name: 'url',
-        message:
-          `Enter the url you want to record, e.g [${defaultURL}]: `,
+        message: `Enter the url you want to record, e.g [${defaultURL}]: `,
       },
     ]);
 
@@ -211,9 +210,9 @@ void (async () => {
     <script>
       /*<!--*/
       const events = ${JSON.stringify(events).replace(
-      /<\/script>/g,
-      '<\\/script>',
-    )};
+        /<\/script>/g,
+        '<\\/script>',
+      )};
       /*-->*/
       const replayer = new rrweb.Replayer(events, {
         UNSAFE_replayCanvas: true

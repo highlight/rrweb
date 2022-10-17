@@ -1,4 +1,8 @@
-import type { ICanvas, Mirror, DataURLOptions } from '@highlight-run/rrweb-snapshot';
+import type {
+  ICanvas,
+  Mirror,
+  DataURLOptions,
+} from '@highlight-run/rrweb-snapshot';
 import type {
   blockClass,
   canvasManagerMutationCallback,
@@ -82,9 +86,18 @@ export class CanvasManager {
     if (recordCanvas && sampling === 'all')
       this.initCanvasMutationObserver(win, blockClass, blockSelector);
     if (recordCanvas && typeof sampling === 'number')
-      this.initCanvasFPSObserver(sampling, win, blockClass, blockSelector, {
-        dataURLOptions,
-      }, options.resizeQuality, options.resizeFactor, options.maxSnapshotDimension);
+      this.initCanvasFPSObserver(
+        sampling,
+        win,
+        blockClass,
+        blockSelector,
+        {
+          dataURLOptions,
+        },
+        options.resizeQuality,
+        options.resizeFactor,
+        options.maxSnapshotDimension,
+      );
   }
 
   private processMutation: canvasManagerMutationCallback = (
@@ -119,10 +132,11 @@ export class CanvasManager {
     const canvasContextReset = initCanvasContextObserver(
       win,
       blockClass,
-      blockSelector
+      blockSelector,
     );
     const snapshotInProgressMap: Map<number, boolean> = new Map();
-    const worker = new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
+    const worker =
+      new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
     worker.onmessage = (e) => {
       const { id } = e.data;
       snapshotInProgressMap.set(id, false);
