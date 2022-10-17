@@ -1404,9 +1404,9 @@ export class Replayer {
         if (this.usingVirtualDom) {
           if (d.styleId) this.constructedStyleMutations.push(d);
           else if (d.id)
-            (this.virtualDom.mirror.getNode(
-              d.id,
-            ) as RRStyleElement | null)?.rules.push(d);
+            (
+              this.virtualDom.mirror.getNode(d.id) as RRStyleElement | null
+            )?.rules.push(d);
         } else this.applyStyleSheetMutation(d);
         break;
       }
@@ -2043,10 +2043,10 @@ export class Replayer {
     styleSheet: CSSStyleSheet,
   ) {
     if (data.set) {
-      const rule = (getNestedRule(
+      const rule = getNestedRule(
         styleSheet.rules,
         data.index,
-      ) as unknown) as CSSStyleRule;
+      ) as unknown as CSSStyleRule;
       rule.style.setProperty(
         data.set.property,
         data.set.value,
@@ -2055,10 +2055,10 @@ export class Replayer {
     }
 
     if (data.remove) {
-      const rule = (getNestedRule(
+      const rule = getNestedRule(
         styleSheet.rules,
         data.index,
-      ) as unknown) as CSSStyleRule;
+      ) as unknown as CSSStyleRule;
       rule.style.removeProperty(data.remove.property);
     }
   }
@@ -2104,7 +2104,8 @@ export class Replayer {
         .filter((style) => style !== null) as CSSStyleSheet[];
       if (hasShadowRoot(targetHost))
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        (targetHost as HTMLElement).shadowRoot!.adoptedStyleSheets = stylesToAdopt;
+        (targetHost as HTMLElement).shadowRoot!.adoptedStyleSheets =
+          stylesToAdopt;
       else if (targetHost.nodeName === '#document')
         (targetHost as Document).adoptedStyleSheets = stylesToAdopt;
 

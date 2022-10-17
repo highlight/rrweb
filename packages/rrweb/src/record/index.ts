@@ -154,9 +154,9 @@ function record<T = eventWithTime>(
       }
     }
     if (packFn) {
-      e = (packFn(e) as unknown) as eventWithTime;
+      e = packFn(e) as unknown as eventWithTime;
     }
-    return (e as unknown) as T;
+    return e as unknown as T;
   };
   wrappedEmit = (e: eventWithTime, isCheckout?: boolean) => {
     if (

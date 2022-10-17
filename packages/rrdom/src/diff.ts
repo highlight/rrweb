@@ -1,4 +1,7 @@
-import { NodeType as RRNodeType, Mirror as NodeMirror } from '@highlight-run/rrweb-snapshot';
+import {
+  NodeType as RRNodeType,
+  Mirror as NodeMirror,
+} from '@highlight-run/rrweb-snapshot';
 import type {
   canvasMutationData,
   canvasEventWithTime,
@@ -200,10 +203,9 @@ export function diff(
         oldTree.textContent !==
         (newTree as IRRText | IRRComment | IRRCDATASection).data
       )
-        oldTree.textContent = (newTree as
-          | IRRText
-          | IRRComment
-          | IRRCDATASection).data;
+        oldTree.textContent = (
+          newTree as IRRText | IRRComment | IRRCDATASection
+        ).data;
       break;
     default:
   }
