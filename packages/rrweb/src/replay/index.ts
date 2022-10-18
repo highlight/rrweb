@@ -475,20 +475,20 @@ export class Replayer {
         const currentInterval = userInteractionEvents[i - 1];
         const _event = userInteractionEvents[i];
         if (
-          _event.timestamp! - currentInterval.timestamp! >
+          _event.timestamp - currentInterval.timestamp >
           SKIP_TIME_THRESHOLD
         ) {
           allIntervals.push({
-            startTime: currentInterval.timestamp!,
-            endTime: _event.timestamp!,
-            duration: _event.timestamp! - currentInterval.timestamp!,
+            startTime: currentInterval.timestamp,
+            endTime: _event.timestamp,
+            duration: _event.timestamp - currentInterval.timestamp,
             active: false,
           });
         } else {
           allIntervals.push({
-            startTime: currentInterval.timestamp!,
-            endTime: _event.timestamp!,
-            duration: _event.timestamp! - currentInterval.timestamp!,
+            startTime: currentInterval.timestamp,
+            endTime: _event.timestamp,
+            duration: _event.timestamp - currentInterval.timestamp,
             active: true,
           });
         }
@@ -884,8 +884,8 @@ export class Replayer {
     if (this.config.skipInactive && !this.inactiveEndTimestamp) {
       for (const interval of this.getActivityIntervals()) {
         if (
-          timestamp >= interval.startTime! &&
-          timestamp < interval.endTime! &&
+          timestamp >= interval.startTime &&
+          timestamp < interval.endTime &&
           !interval.active
         ) {
           this.inactiveEndTimestamp = interval.endTime;
@@ -893,7 +893,7 @@ export class Replayer {
         }
       }
       if (this.inactiveEndTimestamp) {
-        const skipTime = this.inactiveEndTimestamp! - timestamp!;
+        const skipTime = this.inactiveEndTimestamp - timestamp;
         const payload = {
           speed:
             (skipTime / SKIP_DURATION_LIMIT) * this.config.inactiveSkipTime <

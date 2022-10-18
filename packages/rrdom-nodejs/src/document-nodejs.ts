@@ -38,7 +38,7 @@ export class RRDocument
   extends BaseRRDocumentImpl(RRNode)
   implements IRRDocument
 {
-  readonly nodeName: '#document' = '#document';
+  readonly nodeName = '#document' as const;
   private _nwsapi: NWSAPI;
   get nwsapi() {
     if (!this._nwsapi) {
@@ -374,15 +374,15 @@ export class RRIFrameElement extends RRElement {
 }
 
 export class RRText extends BaseRRTextImpl(RRNode) {
-  readonly nodeName: '#text' = '#text';
+  readonly nodeName = '#text' as const;
 }
 
 export class RRComment extends BaseRRCommentImpl(RRNode) {
-  readonly nodeName: '#comment' = '#comment';
+  readonly nodeName = '#comment' as const;
 }
 
 export class RRCDATASection extends BaseRRCDATASectionImpl(RRNode) {
-  readonly nodeName: '#cdata-section' = '#cdata-section';
+  readonly nodeName = '#cdata-section' as const;
 }
 
 interface RRElementTagNameMap {
