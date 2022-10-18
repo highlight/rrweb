@@ -11,6 +11,8 @@ import type {
 } from '../types';
 import { StyleSheetMirror } from '../utils';
 
+// TODO(vkorolik) test
+
 export class StylesheetManager {
   private trackedLinkElements: WeakSet<HTMLLinkElement> = new WeakSet();
   private mutationCb: mutationCallBack;
