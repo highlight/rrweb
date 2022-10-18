@@ -199,6 +199,7 @@ function buildNode(
           /**
            * Find all remote fonts in the style tag.
            * We need to find and replace the URLs with a proxy URL so we can bypass CORS.
+           *
            */
           if (typeof value === 'string') {
             const regex = /url\("https:\/\/\S*(.eot|.woff2|.ttf|.woff)\S*"\)/gm;

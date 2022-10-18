@@ -2,6 +2,10 @@
   "$schema": "https://turborepo.org/schema.json",
   "baseBranch": "origin/master",
   "pipeline": {
+    "typings": {
+      "dependsOn": ["^typings"],
+      "outputs": ["typings/**"]
+    },
     "prepublish": {
       "dependsOn": ["^prepublish"],
       "outputs": ["lib/**", "es/**", "dist/**", "typings/**"]
@@ -9,7 +13,10 @@
     "test": {},
     "test:watch": {},
     "dev": {},
-    "lint": {},
+    "lint": {
+      "dependsOn": ["typings"],
+      "cache": false
+    },
     "check-types": {}
   }
 }
