@@ -8,7 +8,7 @@ import * as typescript from 'rollup-plugin-typescript2';
 import * as assert from 'assert';
 import { waitForRAF } from './utils';
 
-const _typescript = (typescript as unknown) as () => rollup.Plugin;
+const _typescript = typescript as unknown as () => rollup.Plugin;
 
 const htmlFolder = path.join(__dirname, 'html');
 const htmls = fs.readdirSync(htmlFolder).map((filePath) => {
