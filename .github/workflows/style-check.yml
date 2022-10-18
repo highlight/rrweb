@@ -5,15 +5,14 @@ on: [push, pull_request_target]
 jobs:
   eslint_check_upload:
     runs-on: ubuntu-latest
-    name: ESLint Check and Report Upload
+    name: Build & ESLint Check
 
     steps:
       - uses: actions/checkout@v3
       - name: Setup Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16.15.0
-          registry-url: https://registry.npmjs.org
+          node-version: 16
       - name: Install
         run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
       - name: Build Packages
@@ -48,16 +47,15 @@ jobs:
 
   prettier_check:
     # In the forked PR, it's hard to format code and push to the branch directly, so the action only check the format correctness.
-    if: github.event_name != 'push' && github.event.pull_request.head.repo.full_name != 'rrweb-io/rrweb'
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     name: Format Check
     steps:
       - uses: actions/checkout@v3
       - name: Setup Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16.15.0
-          registry-url: https://registry.npmjs.org
+          node-version: 16
       - name: Install
         run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
       - name: Prettier Check
@@ -65,16 +63,15 @@ jobs:
 
   prettier:
     # Skip the format code action in forked PRs
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == 'rrweb-io/rrweb'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     name: Format Code
     steps:
       - uses: actions/checkout@v3
       - name: Setup Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16.15.0
-          registry-url: https://registry.npmjs.org
+          node-version: 16
       - name: Install
         run: YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn
       - name: Prettify Code
