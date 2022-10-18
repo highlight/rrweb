@@ -205,7 +205,7 @@ export function BaseRRDocumentImpl<
 >(RRNodeClass: RRNode) {
   return class BaseRRDocument extends RRNodeClass implements IRRDocument {
     public readonly nodeType: number = NodeType.DOCUMENT_NODE;
-    public readonly nodeName: '#document' = '#document';
+    public readonly nodeName = '#document' as const;
     public readonly compatMode: 'BackCompat' | 'CSS1Compat' = 'CSS1Compat';
     public readonly RRNodeType = RRNodeType.Document;
 
@@ -585,7 +585,7 @@ export function BaseRRTextImpl<RRNode extends ConstrainedConstructor<IRRNode>>(
   // @ts-ignore
   return class BaseRRText extends RRNodeClass implements IRRText {
     public readonly nodeType: number = NodeType.TEXT_NODE;
-    public readonly nodeName: '#text' = '#text';
+    public readonly nodeName = '#text' as const;
     public readonly RRNodeType = RRNodeType.Text;
     public data: string;
 
@@ -615,7 +615,7 @@ export function BaseRRCommentImpl<
   // @ts-ignore
   return class BaseRRComment extends RRNodeClass implements IRRComment {
     public readonly nodeType: number = NodeType.COMMENT_NODE;
-    public readonly nodeName: '#comment' = '#comment';
+    public readonly nodeName = '#comment' as const;
     public readonly RRNodeType = RRNodeType.Comment;
     public data: string;
 
@@ -647,7 +647,7 @@ export function BaseRRCDATASectionImpl<
     extends RRNodeClass
     implements IRRCDATASection
   {
-    public readonly nodeName: '#cdata-section' = '#cdata-section';
+    public readonly nodeName = '#cdata-section' as const;
     public readonly nodeType: number = NodeType.CDATA_SECTION_NODE;
     public readonly RRNodeType = RRNodeType.CDATA;
     public data: string;
