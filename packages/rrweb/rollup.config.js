@@ -119,7 +119,7 @@ const baseConfigs = [
 let configs = [];
 
 function getPlugins(options = {}) {
-  const { minify = true, sourceMap = false } = options;
+  const { minify = true, sourceMap = true } = options;
   return [
     resolve({ browser: true }),
     webWorkerLoader({
@@ -165,6 +165,7 @@ for (const c of baseConfigs) {
         name: c.name,
         format: 'iife',
         file: c.pathFn(pkg.unpkg),
+        sourcemap: true,
       },
     ],
   });
@@ -189,6 +190,7 @@ for (const c of baseConfigs) {
       {
         format: 'cjs',
         file: c.pathFn('lib/rrweb.cjs'),
+        sourcemap: true,
       },
     ],
   });
@@ -203,6 +205,7 @@ for (const c of baseConfigs) {
           format: 'esm',
           dir: 'es/rrweb',
           plugins: [renameNodeModules('ext')],
+          sourcemap: true,
         },
       ],
     });
@@ -254,6 +257,7 @@ if (process.env.BROWSER_ONLY) {
         name: 'rrweb',
         format: 'iife',
         file: pkg.unpkg,
+        sourcemap: true,
       },
     ],
   });
