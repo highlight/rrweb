@@ -43,6 +43,7 @@ let wrappedEmit!: (e: eventWithTime, isCheckout?: boolean) => void;
 
 let takeFullSnapshot!: (isCheckout?: boolean) => void;
 let canvasManager!: CanvasManager;
+let recording = false;
 
 const mirror = createMirror();
 function record<T = eventWithTime>(
@@ -570,6 +571,7 @@ function record<T = eventWithTime>(
     const init = () => {
       takeFullSnapshot();
       handlers.push(observe(document));
+      recording = true;
     };
     if (
       document.readyState === 'interactive' ||
@@ -595,9 +597,7 @@ function record<T = eventWithTime>(
     }
     return () => {
       handlers.forEach((h) => h());
-      // reset init fns when stopping record
-      (wrappedEmit as unknown) = undefined;
-      (takeFullSnapshot as unknown) = undefined;
+      recording = false;
     };
   } catch (error) {
     // TODO: handle internal error
@@ -606,7 +606,7 @@ function record<T = eventWithTime>(
 }
 
 record.addCustomEvent = <T>(tag: string, payload: T) => {
-  if (!wrappedEmit) {
+  if (!recording) {
     throw new Error('please add custom event after start recording');
   }
   wrappedEmit(
@@ -625,7 +625,7 @@ record.freezePage = () => {
 };
 
 record.takeFullSnapshot = (isCheckout?: boolean) => {
-  if (!takeFullSnapshot) {
+  if (!recording) {
     throw new Error('please take full snapshot after start recording');
   }
   takeFullSnapshot(isCheckout);
