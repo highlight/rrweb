@@ -406,7 +406,7 @@ function buildNode(
   }
 }
 
-export function buildNodeWithSN(
+export function* buildNodeWithSN(
   n: serializedNodeWithId,
   options: {
     doc: Document;
@@ -416,7 +416,7 @@ export function buildNodeWithSN(
     afterAppend?: (n: Node) => unknown;
     cache: BuildCache;
   },
-): Node | null {
+): Generator<Node | null | undefined> {
   const {
     doc,
     mirror,
@@ -472,14 +472,21 @@ export function buildNodeWithSN(
     !skipChild
   ) {
     for (const childN of n.childNodes) {
-      const childNode = buildNodeWithSN(childN, {
+      yield;
+      let childNode = null;
+      for (const cn of buildNodeWithSN(childN, {
         doc,
         mirror,
         skipChild: false,
         hackCss,
         afterAppend,
         cache,
-      });
+      })) {
+        if (cn) {
+          childNode = cn;
+          break;
+        }
+      }
       if (!childNode) {
         console.warn('Failed to rebuild', childN);
         continue;
@@ -536,7 +543,7 @@ function handleScroll(node: Node, mirror: Mirror) {
   }
 }
 
-function rebuild(
+function* rebuild(
   n: serializedNodeWithId,
   options: {
     doc: Document;
@@ -546,7 +553,7 @@ function rebuild(
     cache: BuildCache;
     mirror: Mirror;
   },
-): Node | null {
+): Generator<Node | null | undefined> {
   const {
     doc,
     onVisit,
@@ -555,14 +562,21 @@ function rebuild(
     cache,
     mirror = new Mirror(),
   } = options;
-  const node = buildNodeWithSN(n, {
+  let node = null;
+  for (const no of buildNodeWithSN(n, {
     doc,
     mirror,
     skipChild: false,
     hackCss,
     afterAppend,
     cache,
-  });
+  })) {
+    if (no) {
+      node = no;
+      break;
+    }
+    yield;
+  }
   visit(mirror, (visitedNode) => {
     if (onVisit) {
       onVisit(visitedNode);

@@ -318,9 +318,10 @@ export class Replayer {
           return;
         }
         this.firstFullSnapshot = firstFullsnapshot;
-        this.rebuildFullSnapshot(
+        for (const _ of this.rebuildFullSnapshot(
           firstFullsnapshot as fullSnapshotEvent & { timestamp: number },
-        );
+        )) {
+        }
         this.iframe.contentWindow!.scrollTo(
           (firstFullsnapshot as fullSnapshotEvent).data.initialOffset,
         );
@@ -696,7 +697,8 @@ export class Replayer {
             // Timer (requestAnimationFrame) can be faster than setTimeout(..., 1)
             this.firstFullSnapshot = true;
           }
-          this.rebuildFullSnapshot(event, isSync);
+          for (const _ of this.rebuildFullSnapshot(event, isSync)) {
+          }
           this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
         };
         break;
@@ -823,7 +825,7 @@ export class Replayer {
   }
   /* End of Highlight Code */
 
-  private rebuildFullSnapshot(
+  private *rebuildFullSnapshot(
     event: fullSnapshotEvent & { timestamp: number },
     isSync = false,
   ) {
@@ -838,14 +840,16 @@ export class Replayer {
     }
     this.legacy_missingNodeRetryMap = {};
     const collected: AppendedIframe[] = [];
-    rebuild(event.data.node, {
+    for (const _ of rebuild(event.data.node, {
       doc: this.iframe.contentDocument,
       afterAppend: (builtNode) => {
         this.collectIframeAndAttachDocument(collected, builtNode);
       },
       cache: this.cache,
       mirror: this.mirror,
-    });
+    })) {
+      yield;
+    }
     for (const { mutationInQueue, builtNode } of collected) {
       this.attachDocumentToIframe(mutationInQueue, builtNode);
       this.newDocumentQueue = this.newDocumentQueue.filter(
@@ -1623,13 +1627,23 @@ export class Replayer {
         );
         return;
       }
-      const target = buildNodeWithSN(mutation.node, {
+      let target: Node | RRNode | undefined = undefined;
+      for (const t of buildNodeWithSN(mutation.node, {
         doc: targetDoc as Document, // can be Document or RRDocument
         mirror: mirror as Mirror, // can be this.mirror or virtualDom.mirror
         skipChild: true,
         hackCss: true,
         cache: this.cache,
-      }) as Node | RRNode;
+      })) {
+        if (t) {
+          target = t as Node | RRNode;
+          break;
+        }
+      }
+      if (!target) {
+        console.warn('failed to append node', mutation.node);
+        return;
+      }
 
       // legacy data, we should not have -1 siblings any more
       if (mutation.previousId === -1 || mutation.nextId === -1) {
