@@ -4,7 +4,11 @@ import {
   SlimDOMOptions,
   createMirror,
 } from '@highlight-run/rrweb-snapshot';
-import { initObservers, mutationBuffers } from './observer';
+import {
+  initObservers,
+  mutationBuffers,
+  processedNodeManager,
+} from './observer';
 import {
   on,
   getWindowWidth,
@@ -285,6 +289,7 @@ function record<T = eventWithTime>(
       stylesheetManager,
       canvasManager,
       keepIframeSrcFn,
+      processedNodeManager,
       enableStrictPrivacy,
     },
     mirror,
@@ -512,6 +517,7 @@ function record<T = eventWithTime>(
           iframeManager,
           stylesheetManager,
           shadowDomManager,
+          processedNodeManager,
           canvasManager,
           ignoreCSSAttributes,
           enableStrictPrivacy,

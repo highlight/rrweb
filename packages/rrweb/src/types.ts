@@ -39,6 +39,7 @@ import type {
   styleSheetRuleCallback,
   viewportResizeCallback,
 } from '@rrweb/types';
+import type ProcessedNodeManager from './record/processed-node-manager';
 
 export type recordOptions<T> = {
   emit?: (e: T, isCheckout?: boolean) => void;
@@ -111,6 +112,7 @@ export type observerParam = {
   stylesheetManager: StylesheetManager;
   shadowDomManager: ShadowDomManager;
   canvasManager: CanvasManager;
+  processedNodeManager: ProcessedNodeManager;
   enableStrictPrivacy: boolean;
   ignoreCSSAttributes: Set<string>;
   plugins: Array<{
@@ -146,6 +148,7 @@ export type MutationBufferParam = Pick<
   | 'stylesheetManager'
   | 'shadowDomManager'
   | 'canvasManager'
+  | 'processedNodeManager'
   | 'enableStrictPrivacy'
 >;
 

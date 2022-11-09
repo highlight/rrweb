@@ -27,6 +27,7 @@ import {
   hasShadowRoot,
   isSerializedIframe,
   isSerializedStylesheet,
+  inDom,
 } from '../utils';
 
 type DoubleLinkedListNode = {
@@ -176,6 +177,7 @@ export default class MutationBuffer {
   private stylesheetManager: observerParam['stylesheetManager'];
   private shadowDomManager: observerParam['shadowDomManager'];
   private canvasManager: observerParam['canvasManager'];
+  private processedNodeManager: observerParam['processedNodeManager'];
   private enableStrictPrivacy: observerParam['enableStrictPrivacy'];
 
   public init(options: MutationBufferParam) {
@@ -201,6 +203,7 @@ export default class MutationBuffer {
         'stylesheetManager',
         'shadowDomManager',
         'canvasManager',
+        'processedNodeManager',
         'enableStrictPrivacy',
       ] as const
     ).forEach((key) => {
@@ -276,19 +279,8 @@ export default class MutationBuffer {
         (n.getRootNode() as ShadowRoot).host
       )
         shadowHost = (n.getRootNode() as ShadowRoot).host;
-      // If n is in a nested shadow dom.
-      let rootShadowHost = shadowHost;
-      while (
-        rootShadowHost?.getRootNode?.()?.nodeType ===
-          Node.DOCUMENT_FRAGMENT_NODE &&
-        (rootShadowHost.getRootNode() as ShadowRoot).host
-      )
-        rootShadowHost = (rootShadowHost.getRootNode() as ShadowRoot).host;
-      // ensure contains is passed a Node, or it will throw an error
-      const notInDoc =
-        !this.doc.contains(n) &&
-        (!rootShadowHost || !this.doc.contains(rootShadowHost));
-      if (!n.parentNode || notInDoc) {
+
+      if (!n.parentNode || !inDom(n)) {
         return;
       }
       const parentId = isShadowRoot(n.parentNode)
@@ -671,6 +663,9 @@ export default class MutationBuffer {
    * Make sure you check if `n`'s parent is blocked before calling this function
    * */
   private genAdds = (n: Node, target?: Node) => {
+    // this node was already recorded in other buffer, ignore it
+    if (this.processedNodeManager.inOtherBuffer(n, this)) return;
+
     if (this.mirror.hasNode(n)) {
       if (isIgnored(n, this.mirror)) {
         return;
@@ -690,8 +685,15 @@ export default class MutationBuffer {
 
     // if this node is blocked `serializeNode` will turn it into a placeholder element
     // but we have to remove it's children otherwise they will be added as placeholders too
-    if (!isBlocked(n, this.blockClass, this.blockSelector, false))
+    if (!isBlocked(n, this.blockClass, this.blockSelector, false)) {
       n.childNodes.forEach((childN) => this.genAdds(childN));
+      if (hasShadowRoot(n)) {
+        n.shadowRoot.childNodes.forEach((childN) => {
+          this.processedNodeManager.add(childN, this);
+          this.genAdds(childN, n);
+        });
+      }
+    }
   };
 }
 
