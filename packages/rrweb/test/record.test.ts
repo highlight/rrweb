@@ -476,10 +476,10 @@ describe('record', function (this: ISuite) {
 
         document.adoptedStyleSheets = [sheet];
 
-      const iframe = document.querySelector('iframe');
-      const sheet2 = new (
-        iframe!.contentWindow! as Window & typeof globalThis
-      ).CSSStyleSheet();
+        const iframe = document.querySelector('iframe');
+        const sheet2 = new (
+          iframe!.contentWindow! as Window & typeof globalThis
+        ).CSSStyleSheet();
 
         // Add stylesheet to an IFrame document.
         iframe!.contentDocument!.adoptedStyleSheets = [sheet2];
@@ -732,12 +732,12 @@ describe('record', function (this: ISuite) {
 
         shadow.adoptedStyleSheets = [sheet, sheet2];
 
-      // Add stylesheet to an IFrame document.
-      const iframe = document.querySelector('iframe');
-      const sheet3 = new (
-        iframe!.contentWindow! as IWindow & typeof globalThis
-      ).CSSStyleSheet();
-      sheet3.replaceSync!('h1 { color: blue; }');
+        // Add stylesheet to an IFrame document.
+        const iframe = document.querySelector('iframe');
+        const sheet3 = new (
+          iframe!.contentWindow! as IWindow & typeof globalThis
+        ).CSSStyleSheet();
+        sheet3.replaceSync!('h1 { color: blue; }');
 
         iframe!.contentDocument!.adoptedStyleSheets = [sheet3];
 
@@ -761,12 +761,12 @@ describe('record', function (this: ISuite) {
 
           document.adoptedStyleSheets = [sheet4, sheet, sheet2];
 
-        const sheet5 = new (
-          iframe!.contentWindow! as IWindow & typeof globalThis
-        ).CSSStyleSheet();
-        sheet5.replaceSync!('h2 { color: purple; }');
-        iframe!.contentDocument!.adoptedStyleSheets = [sheet5, sheet3];
-resolve(null);
+          const sheet5 = new (
+            iframe!.contentWindow! as IWindow & typeof globalThis
+          ).CSSStyleSheet();
+          sheet5.replaceSync!('h2 { color: purple; }');
+          iframe!.contentDocument!.adoptedStyleSheets = [sheet5, sheet3];
+          resolve(null);
         }, 10);
       });
     });
