@@ -29,6 +29,7 @@ import {
   extractFileExtension,
   absolutifyURLs,
   markCssSplits,
+  isElementSrcBlocked,
 } from './utils';
 import dom from '@rrweb/utils';
 
@@ -796,16 +797,20 @@ function serializeElementNode(
     }
   }
   // block element
-  if (needBlock || needMask || (tagName === 'img' && enableStrictPrivacy)) {
+  if (
+    needBlock ||
+    needMask ||
+    (enableStrictPrivacy && isElementSrcBlocked(tagName))
+  ) {
     const { width, height } = n.getBoundingClientRect();
     attributes = {
       class: attributes.class,
       rr_width: `${width}px`,
       rr_height: `${height}px`,
     };
-    if (enableStrictPrivacy) {
-      needBlock = true;
-    }
+  }
+  if (enableStrictPrivacy && isElementSrcBlocked(tagName)) {
+    needBlock = true;
   }
   // iframe
   if (tagName === 'iframe' && !keepIframeSrcFn(attributes.src as string)) {
@@ -1077,10 +1082,10 @@ export function serializeNodeWithId(
       !!serializedNode.needMask;
 
     /** Highlight Code Begin */
-    // Remove the image's src if enableStrictPrivacy.
-    if (strictPrivacy && serializedNode.tagName === 'img') {
+    // process enableStrictPrivacy obfuscation of non-text elements
+    if (strictPrivacy && isElementSrcBlocked(serializedNode.tagName)) {
       const clone = n.cloneNode();
-      (clone as unknown as HTMLImageElement).src = '';
+      (clone as unknown as { src: string }).src = '';
       mirror.add(clone, serializedNode);
     }
     /** Highlight Code End */
