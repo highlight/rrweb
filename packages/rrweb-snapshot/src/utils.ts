@@ -263,4 +263,15 @@ export function obfuscateText(text: string): string {
       .join(' ') || '';
   return text;
 }
+
+// returns true if the tag name is an element type that should have its source blocked
+export function isElementSrcBlocked(tagName: string): boolean {
+  return (
+    tagName === 'img' ||
+    tagName === 'video' ||
+    tagName === 'audio' ||
+    tagName === 'source'
+  );
+}
+
 /* End of Highlight Code */
