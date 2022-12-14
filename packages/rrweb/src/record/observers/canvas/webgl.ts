@@ -60,7 +60,7 @@ function patchGLPrototype(
                 args: recordArgs,
               };
               // TODO: this could potentially also be an OffscreenCanvas as well as HTMLCanvasElement
-              cb(this.canvas, mutation);
+              cb(this.canvas as HTMLCanvasElement, mutation);
             }
 
             return result;
