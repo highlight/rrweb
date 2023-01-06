@@ -6,6 +6,7 @@ import {
   EventType,
   Emitter,
   IncrementalSource,
+  actionWithDelay,
 } from '@highlight-run/rrweb-types';
 import { Timer, addDelay } from './timer';
 
