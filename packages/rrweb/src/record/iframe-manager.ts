@@ -6,15 +6,16 @@ import { genId } from '@highlight-run/rrweb-snapshot';
 import type { CrossOriginIframeMessageEvent } from '../types';
 import CrossOriginIframeMirror from './cross-origin-iframe-mirror';
 import { EventType, IncrementalSource } from '@highlight-run/rrweb-types';
-import type { eventWithTime, mutationCallBack } from '@highlight-run/rrweb-types';
+import type {
+  eventWithTime,
+  mutationCallBack,
+} from '@highlight-run/rrweb-types';
 import type { StylesheetManager } from './stylesheet-manager';
 
 export class IframeManager {
   private iframes: WeakMap<HTMLIFrameElement, true> = new WeakMap();
-  private crossOriginIframeMap: WeakMap<
-    MessageEventSource,
-    HTMLIFrameElement
-  > = new WeakMap();
+  private crossOriginIframeMap: WeakMap<MessageEventSource, HTMLIFrameElement> =
+    new WeakMap();
   public crossOriginIframeMirror = new CrossOriginIframeMirror(genId);
   public crossOriginIframeStyleMirror: CrossOriginIframeMirror;
   private mirror: Mirror;

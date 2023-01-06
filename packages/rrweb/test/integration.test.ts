@@ -12,7 +12,11 @@ import {
   ISuite,
 } from './utils';
 import type { recordOptions } from '../src/types';
-import { eventWithTime, EventType, RecordPlugin } from '@highlight-run/rrweb-types';
+import {
+  eventWithTime,
+  EventType,
+  RecordPlugin,
+} from '@highlight-run/rrweb-types';
 import { visitSnapshot, NodeType } from '@highlight-run/rrweb-snapshot';
 
 describe('record integration tests', function (this: ISuite) {
