@@ -91,7 +91,7 @@ export class IframeManager {
       const iframeSourceWindow = message.source;
       if (!iframeSourceWindow) return;
 
-      const iframeEl = this.crossOriginIframeMap.get(message.source);
+      const iframeEl = this.crossOriginIframeMap.get(iframeSourceWindow);
       if (!iframeEl) return;
 
       const transformedEvent = this.transformCrossOriginEvent(
@@ -99,11 +99,12 @@ export class IframeManager {
         (message as CrossOriginIframeMessageEvent).data.event,
       );
 
-      if (transformedEvent)
+      if (transformedEvent) {
         this.wrappedEmit(
           transformedEvent,
           (message as CrossOriginIframeMessageEvent).data.isCheckout,
         );
+      }
     }
   }
 
