@@ -495,7 +495,7 @@ describe('record', function (this: ISuite) {
         iframe!.contentDocument!.adoptedStyleSheets = [sheet2];
         iframe!.contentDocument!.body.innerHTML = '<h1>h1 in iframe</h1>';
 
-        const { rrweb, emit } = (window as unknown) as IWindow;
+        const { rrweb, emit } = window as unknown as IWindow;
         rrweb.record({
           emit,
         });
@@ -569,7 +569,7 @@ describe('record', function (this: ISuite) {
       sheet2.replaceSync!('div {font-size: large;}');
       shadowHost.shadowRoot!.adoptedStyleSheets = [sheet2];
 
-      const { rrweb, emit } = (window as unknown) as IWindow;
+      const { rrweb, emit } = window as unknown as IWindow;
       rrweb.record({
         emit,
       });
@@ -603,7 +603,7 @@ describe('record', function (this: ISuite) {
         sheet.replaceSync!('h1 {color: blue;}');
         shadowHost.shadowRoot!.adoptedStyleSheets = [sheet];
 
-        const { rrweb, emit } = (window as unknown) as IWindow;
+        const { rrweb, emit } = window as unknown as IWindow;
         rrweb.record({
           emit,
         });

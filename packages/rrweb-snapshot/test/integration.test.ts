@@ -129,7 +129,8 @@ describe('integration tests', function (this: ISuite) {
         });
       }
       await waitForRAF(page);
-      const rebuildHtml = ((await page.evaluate(`${code}
+      const rebuildHtml = (
+        (await page.evaluate(`${code}
         const x = new XMLSerializer();
         const snap = rrweb.snapshot(document);
         let out = x.serializeToString(rrweb.rebuild(snap, { doc: document }));
@@ -138,7 +139,8 @@ describe('integration tests', function (this: ISuite) {
           out = out.replace(' xmlns=\"http://www.w3.org/1999/xhtml\"', '');
         }
         out;  // return
-      `)) as string)
+      `)) as string
+      )
         .replace(/\n\n/g, '')
         .replace(
           /blob:http:\/\/localhost:\d+\/[0-9a-z\-]+/,
