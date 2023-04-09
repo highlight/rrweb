@@ -3,9 +3,7 @@
   "version": "2.0.0-alpha.7",
   "description": "transform rrweb session into video",
   "main": "build/index.js",
-  "bin": {
-    "rrvideo": "build/cli.js"
-  },
+  "bin": "build/cli.js",
   "files": [
     "build"
   ],
@@ -17,12 +15,12 @@
   "author": "yanzhen@smartx.com",
   "license": "MIT",
   "devDependencies": {
-    "@types/minimist": "^1.2.1",
-    "@highlight-run/rrweb-types": "workspace:*"
+    "@highlight-run/rrweb-types": "workspace:*",
+    "@types/minimist": "^1.2.1"
   },
   "dependencies": {
+    "@highlight-run/rrweb-player": "workspace:*",
     "minimist": "^1.2.5",
-    "puppeteer": "^19.7.2",
-    "@highlight-run/rrweb-player": "workspace:*"
+    "puppeteer": "^19.7.2"
   }
 }
