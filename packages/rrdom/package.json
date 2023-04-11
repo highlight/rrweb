@@ -21,11 +21,11 @@
   },
   "scripts": {
     "dev": "rollup -c -w",
-    "bundle": "rollup --config",
-    "bundle:es-only": "cross-env ES_ONLY=true rollup --config",
+    "build": "rollup --config",
+    "build:es-only": "cross-env ES_ONLY=true rollup --config",
     "check-types": "tsc -noEmit",
     "test": "jest",
-    "prepublish": "npm run bundle",
+    "prepublish": "npm run build",
     "lint": "yarn eslint src/**/*.ts"
   },
   "bugs": {

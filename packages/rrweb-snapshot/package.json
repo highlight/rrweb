@@ -8,11 +8,11 @@
     "prepack": "npm run bundle && npm run typings",
     "test": "jest",
     "test:watch": "jest --watch",
-    "bundle": "rollup --config",
-    "bundle:es-only": "cross-env ES_ONLY=true rollup --config",
+    "build": "rollup --config",
+    "build:es-only": "cross-env ES_ONLY=true rollup --config",
     "dev": "yarn bundle:es-only --watch",
-    "typings": "tsc -d --declarationDir typings",
-    "prepublish": "npm run typings && npm run bundle",
+    "typegen": "tsc -d --declarationDir typings",
+    "prepublish": "npm run typegen && npm run build",
     "lint": "yarn eslint src"
   },
   "type": "module",
@@ -58,6 +58,7 @@
     "rollup-plugin-typescript2": "^0.31.2",
     "ts-jest": "27.1.5",
     "ts-node": "^7.0.1",
-    "tslib": "^1.9.3"
+    "tslib": "^1.9.3",
+    "typescript": "^4.7.3"
   }
 }
