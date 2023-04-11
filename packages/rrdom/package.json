@@ -21,10 +21,9 @@
   },
   "scripts": {
     "dev": "rollup -c -w",
-    "build:es-only": "cross-env ES_ONLY=true rollup --config",
     "check-types": "tsc -noEmit",
     "test": "jest",
-    "typegen": "rollup --config",
+    "typegen": "rollup --config && yarn cross-env ES_ONLY=true rollup --config",
     "lint": "yarn eslint src/**/*.ts"
   },
   "bugs": {
