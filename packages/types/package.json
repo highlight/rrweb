@@ -12,7 +12,7 @@
     "dev": "vite",
     "check-types": "tsc -noEmit",
     "lint": "yarn eslint src/**/*.ts",
-    "typegen": "tsc -noEmit && vite build"
+    "typegen": "vite build"
   },
   "homepage": "https://github.com/rrweb-io/rrweb/tree/main/packages/@rrweb/types#readme",
   "bugs": {
