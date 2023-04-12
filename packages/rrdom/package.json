@@ -23,7 +23,7 @@
     "dev": "rollup -c -w",
     "check-types": "tsc -noEmit",
     "test": "jest",
-    "typegen": "rollup --config && yarn cross-env ES_ONLY=true rollup --config",
+    "typegen": "rollup --config && ES_ONLY=true rollup --config",
     "lint": "yarn eslint src/**/*.ts"
   },
   "bugs": {
