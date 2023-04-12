@@ -26,11 +26,12 @@
   "type": "module",
   "main": "./dist/rrweb-types.umd.cjs",
   "module": "./dist/rrweb-types.js",
-  "typings": "dist/index.d.ts",
+  "typings": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/rrweb-types.js",
-      "require": "./dist/rrweb-types.umd.cjs"
+      "require": "./dist/rrweb-types.umd.cjs",
+      "types": "./dist/index.d.ts"
     }
   },
   "files": [
