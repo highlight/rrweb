@@ -9,7 +9,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "build": "rollup --config && ES_ONLY=true rollup --config",
-    "dev": "yarn bundle:es-only --watch",
+    "dev": "ES_ONLY=true rollup --config --watch",
     "typegen": "tsc -d --declarationDir typings",
     "prepublish": "npm run typegen && npm run build",
     "lint": "yarn eslint src"
