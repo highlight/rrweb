@@ -79,6 +79,10 @@ export type recordOptions<T> = {
    * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
    */
   enableStrictPrivacy?: boolean;
+  logger?: {
+    debug: (...args: Parameters<typeof console.debug>) => void;
+    warn: (...args: Parameters<typeof console.warn>) => void;
+  };
 };
 
 export type observerParam = {
