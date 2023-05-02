@@ -83,6 +83,7 @@ export enum IncrementalSource {
   StyleDeclaration,
   Selection,
   AdoptedStyleSheet,
+  InlineVideoMutation,
 }
 
 export type mutationData = {

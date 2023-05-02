@@ -39,6 +39,7 @@ import {
   registerErrorHandler,
   unregisterErrorHandler,
 } from './error-handler';
+import { InlineVideoManager } from './observers/video/inline-video-manager';
 
 function wrapEvent(e: event): eventWithTime {
   return {
@@ -51,6 +52,7 @@ let wrappedEmit!: (e: eventWithTime, isCheckout?: boolean) => void;
 
 let takeFullSnapshot!: (isCheckout?: boolean) => void;
 let canvasManager!: CanvasManager;
+let inlineVideoManager!: InlineVideoManager;
 let recording = false;
 
 const mirror = createMirror();
@@ -267,6 +269,16 @@ function record<T = eventWithTime>(
         },
       }),
     );
+  const wrappedVideoMutationEmit = (p: canvasMutationParam) =>
+    wrappedEmit(
+      wrapEvent({
+        type: EventType.IncrementalSnapshot,
+        data: {
+          source: IncrementalSource.InlineVideoMutation,
+          ...p,
+        },
+      }),
+    );
 
   const wrappedAdoptedStyleSheetEmit = (a: adoptedStyleSheetParam) =>
     wrappedEmit(
@@ -316,6 +328,22 @@ function record<T = eventWithTime>(
     mirror,
     sampling: sampling?.canvas?.fps,
     dataURLOptions,
+    resizeQuality: sampling?.canvas?.resizeQuality,
+    resizeFactor: sampling?.canvas?.resizeFactor,
+    maxSnapshotDimension: sampling?.canvas?.maxSnapshotDimension,
+  });
+
+  inlineVideoManager = new InlineVideoManager({
+    inlineVideo: inlineImages,
+    mutationCb: wrappedVideoMutationEmit,
+    win: window,
+    blockClass,
+    blockSelector,
+    mirror,
+    dataURLOptions,
+    // TODO(vkorolik) use separate settings
+    sampling:
+      typeof sampling?.canvas?.fps === 'number' ? sampling?.canvas?.fps : 5,
     resizeQuality: sampling?.canvas?.resizeQuality,
     resizeFactor: sampling?.canvas?.resizeFactor,
     maxSnapshotDimension: sampling?.canvas?.maxSnapshotDimension,
