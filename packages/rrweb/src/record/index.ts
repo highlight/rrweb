@@ -100,6 +100,7 @@ function record<T = eventWithTime>(
     enableStrictPrivacy = false,
     ignoreCSSAttributes = new Set([]),
     errorHandler,
+    logger,
   } = options;
 
   registerErrorHandler(errorHandler);
@@ -329,6 +330,7 @@ function record<T = eventWithTime>(
     resizeQuality: sampling?.canvas?.resizeQuality,
     resizeFactor: sampling?.canvas?.resizeFactor,
     maxSnapshotDimension: sampling?.canvas?.maxSnapshotDimension,
+    logger: logger,
   });
 
   const shadowDomManager = new ShadowDomManager({

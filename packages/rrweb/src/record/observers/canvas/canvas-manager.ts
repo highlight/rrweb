@@ -32,6 +32,10 @@ export class CanvasManager {
   private pendingCanvasMutations: pendingCanvasMutationsMap = new Map();
   private rafStamps: RafStamps = { latestId: 0, invokeId: null };
   private mirror: Mirror;
+  private logger?: {
+    debug: (...args: Parameters<typeof console.debug>) => void;
+    warn: (...args: Parameters<typeof console.warn>) => void;
+  };
 
   private mutationCb: canvasMutationCallback;
   private resetObservers?: listenerHandler;
@@ -71,6 +75,10 @@ export class CanvasManager {
     resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high';
     resizeFactor?: number;
     maxSnapshotDimension?: number;
+    logger?: {
+      debug: (...args: Parameters<typeof console.debug>) => void;
+      warn: (...args: Parameters<typeof console.warn>) => void;
+    };
   }) {
     const {
       sampling = 'all',
@@ -82,6 +90,7 @@ export class CanvasManager {
     } = options;
     this.mutationCb = options.mutationCb;
     this.mirror = options.mirror;
+    this.logger = options.logger;
 
     if (recordCanvas && sampling === 'all')
       this.initCanvasMutationObserver(win, blockClass, blockSelector);
@@ -98,6 +107,18 @@ export class CanvasManager {
         options.resizeFactor,
         options.maxSnapshotDimension,
       );
+  }
+
+  private debug(
+    canvas?: HTMLCanvasElement,
+    ...args: Parameters<typeof console.log>
+  ) {
+    if (!this.logger) return;
+    let prefix = '[highlight-canvas]';
+    if (canvas) {
+      prefix += ` [ctx:${(canvas as ICanvas).__context}]`;
+    }
+    this.logger.debug(prefix, canvas, ...args);
   }
 
   private processMutation: canvasManagerMutationCallback = (
@@ -184,6 +205,7 @@ export class CanvasManager {
       const matchedCanvas: HTMLCanvasElement[] = [];
       win.document.querySelectorAll('canvas').forEach((canvas) => {
         if (!isBlocked(canvas, blockClass, blockSelector, true)) {
+          this.debug(canvas, 'discovered canvas');
           matchedCanvas.push(canvas);
         }
       });
@@ -200,18 +222,27 @@ export class CanvasManager {
       }
       lastSnapshotTime = timestamp;
 
-      getCanvas()
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        .forEach(async (canvas: HTMLCanvasElement) => {
-          const id = this.mirror.getId(canvas);
-          if (snapshotInProgressMap.get(id)) return;
+      getCanvas().forEach(async (canvas: HTMLCanvasElement) => {
+        this.debug(canvas, 'starting snapshotting');
+        const id = this.mirror.getId(canvas);
+        if (snapshotInProgressMap.get(id)) {
+          this.debug(canvas, 'snapshotting already in progress for', id);
+          return;
+        }
 
-          // The browser throws if the canvas is 0 in size
-          // Uncaught (in promise) DOMException: Failed to execute 'createImageBitmap' on 'Window': The source image width is 0.
-          // Assuming the same happens with height
-          if (canvas.width === 0 || canvas.height === 0) return;
+        // The browser throws if the canvas is 0 in size
+        // Uncaught (in promise) DOMException: Failed to execute 'createImageBitmap' on 'Window': The source image width is 0.
+        // Assuming the same happens with height
+        if (canvas.width === 0 || canvas.height === 0) {
+            this.debug(canvas, 'not yet ready', {
+                width: canvas.width,
+                height: canvas.height,
+            });
+            return;
+        }
 
-          snapshotInProgressMap.set(id, true);
+        snapshotInProgressMap.set(id, true);
+        try {
           if (['webgl', 'webgl2'].includes((canvas as ICanvas).__context)) {
             // if the canvas hasn't been modified recently,
             // its contents won't be in memory and `createImageBitmap`
@@ -234,11 +265,6 @@ export class CanvasManager {
               context.clear(context.COLOR_BUFFER_BIT);
             }
           }
-          // canvas is not yet ready... this retry on the next sampling iteration.
-          // we don't want to crash the worker if the canvas is not yet rendered.
-          if (canvas.width === 0 || canvas.height === 0) {
-            return;
-          }
           let scale = resizeFactor || 1;
           if (maxSnapshotDimension) {
             const maxDim = Math.max(canvas.width, canvas.height);
@@ -247,11 +273,18 @@ export class CanvasManager {
           const width = canvas.width * scale;
           const height = canvas.height * scale;
 
+          window.performance.mark(`canvas-${canvas.id}-snapshot`);
           const bitmap = await createImageBitmap(canvas, {
             resizeQuality: resizeQuality || 'low',
             resizeWidth: width,
             resizeHeight: height,
           });
+          this.debug(
+            canvas,
+            'took a snapshot in',
+            window.performance.measure(`canvas-snapshot`),
+          );
+          window.performance.mark(`canvas-postMessage`);
           worker.postMessage(
             {
               id,
@@ -264,7 +297,15 @@ export class CanvasManager {
             },
             [bitmap],
           );
-        });
+          this.debug(
+            canvas,
+            'send message in',
+            window.performance.measure(`canvas-postMessage`),
+          );
+        } finally {
+          snapshotInProgressMap.set(id, false);
+        }
+      });
       rafId = requestAnimationFrame(takeCanvasSnapshots);
     };
 
