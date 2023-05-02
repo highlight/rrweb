@@ -11,7 +11,7 @@
     "test:watch": "jest --watch",
     "test:update": "jest --updateSnapshot",
     "build": "rollup --config && ES_ONLY=true rollup --config",
-    "dev": "yarn bundle:es-only --watch",
+    "dev": "ES_ONLY=true rollup --config --watch",
     "typegen": "tsc -d --declarationDir typings",
     "prepublish": "yarn typegen && yarn build",
     "lint": "yarn eslint src"
