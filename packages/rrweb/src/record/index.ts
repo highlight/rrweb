@@ -91,7 +91,10 @@ function record<T = eventWithTime>(
     errorHandler,
     logger,
   } = options;
-  const dataURLOptions = {...options.dataURLOptions, ...options.sampling?.canvas?.dataURLOptions}
+  const dataURLOptions = {
+    ...options.dataURLOptions,
+    ...options.sampling?.canvas?.dataURLOptions,
+  };
 
   registerErrorHandler(errorHandler);
 

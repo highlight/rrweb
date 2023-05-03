@@ -337,8 +337,8 @@ export class CanvasManager {
           const height = video.height * scale;
 
           window.performance.mark(`video-${video.id}-snapshot`);
-          this.canvasService.width = width
-          this.canvasService.height = height
+          this.canvasService.width = width;
+          this.canvasService.height = height;
           this.canvasCtx!.drawImage(video, 0, 0, width, height);
           const bitmap = await createImageBitmap(this.canvasService, {
             ...options.dataURLOptions,
@@ -349,7 +349,8 @@ export class CanvasManager {
             video,
             'took a snapshot in',
             window.performance.measure(`video-snapshot`),
-              'with size', {width, height}
+            'with size',
+            { width, height },
           );
           window.performance.mark(`video-postMessage`);
           worker.postMessage(
