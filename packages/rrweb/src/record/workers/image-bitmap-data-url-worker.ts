@@ -54,8 +54,7 @@ worker.onmessage = async function (e) {
       bitmap,
       width,
       height,
-      canvasWidth,
-      canvasHeight,
+      dx, dy, dw, dh,
       dataURLOptions,
     } = e.data;
 
@@ -89,8 +88,7 @@ worker.onmessage = async function (e) {
       base64,
       width,
       height,
-      canvasWidth,
-      canvasHeight,
+      dx, dy, dw, dh,
     });
     lastBlobMap.set(id, base64);
   } else {

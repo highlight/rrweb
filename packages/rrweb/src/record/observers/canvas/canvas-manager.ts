@@ -165,14 +165,14 @@ export class CanvasManager {
 
       if (!('base64' in e.data)) return;
 
-      const { base64, type, canvasWidth, canvasHeight } = e.data;
+      const { base64, type, dx, dy, dw, dh } = e.data;
       this.mutationCb({
         id,
         type: CanvasContext['2D'],
         commands: [
           {
             property: 'clearRect', // wipe canvas
-            args: [0, 0, canvasWidth, canvasHeight],
+            args: [dx, dy, dw, dh],
           },
           {
             property: 'drawImage', // draws (semi-transparent) image
@@ -187,10 +187,7 @@ export class CanvasManager {
                   },
                 ],
               } as CanvasArg,
-              0,
-              0,
-              canvasWidth,
-              canvasHeight,
+              dx, dy, dw, dh
             ],
           },
         ],
@@ -216,6 +213,7 @@ export class CanvasManager {
       const matchedVideos: HTMLVideoElement[] = [];
       if (recordVideos) {
         win.document.querySelectorAll('video').forEach((video) => {
+          if (video.src !== '' && video.src.indexOf('blob:') === -1) return
           if (!isBlocked(video, blockClass, blockSelector, true)) {
             matchedVideos.push(video);
           }
@@ -290,8 +288,10 @@ export class CanvasManager {
               bitmap,
               width,
               height,
-              canvasWidth: canvas.width,
-              canvasHeight: canvas.height,
+              dx: 0,
+              dy: 0,
+              dw: canvas.width,
+              dh: canvas.height,
               dataURLOptions: options.dataURLOptions,
             },
             [bitmap],
@@ -313,35 +313,40 @@ export class CanvasManager {
         }
         snapshotInProgressMap.set(id, true);
         try {
+          const {width: boxWidth, height: boxHeight} = video.getBoundingClientRect()
+          const {actualWidth, actualHeight} = {actualWidth: video.videoWidth, actualHeight: video.videoHeight}
+          const maxDim = Math.max(actualWidth, actualHeight);
           let scale = resizeFactor || 1;
           if (maxSnapshotDimension) {
-            const maxDim = Math.max(video.clientWidth, video.clientHeight);
             scale = Math.min(scale, maxSnapshotDimension / maxDim);
           }
-          const width = video.clientWidth * scale;
-          const height = video.clientHeight * scale;
+          const width = actualWidth * scale;
+          const height = actualHeight * scale;
 
           const bitmap = await createImageBitmap(video, {
             resizeWidth: width, resizeHeight: height
           });
-          this.debug(
-            video,
-            'created image bitmap with size',
-            {
-              vWidth: video.clientWidth,
-              vHeight: video.clientHeight,
-              width,
-              height,
-            },
-          );
+
+          let outputScale = Math.max(boxWidth, boxHeight) / maxDim
+          const outputWidth = actualWidth * outputScale;
+          const outputHeight = actualHeight * outputScale;
+          const offsetX = (boxWidth - outputWidth) / 2
+          const offsetY = (boxHeight - outputHeight) / 2
+          this.debug(video, 'created image bitmap', {
+            actualWidth, actualHeight, boxWidth, boxHeight, outputWidth, outputHeight,
+            resizeWidth: width, resizeHeight: height, scale, outputScale, offsetX, offsetY
+          });
+
           worker.postMessage(
             {
               id,
               bitmap,
               width,
               height,
-              canvasWidth: video.clientWidth,
-              canvasHeight: video.clientHeight,
+              dx: offsetX,
+              dy: offsetY,
+              dw: outputWidth,
+              dh: outputHeight,
               dataURLOptions: options.dataURLOptions,
             },
             [bitmap],

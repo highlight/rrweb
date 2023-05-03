@@ -533,8 +533,10 @@ export type ImageBitmapDataURLWorkerParams = {
   width: number;
   height: number;
   dataURLOptions: DataURLOptions;
-  canvasWidth: number;
-  canvasHeight: number;
+  dx: number;
+  dy: number;
+  dw: number;
+  dh: number;
 };
 
 export type ImageBitmapDataURLWorkerResponse =
@@ -547,8 +549,10 @@ export type ImageBitmapDataURLWorkerResponse =
       base64: string;
       width: number;
       height: number;
-      canvasWidth: number;
-      canvasHeight: number;
+      dx: number;
+      dy: number;
+      dw: number;
+      dh: number;
     };
 
 export type fontParam = {

@@ -867,12 +867,16 @@ function serializeElementNode(
   }
 
   if (inlineImages && tagName === 'video') {
-    const { width, height } = n.getBoundingClientRect();
-    attributes = {
-      rr_width: `${width}px`,
-      rr_height: `${height}px`,
-    };
-    tagName = 'canvas';
+    const video = n as HTMLVideoElement
+    if (video.src === '' || video.src.indexOf('blob:') !== -1) {
+      const { width, height } = n.getBoundingClientRect();
+      attributes = {
+        rr_width: `${width}px`,
+        rr_height: `${height}px`,
+        rr_inlined_video: true
+      };
+      tagName = 'canvas';
+    }
   }
 
   return {
