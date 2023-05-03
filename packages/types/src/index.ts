@@ -2,8 +2,8 @@ import type {
   serializedNodeWithId,
   Mirror,
   INode,
-  DataURLOptions,
 } from '@highlight-run/rrweb-snapshot';
+import type { DataURLOptions } from '@highlight-run/rrweb-snapshot';
 
 export enum EventType {
   DomContentLoaded,
@@ -200,10 +200,6 @@ export type CanvasSamplingStrategy = Partial<{
    */
   resizeFactor: number;
   /**
-   * The quality of canvas snapshots
-   */
-  resizeQuality: 'pixelated' | 'low' | 'medium' | 'high';
-  /**
    * The maximum dimension to take canvas snapshots at.
    * This setting takes precedence over resizeFactor if the resulting image size
    * from the resizeFactor calculation is larger than this value.
@@ -211,6 +207,10 @@ export type CanvasSamplingStrategy = Partial<{
    * in either dimension (while preserving the original canvas aspect ratio).
    */
   maxSnapshotDimension: number;
+  /**
+   * Adjust the quality of the canvas blob serialization.
+   */
+  dataURLOptions?: DataURLOptions;
 }>;
 
 export type SamplingStrategy = Partial<{
@@ -533,8 +533,10 @@ export type ImageBitmapDataURLWorkerParams = {
   width: number;
   height: number;
   dataURLOptions: DataURLOptions;
-  canvasWidth: number;
-  canvasHeight: number;
+  dx: number;
+  dy: number;
+  dw: number;
+  dh: number;
 };
 
 export type ImageBitmapDataURLWorkerResponse =
@@ -547,8 +549,10 @@ export type ImageBitmapDataURLWorkerResponse =
       base64: string;
       width: number;
       height: number;
-      canvasWidth: number;
-      canvasHeight: number;
+      dx: number;
+      dy: number;
+      dw: number;
+      dh: number;
     };
 
 export type fontParam = {

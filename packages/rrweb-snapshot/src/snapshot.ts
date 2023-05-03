@@ -675,7 +675,7 @@ function serializeElementNode(
   } = options;
   let needBlock = _isBlockedElement(n, blockClass, blockSelector);
   const needMask = _isBlockedElement(n, maskTextClass, null);
-  const tagName = getValidTagName(n);
+  let tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
   for (let i = 0; i < len; i++) {
@@ -864,6 +864,19 @@ function serializeElementNode(
       attributes.rr_src = attributes.src;
     }
     delete attributes.src; // prevent auto loading
+  }
+
+  if (inlineImages && tagName === 'video') {
+    const video = n as HTMLVideoElement;
+    if (video.src === '' || video.src.indexOf('blob:') !== -1) {
+      const { width, height } = n.getBoundingClientRect();
+      attributes = {
+        rr_width: `${width}px`,
+        rr_height: `${height}px`,
+        rr_inlined_video: true,
+      };
+      tagName = 'canvas';
+    }
   }
 
   return {
@@ -1361,7 +1374,7 @@ function snapshot(
         }
       : maskAllInputs;
   const slimDOMOptions: SlimDOMOptions =
-    slimDOM === true || (slimDOM as unknown) === 'all'
+    slimDOM || (slimDOM as unknown) === 'all'
       ? // if true: set of sensible options that should not throw away any information
         {
           script: true,
@@ -1375,7 +1388,7 @@ function snapshot(
           headMetaAuthorship: true,
           headMetaVerification: true,
         }
-      : slimDOM === false
+      : !slimDOM
       ? {}
       : slimDOM;
   return serializeNodeWithId(n, {
