@@ -1,5 +1,4 @@
 import path from 'path';
-import dts from 'vite-plugin-dts';
 /**
  * @type {import('vite').UserConfig}
  */
@@ -16,6 +15,6 @@ export default {
     minify: false,
 
     sourcemap: true,
+    emptyOutDir: false
   },
-  plugins: [dts()],
 };
