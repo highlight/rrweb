@@ -65,6 +65,7 @@ export class CanvasManager {
 
   constructor(options: {
     recordCanvas: boolean;
+    recordVideos: boolean;
     mutationCb: canvasMutationCallback;
     win: IWindow;
     blockClass: blockClass;
@@ -72,7 +73,6 @@ export class CanvasManager {
     mirror: Mirror;
     sampling?: 'all' | number;
     dataURLOptions: DataURLOptions;
-    resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high';
     resizeFactor?: number;
     maxSnapshotDimension?: number;
     logger?: {
@@ -86,6 +86,7 @@ export class CanvasManager {
       blockClass,
       blockSelector,
       recordCanvas,
+      recordVideos,
       dataURLOptions,
     } = options;
     this.mutationCb = options.mutationCb;
@@ -96,6 +97,7 @@ export class CanvasManager {
       this.initCanvasMutationObserver(win, blockClass, blockSelector);
     if (recordCanvas && typeof sampling === 'number')
       this.initCanvasFPSObserver(
+        recordVideos,
         sampling,
         win,
         blockClass,
@@ -103,22 +105,21 @@ export class CanvasManager {
         {
           dataURLOptions,
         },
-        options.resizeQuality,
         options.resizeFactor,
         options.maxSnapshotDimension,
       );
   }
 
   private debug(
-    canvas?: HTMLCanvasElement,
+    element: HTMLCanvasElement | HTMLVideoElement,
     ...args: Parameters<typeof console.log>
   ) {
     if (!this.logger) return;
-    let prefix = '[highlight-canvas]';
-    if (canvas) {
-      prefix += ` [ctx:${(canvas as ICanvas).__context}]`;
+    let prefix = `[highlight-${element.tagName.toLowerCase()}]`;
+    if (element.tagName.toLowerCase() === 'canvas') {
+      prefix += ` [ctx:${(element as ICanvas).__context}]`;
     }
-    this.logger.debug(prefix, canvas, ...args);
+    this.logger.debug(prefix, element, ...args);
   }
 
   private processMutation: canvasManagerMutationCallback = (
@@ -139,6 +140,7 @@ export class CanvasManager {
   };
 
   private initCanvasFPSObserver(
+    recordVideos: boolean,
     fps: number,
     win: IWindow,
     blockClass: blockClass,
@@ -146,7 +148,6 @@ export class CanvasManager {
     options: {
       dataURLOptions: DataURLOptions;
     },
-    resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high',
     resizeFactor?: number,
     maxSnapshotDimension?: number,
   ) {
@@ -165,14 +166,14 @@ export class CanvasManager {
 
       if (!('base64' in e.data)) return;
 
-      const { base64, type, canvasWidth, canvasHeight } = e.data;
+      const { base64, type, dx, dy, dw, dh } = e.data;
       this.mutationCb({
         id,
         type: CanvasContext['2D'],
         commands: [
           {
             property: 'clearRect', // wipe canvas
-            args: [0, 0, canvasWidth, canvasHeight],
+            args: [dx, dy, dw, dh],
           },
           {
             property: 'drawImage', // draws (semi-transparent) image
@@ -187,10 +188,10 @@ export class CanvasManager {
                   },
                 ],
               } as CanvasArg,
-              0,
-              0,
-              canvasWidth,
-              canvasHeight,
+              dx,
+              dy,
+              dw,
+              dh,
             ],
           },
         ],
@@ -212,17 +213,31 @@ export class CanvasManager {
       return matchedCanvas;
     };
 
-    const takeCanvasSnapshots = (timestamp: DOMHighResTimeStamp) => {
+    const getVideos = (): HTMLVideoElement[] => {
+      const matchedVideos: HTMLVideoElement[] = [];
+      if (recordVideos) {
+        win.document.querySelectorAll('video').forEach((video) => {
+          if (video.src !== '' && video.src.indexOf('blob:') === -1) return;
+          if (!isBlocked(video, blockClass, blockSelector, true)) {
+            matchedVideos.push(video);
+          }
+        });
+      }
+      return matchedVideos;
+    };
+
+    const takeSnapshots = async (timestamp: DOMHighResTimeStamp) => {
       if (
         lastSnapshotTime &&
         timestamp - lastSnapshotTime < timeBetweenSnapshots
       ) {
-        rafId = requestAnimationFrame(takeCanvasSnapshots);
+        rafId = requestAnimationFrame(takeSnapshots);
         return;
       }
       lastSnapshotTime = timestamp;
 
-      getCanvas().forEach(async (canvas: HTMLCanvasElement) => {
+      const promises: Promise<void>[] = []
+      promises.push(...getCanvas().map(async (canvas: HTMLCanvasElement) => {
         this.debug(canvas, 'starting snapshotting');
         const id = this.mirror.getId(canvas);
         if (snapshotInProgressMap.get(id)) {
@@ -273,43 +288,107 @@ export class CanvasManager {
           const width = canvas.width * scale;
           const height = canvas.height * scale;
 
-          window.performance.mark(`canvas-${canvas.id}-snapshot`);
           const bitmap = await createImageBitmap(canvas, {
-            resizeQuality: resizeQuality || 'low',
             resizeWidth: width,
             resizeHeight: height,
           });
-          this.debug(
-            canvas,
-            'took a snapshot in',
-            window.performance.measure(`canvas-snapshot`),
+          this.debug(canvas, 'created image bitmap');
+          worker.postMessage(
+              {
+                id,
+                bitmap,
+                width,
+                height,
+                dx: 0,
+                dy: 0,
+                dw: canvas.width,
+                dh: canvas.height,
+                dataURLOptions: options.dataURLOptions,
+              },
+              [bitmap],
           );
-          window.performance.mark(`canvas-postMessage`);
+          this.debug(canvas, 'sent message');
+        } catch (e) {
+          this.debug(canvas, 'failed to snapshot', e);
+        } finally {
+          snapshotInProgressMap.set(id, false);
+        }
+      }))
+      promises.push(...getVideos().map(async (video: HTMLVideoElement) => {
+        this.debug(video, 'starting video snapshotting');
+        const id = this.mirror.getId(video);
+        if (snapshotInProgressMap.get(id)) {
+          this.debug(video, 'video snapshotting already in progress for', id);
+          return;
+        }
+        snapshotInProgressMap.set(id, true);
+        try {
+          const { width: boxWidth, height: boxHeight } =
+            video.getBoundingClientRect();
+          const { actualWidth, actualHeight } = {
+            actualWidth: video.videoWidth,
+            actualHeight: video.videoHeight,
+          };
+          const maxDim = Math.max(actualWidth, actualHeight);
+          let scale = resizeFactor || 1;
+          if (maxSnapshotDimension) {
+            scale = Math.min(scale, maxSnapshotDimension / maxDim);
+          }
+          const width = actualWidth * scale;
+          const height = actualHeight * scale;
+
+          const bitmap = await createImageBitmap(video, {
+            resizeWidth: width,
+            resizeHeight: height,
+          });
+
+          let outputScale = Math.max(boxWidth, boxHeight) / maxDim;
+          const outputWidth = actualWidth * outputScale;
+          const outputHeight = actualHeight * outputScale;
+          const offsetX = (boxWidth - outputWidth) / 2;
+          const offsetY = (boxHeight - outputHeight) / 2;
+          this.debug(video, 'created image bitmap', {
+            actualWidth,
+            actualHeight,
+            boxWidth,
+            boxHeight,
+            outputWidth,
+            outputHeight,
+            resizeWidth: width,
+            resizeHeight: height,
+            scale,
+            outputScale,
+            offsetX,
+            offsetY,
+          });
+
           worker.postMessage(
             {
               id,
               bitmap,
               width,
               height,
-              canvasWidth: canvas.width,
-              canvasHeight: canvas.height,
+              dx: offsetX,
+              dy: offsetY,
+              dw: outputWidth,
+              dh: outputHeight,
               dataURLOptions: options.dataURLOptions,
             },
             [bitmap],
           );
-          this.debug(
-            canvas,
-            'send message in',
-            window.performance.measure(`canvas-postMessage`),
-          );
+          this.debug(video, 'send message');
+        } catch (e) {
+          this.debug(video, 'failed to snapshot', e);
         } finally {
           snapshotInProgressMap.set(id, false);
         }
-      });
-      rafId = requestAnimationFrame(takeCanvasSnapshots);
+      }))
+      await Promise.all(promises)
+
+      rafId = requestAnimationFrame(takeSnapshots);
     };
 
-    rafId = requestAnimationFrame(takeCanvasSnapshots);
+    rafId = requestAnimationFrame(takeSnapshots);
 
     this.resetObservers = () => {
       canvasContextReset();

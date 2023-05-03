@@ -84,7 +84,6 @@ function record<T = eventWithTime>(
     hooks,
     packFn,
     sampling = {},
-    dataURLOptions = {},
     mousemoveWait,
     recordDOM = true,
     recordCanvas = false,
@@ -102,6 +101,10 @@ function record<T = eventWithTime>(
     errorHandler,
     logger,
   } = options;
+  const dataURLOptions = {
+    ...options.dataURLOptions,
+    ...options.sampling?.canvas?.dataURLOptions,
+  };
 
   registerErrorHandler(errorHandler);
 
@@ -320,6 +323,7 @@ function record<T = eventWithTime>(
 
   canvasManager = new CanvasManager({
     recordCanvas,
+    recordVideos: inlineImages,
     mutationCb: wrappedCanvasMutationEmit,
     win: window,
     blockClass,
@@ -327,7 +331,6 @@ function record<T = eventWithTime>(
     mirror,
     sampling: sampling?.canvas?.fps,
     dataURLOptions,
-    resizeQuality: sampling?.canvas?.resizeQuality,
     resizeFactor: sampling?.canvas?.resizeFactor,
     maxSnapshotDimension: sampling?.canvas?.maxSnapshotDimension,
     logger: logger,

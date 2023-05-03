@@ -49,15 +49,8 @@ const worker: ImageBitmapDataURLResponseWorker = self;
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 worker.onmessage = async function (e) {
   if ('OffscreenCanvas' in globalThis) {
-    const {
-      id,
-      bitmap,
-      width,
-      height,
-      canvasWidth,
-      canvasHeight,
-      dataURLOptions,
-    } = e.data;
+    const { id, bitmap, width, height, dx, dy, dw, dh, dataURLOptions } =
+      e.data;
 
     const transparentBase64 = getTransparentBlobFor(
       width,
@@ -89,8 +82,10 @@ worker.onmessage = async function (e) {
       base64,
       width,
       height,
-      canvasWidth,
-      canvasHeight,
+      dx,
+      dy,
+      dw,
+      dh,
     });
     lastBlobMap.set(id, base64);
   } else {
