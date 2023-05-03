@@ -279,18 +279,11 @@ export class CanvasManager {
           const width = canvas.width * scale;
           const height = canvas.height * scale;
 
-          window.performance.mark(`canvas-${canvas.id}-snapshot`);
           const bitmap = await createImageBitmap(canvas, {
-            ...options.dataURLOptions,
             resizeWidth: width,
             resizeHeight: height,
           });
-          this.debug(
-            canvas,
-            'took a snapshot in',
-            window.performance.measure(`canvas-snapshot`),
-          );
-          window.performance.mark(`canvas-postMessage`);
+          this.debug(canvas, 'created image bitmap');
           worker.postMessage(
             {
               id,
@@ -305,8 +298,7 @@ export class CanvasManager {
           );
           this.debug(
             canvas,
-            'send message in',
-            window.performance.measure(`canvas-postMessage`),
+            'sent message',
           );
         } finally {
           snapshotInProgressMap.set(id, false);
@@ -321,56 +313,42 @@ export class CanvasManager {
         }
         snapshotInProgressMap.set(id, true);
         try {
-          if (video.videoWidth === 0 || video.videoHeight === 0) {
-            this.debug(video, 'not yet ready', {
-              width: video.videoWidth,
-              height: video.videoHeight,
-            });
-            return;
-          }
           let scale = resizeFactor || 1;
           if (maxSnapshotDimension) {
-            const maxDim = Math.max(video.videoWidth, video.videoHeight);
+            const maxDim = Math.max(video.clientWidth, video.clientHeight);
             scale = Math.min(scale, maxSnapshotDimension / maxDim);
           }
-          const width = video.videoWidth * scale;
-          const height = video.videoHeight * scale;
+          const width = video.clientWidth * scale;
+          const height = video.clientHeight * scale;
 
-          window.performance.mark(`video-${video.id}-snapshot`);
           const bitmap = await createImageBitmap(video, {
-            ...options.dataURLOptions,
-            resizeWidth: width,
-            resizeHeight: height,
+            resizeWidth: width, resizeHeight: height
           });
           this.debug(
             video,
-            'took a snapshot in',
-            window.performance.measure(`video-snapshot`),
-            'with size',
+            'created image bitmap with size',
             {
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight,
+              vWidth: video.clientWidth,
+              vHeight: video.clientHeight,
               width,
               height,
             },
           );
-          window.performance.mark(`video-postMessage`);
           worker.postMessage(
             {
               id,
               bitmap,
               width,
               height,
-              canvasWidth: video.videoWidth,
-              canvasHeight: video.videoHeight,
+              canvasWidth: video.clientWidth,
+              canvasHeight: video.clientHeight,
               dataURLOptions: options.dataURLOptions,
             },
             [bitmap],
           );
           this.debug(
             video,
-            'send message in',
-            window.performance.measure(`video-postMessage`),
+            'send message',
           );
         } catch (e) {
           this.debug(video, 'failed to snapshot', e);

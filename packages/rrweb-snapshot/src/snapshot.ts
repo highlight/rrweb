@@ -869,7 +869,6 @@ function serializeElementNode(
   if (inlineImages && tagName === 'video') {
     const { width, height } = n.getBoundingClientRect();
     attributes = {
-      class: attributes.class,
       rr_width: `${width}px`,
       rr_height: `${height}px`,
     };
