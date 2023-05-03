@@ -866,6 +866,18 @@ function serializeElementNode(
     delete attributes.src; // prevent auto loading
   }
 
+  if (inlineImages && tagName === 'video') {
+    return {
+      type: NodeType.Element,
+      tagName: 'canvas',
+      attributes,
+      childNodes: [],
+      needBlock,
+      needMask,
+      rootId,
+    };
+  }
+
   return {
     type: NodeType.Element,
     tagName,
@@ -1361,7 +1373,7 @@ function snapshot(
         }
       : maskAllInputs;
   const slimDOMOptions: SlimDOMOptions =
-    slimDOM === true || (slimDOM as unknown) === 'all'
+    slimDOM || (slimDOM as unknown) === 'all'
       ? // if true: set of sensible options that should not throw away any information
         {
           script: true,
@@ -1375,7 +1387,7 @@ function snapshot(
           headMetaAuthorship: true,
           headMetaVerification: true,
         }
-      : slimDOM === false
+      : !slimDOM
       ? {}
       : slimDOM;
   return serializeNodeWithId(n, {

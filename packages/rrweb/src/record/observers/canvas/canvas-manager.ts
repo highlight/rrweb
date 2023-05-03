@@ -30,6 +30,8 @@ type pendingCanvasMutationsMap = Map<
 
 export class CanvasManager {
   private pendingCanvasMutations: pendingCanvasMutationsMap = new Map();
+  private canvasService: HTMLCanvasElement | null;
+  private canvasCtx: CanvasRenderingContext2D | null;
   private rafStamps: RafStamps = { latestId: 0, invokeId: null };
   private mirror: Mirror;
   private logger?: {
@@ -65,6 +67,7 @@ export class CanvasManager {
 
   constructor(options: {
     recordCanvas: boolean;
+    recordVideos: boolean;
     mutationCb: canvasMutationCallback;
     win: IWindow;
     blockClass: blockClass;
@@ -72,7 +75,6 @@ export class CanvasManager {
     mirror: Mirror;
     sampling?: 'all' | number;
     dataURLOptions: DataURLOptions;
-    resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high';
     resizeFactor?: number;
     maxSnapshotDimension?: number;
     logger?: {
@@ -86,6 +88,7 @@ export class CanvasManager {
       blockClass,
       blockSelector,
       recordCanvas,
+      recordVideos,
       dataURLOptions,
     } = options;
     this.mutationCb = options.mutationCb;
@@ -96,6 +99,7 @@ export class CanvasManager {
       this.initCanvasMutationObserver(win, blockClass, blockSelector);
     if (recordCanvas && typeof sampling === 'number')
       this.initCanvasFPSObserver(
+        recordVideos,
         sampling,
         win,
         blockClass,
@@ -103,22 +107,21 @@ export class CanvasManager {
         {
           dataURLOptions,
         },
-        options.resizeQuality,
         options.resizeFactor,
         options.maxSnapshotDimension,
       );
   }
 
   private debug(
-    canvas?: HTMLCanvasElement,
+    element: HTMLCanvasElement | HTMLVideoElement,
     ...args: Parameters<typeof console.log>
   ) {
     if (!this.logger) return;
-    let prefix = '[highlight-canvas]';
-    if (canvas) {
-      prefix += ` [ctx:${(canvas as ICanvas).__context}]`;
+    let prefix = `[highlight-${element.tagName.toLowerCase()}]`;
+    if (element.tagName === 'canvas') {
+      prefix += ` [ctx:${(element as ICanvas).__context}]`;
     }
-    this.logger.debug(prefix, canvas, ...args);
+    this.logger.debug(prefix, element, ...args);
   }
 
   private processMutation: canvasManagerMutationCallback = (
@@ -139,6 +142,7 @@ export class CanvasManager {
   };
 
   private initCanvasFPSObserver(
+    recordVideos: boolean,
     fps: number,
     win: IWindow,
     blockClass: blockClass,
@@ -146,7 +150,6 @@ export class CanvasManager {
     options: {
       dataURLOptions: DataURLOptions;
     },
-    resizeQuality?: 'pixelated' | 'low' | 'medium' | 'high',
     resizeFactor?: number,
     maxSnapshotDimension?: number,
   ) {
@@ -211,12 +214,24 @@ export class CanvasManager {
       return matchedCanvas;
     };
 
-    const takeCanvasSnapshots = (timestamp: DOMHighResTimeStamp) => {
+    const getVideos = (): HTMLVideoElement[] => {
+      const matchedVideos: HTMLVideoElement[] = [];
+      if (recordVideos) {
+        win.document.querySelectorAll('video').forEach((video) => {
+          if (!isBlocked(video, blockClass, blockSelector, true)) {
+            matchedVideos.push(video);
+          }
+        });
+      }
+      return matchedVideos;
+    };
+
+    const takeSnapshots = (timestamp: DOMHighResTimeStamp) => {
       if (
         lastSnapshotTime &&
         timestamp - lastSnapshotTime < timeBetweenSnapshots
       ) {
-        rafId = requestAnimationFrame(takeCanvasSnapshots);
+        rafId = requestAnimationFrame(takeSnapshots);
         return;
       }
       lastSnapshotTime = timestamp;
@@ -268,7 +283,7 @@ export class CanvasManager {
 
           window.performance.mark(`canvas-${canvas.id}-snapshot`);
           const bitmap = await createImageBitmap(canvas, {
-            resizeQuality: resizeQuality || 'low',
+            ...options.dataURLOptions,
             resizeWidth: width,
             resizeHeight: height,
           });
@@ -299,10 +314,70 @@ export class CanvasManager {
           snapshotInProgressMap.set(id, false);
         }
       });
-      rafId = requestAnimationFrame(takeCanvasSnapshots);
+      getVideos().forEach(async (video: HTMLVideoElement) => {
+        this.debug(video, 'starting video snapshotting');
+        const id = this.mirror.getId(video);
+        if (snapshotInProgressMap.get(id)) {
+          this.debug(video, 'video snapshotting already in progress for', id);
+          return;
+        }
+        snapshotInProgressMap.set(id, true);
+        try {
+          if (!this.canvasService) {
+            this.canvasService = window.document.createElement('canvas');
+            this.canvasCtx = this.canvasService.getContext('2d');
+          }
+
+          let scale = resizeFactor || 1;
+          if (maxSnapshotDimension) {
+            const maxDim = Math.max(video.width, video.height);
+            scale = Math.min(scale, maxSnapshotDimension / maxDim);
+          }
+          const width = video.width * scale;
+          const height = video.height * scale;
+
+          window.performance.mark(`video-${video.id}-snapshot`);
+          this.canvasService.width = width
+          this.canvasService.height = height
+          this.canvasCtx!.drawImage(video, 0, 0, width, height);
+          const bitmap = await createImageBitmap(this.canvasService, {
+            ...options.dataURLOptions,
+            resizeWidth: width,
+            resizeHeight: height,
+          });
+          this.debug(
+            video,
+            'took a snapshot in',
+            window.performance.measure(`video-snapshot`),
+              'with size', {width, height}
+          );
+          window.performance.mark(`video-postMessage`);
+          worker.postMessage(
+            {
+              id,
+              bitmap,
+              width,
+              height,
+              canvasWidth: video.width,
+              canvasHeight: video.height,
+              dataURLOptions: options.dataURLOptions,
+            },
+            [bitmap],
+          );
+          this.debug(
+            video,
+            'send message in',
+            window.performance.measure(`video-postMessage`),
+          );
+        } finally {
+          snapshotInProgressMap.set(id, false);
+        }
+      });
+
+      rafId = requestAnimationFrame(takeSnapshots);
     };
 
-    rafId = requestAnimationFrame(takeCanvasSnapshots);
+    rafId = requestAnimationFrame(takeSnapshots);
 
     this.resetObservers = () => {
       canvasContextReset();
