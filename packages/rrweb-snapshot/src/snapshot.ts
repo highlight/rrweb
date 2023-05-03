@@ -675,7 +675,7 @@ function serializeElementNode(
   } = options;
   let needBlock = _isBlockedElement(n, blockClass, blockSelector);
   const needMask = _isBlockedElement(n, maskTextClass, null);
-  const tagName = getValidTagName(n);
+  let tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
   for (let i = 0; i < len; i++) {
@@ -867,15 +867,13 @@ function serializeElementNode(
   }
 
   if (inlineImages && tagName === 'video') {
-    return {
-      type: NodeType.Element,
-      tagName: 'canvas',
-      attributes,
-      childNodes: [],
-      needBlock,
-      needMask,
-      rootId,
+    const { width, height } = n.getBoundingClientRect();
+    attributes = {
+      class: attributes.class,
+      rr_width: `${width}px`,
+      rr_height: `${height}px`,
     };
+    tagName = 'canvas'
   }
 
   return {

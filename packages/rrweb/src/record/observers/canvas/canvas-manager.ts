@@ -30,8 +30,6 @@ type pendingCanvasMutationsMap = Map<
 
 export class CanvasManager {
   private pendingCanvasMutations: pendingCanvasMutationsMap = new Map();
-  private canvasService: HTMLCanvasElement | null;
-  private canvasCtx: CanvasRenderingContext2D | null;
   private rafStamps: RafStamps = { latestId: 0, invokeId: null };
   private mirror: Mirror;
   private logger?: {
@@ -323,24 +321,23 @@ export class CanvasManager {
         }
         snapshotInProgressMap.set(id, true);
         try {
-          if (!this.canvasService) {
-            this.canvasService = window.document.createElement('canvas');
-            this.canvasCtx = this.canvasService.getContext('2d');
+          if (video.videoWidth === 0 || video.videoHeight === 0) {
+            this.debug(video, 'not yet ready', {
+              width: video.videoWidth,
+              height: video.videoHeight,
+            });
+            return;
           }
-
           let scale = resizeFactor || 1;
           if (maxSnapshotDimension) {
-            const maxDim = Math.max(video.width, video.height);
+            const maxDim = Math.max(video.videoWidth, video.videoHeight);
             scale = Math.min(scale, maxSnapshotDimension / maxDim);
           }
-          const width = video.width * scale;
-          const height = video.height * scale;
+          const width = video.videoWidth * scale;
+          const height = video.videoHeight * scale;
 
           window.performance.mark(`video-${video.id}-snapshot`);
-          this.canvasService.width = width;
-          this.canvasService.height = height;
-          this.canvasCtx!.drawImage(video, 0, 0, width, height);
-          const bitmap = await createImageBitmap(this.canvasService, {
+          const bitmap = await createImageBitmap(video, {
             ...options.dataURLOptions,
             resizeWidth: width,
             resizeHeight: height,
@@ -350,7 +347,7 @@ export class CanvasManager {
             'took a snapshot in',
             window.performance.measure(`video-snapshot`),
             'with size',
-            { width, height },
+            { videoWidth: video.videoWidth, videoHeight: video.videoHeight, width, height},
           );
           window.performance.mark(`video-postMessage`);
           worker.postMessage(
@@ -359,8 +356,8 @@ export class CanvasManager {
               bitmap,
               width,
               height,
-              canvasWidth: video.width,
-              canvasHeight: video.height,
+              canvasWidth: video.videoWidth,
+              canvasHeight: video.videoHeight,
               dataURLOptions: options.dataURLOptions,
             },
             [bitmap],
@@ -370,6 +367,8 @@ export class CanvasManager {
             'send message in',
             window.performance.measure(`video-postMessage`),
           );
+        } catch (e) {
+          this.debug(video, 'failed to snapshot', e);
         } finally {
           snapshotInProgressMap.set(id, false);
         }
