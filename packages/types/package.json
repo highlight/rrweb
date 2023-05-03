@@ -12,7 +12,7 @@
     "dev": "vite",
     "check-types": "tsc -noEmit",
     "lint": "yarn eslint src/**/*.ts",
-    "typegen": "tsc --declarationDir dist",
+    "typegen": "tsc --emitDeclarationOnly -d",
     "build": "vite build"
   },
   "homepage": "https://github.com/rrweb-io/rrweb/tree/main/packages/@rrweb/types#readme",
@@ -41,8 +41,7 @@
   ],
   "devDependencies": {
     "typescript": "^4.7.3",
-    "vite": "^3.2.0-beta.2",
-    "vite-plugin-dts": "^1.6.6"
+    "vite": "^3.2.6"
   },
   "dependencies": {
     "@highlight-run/rrweb-snapshot": "workspace:*"

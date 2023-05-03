@@ -13,6 +13,7 @@
     "lib": ["es6", "dom"],
     "skipLibCheck": true,
     "declaration": true,
+    "declarationDir": "dist",
     "importsNotUsedAsValues": "error"
   },
   "compileOnSave": true,
