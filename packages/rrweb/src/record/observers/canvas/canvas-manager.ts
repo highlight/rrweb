@@ -187,7 +187,10 @@ export class CanvasManager {
                   },
                 ],
               } as CanvasArg,
-              dx, dy, dw, dh
+              dx,
+              dy,
+              dw,
+              dh,
             ],
           },
         ],
@@ -213,7 +216,7 @@ export class CanvasManager {
       const matchedVideos: HTMLVideoElement[] = [];
       if (recordVideos) {
         win.document.querySelectorAll('video').forEach((video) => {
-          if (video.src !== '' && video.src.indexOf('blob:') === -1) return
+          if (video.src !== '' && video.src.indexOf('blob:') === -1) return;
           if (!isBlocked(video, blockClass, blockSelector, true)) {
             matchedVideos.push(video);
           }
@@ -296,10 +299,7 @@ export class CanvasManager {
             },
             [bitmap],
           );
-          this.debug(
-            canvas,
-            'sent message',
-          );
+          this.debug(canvas, 'sent message');
         } finally {
           snapshotInProgressMap.set(id, false);
         }
@@ -313,8 +313,12 @@ export class CanvasManager {
         }
         snapshotInProgressMap.set(id, true);
         try {
-          const {width: boxWidth, height: boxHeight} = video.getBoundingClientRect()
-          const {actualWidth, actualHeight} = {actualWidth: video.videoWidth, actualHeight: video.videoHeight}
+          const { width: boxWidth, height: boxHeight } =
+            video.getBoundingClientRect();
+          const { actualWidth, actualHeight } = {
+            actualWidth: video.videoWidth,
+            actualHeight: video.videoHeight,
+          };
           const maxDim = Math.max(actualWidth, actualHeight);
           let scale = resizeFactor || 1;
           if (maxSnapshotDimension) {
@@ -324,17 +328,28 @@ export class CanvasManager {
           const height = actualHeight * scale;
 
           const bitmap = await createImageBitmap(video, {
-            resizeWidth: width, resizeHeight: height
+            resizeWidth: width,
+            resizeHeight: height,
           });
 
-          let outputScale = Math.max(boxWidth, boxHeight) / maxDim
+          let outputScale = Math.max(boxWidth, boxHeight) / maxDim;
           const outputWidth = actualWidth * outputScale;
           const outputHeight = actualHeight * outputScale;
-          const offsetX = (boxWidth - outputWidth) / 2
-          const offsetY = (boxHeight - outputHeight) / 2
+          const offsetX = (boxWidth - outputWidth) / 2;
+          const offsetY = (boxHeight - outputHeight) / 2;
           this.debug(video, 'created image bitmap', {
-            actualWidth, actualHeight, boxWidth, boxHeight, outputWidth, outputHeight,
-            resizeWidth: width, resizeHeight: height, scale, outputScale, offsetX, offsetY
+            actualWidth,
+            actualHeight,
+            boxWidth,
+            boxHeight,
+            outputWidth,
+            outputHeight,
+            resizeWidth: width,
+            resizeHeight: height,
+            scale,
+            outputScale,
+            offsetX,
+            offsetY,
           });
 
           worker.postMessage(
@@ -351,10 +366,7 @@ export class CanvasManager {
             },
             [bitmap],
           );
-          this.debug(
-            video,
-            'send message',
-          );
+          this.debug(video, 'send message');
         } catch (e) {
           this.debug(video, 'failed to snapshot', e);
         } finally {
