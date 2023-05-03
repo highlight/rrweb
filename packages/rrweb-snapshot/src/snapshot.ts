@@ -873,7 +873,7 @@ function serializeElementNode(
       rr_width: `${width}px`,
       rr_height: `${height}px`,
     };
-    tagName = 'canvas'
+    tagName = 'canvas';
   }
 
   return {

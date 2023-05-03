@@ -347,7 +347,12 @@ export class CanvasManager {
             'took a snapshot in',
             window.performance.measure(`video-snapshot`),
             'with size',
-            { videoWidth: video.videoWidth, videoHeight: video.videoHeight, width, height},
+            {
+              videoWidth: video.videoWidth,
+              videoHeight: video.videoHeight,
+              width,
+              height,
+            },
           );
           window.performance.mark(`video-postMessage`);
           worker.postMessage(
