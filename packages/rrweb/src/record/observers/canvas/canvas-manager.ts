@@ -116,7 +116,7 @@ export class CanvasManager {
   ) {
     if (!this.logger) return;
     let prefix = `[highlight-${element.tagName.toLowerCase()}]`;
-    if (element.tagName === 'canvas') {
+    if (element.tagName.toLowerCase() === 'canvas') {
       prefix += ` [ctx:${(element as ICanvas).__context}]`;
     }
     this.logger.debug(prefix, element, ...args);
@@ -225,7 +225,7 @@ export class CanvasManager {
       return matchedVideos;
     };
 
-    const takeSnapshots = (timestamp: DOMHighResTimeStamp) => {
+    const takeSnapshots = async (timestamp: DOMHighResTimeStamp) => {
       if (
         lastSnapshotTime &&
         timestamp - lastSnapshotTime < timeBetweenSnapshots
@@ -235,7 +235,8 @@ export class CanvasManager {
       }
       lastSnapshotTime = timestamp;
 
-      getCanvas().forEach(async (canvas: HTMLCanvasElement) => {
+      const promises: Promise<void>[] = []
+      promises.push(...getCanvas().map(async (canvas: HTMLCanvasElement) => {
         this.debug(canvas, 'starting snapshotting');
         const id = this.mirror.getId(canvas);
         if (snapshotInProgressMap.get(id)) {
@@ -286,25 +287,27 @@ export class CanvasManager {
           });
           this.debug(canvas, 'created image bitmap');
           worker.postMessage(
-            {
-              id,
-              bitmap,
-              width,
-              height,
-              dx: 0,
-              dy: 0,
-              dw: canvas.width,
-              dh: canvas.height,
-              dataURLOptions: options.dataURLOptions,
-            },
-            [bitmap],
+              {
+                id,
+                bitmap,
+                width,
+                height,
+                dx: 0,
+                dy: 0,
+                dw: canvas.width,
+                dh: canvas.height,
+                dataURLOptions: options.dataURLOptions,
+              },
+              [bitmap],
           );
           this.debug(canvas, 'sent message');
+        } catch (e) {
+          this.debug(canvas, 'failed to snapshot', e);
         } finally {
           snapshotInProgressMap.set(id, false);
         }
-      });
-      getVideos().forEach(async (video: HTMLVideoElement) => {
+      }))
+      promises.push(...getVideos().map(async (video: HTMLVideoElement) => {
         this.debug(video, 'starting video snapshotting');
         const id = this.mirror.getId(video);
         if (snapshotInProgressMap.get(id)) {
@@ -372,7 +375,8 @@ export class CanvasManager {
         } finally {
           snapshotInProgressMap.set(id, false);
         }
-      });
+      }))
+      await Promise.all(promises)
 
       rafId = requestAnimationFrame(takeSnapshots);
     };
