@@ -22,7 +22,8 @@
     "svelte": "^3.59.2",
     "svelte-check": "^3.0.1",
     "svelte-preprocess": "^5.0.0",
-    "tslib": "^2.0.0"
+    "tslib": "^2.0.0",
+    "typescript": "^4.7.3"
   },
   "dependencies": {
     "@highlight-run/rrweb": "workspace:*",
