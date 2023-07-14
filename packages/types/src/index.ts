@@ -542,6 +542,7 @@ export type ImageBitmapDataURLWorkerParams = {
 export type ImageBitmapDataURLWorkerResponse =
   | {
       id: number;
+      status: string;
     }
   | {
       id: number;
