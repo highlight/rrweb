@@ -111,15 +111,19 @@ export class CanvasManager {
   }
 
   private debug(
-    element: HTMLCanvasElement | HTMLVideoElement,
+    element: HTMLCanvasElement | HTMLVideoElement | null,
     ...args: Parameters<typeof console.log>
   ) {
     if (!this.logger) return;
-    let prefix = `[highlight-${element.tagName.toLowerCase()}]`;
-    if (element.tagName.toLowerCase() === 'canvas') {
-      prefix += ` [ctx:${(element as ICanvas).__context}]`;
+    const id = this.mirror.getId(element);
+    let prefix = '[highlight-canvas-manager]';
+    if (element) {
+      prefix = `[highlight-${element.tagName.toLowerCase()}] [id:${id}]`;
+      if (element.tagName.toLowerCase() === 'canvas') {
+        prefix += ` [ctx:${(element as ICanvas).__context}]`;
+      }
     }
-    this.logger.debug(prefix, element, ...args);
+    this.logger.debug(prefix, ...args);
   }
 
   private processMutation: canvasManagerMutationCallback = (
@@ -163,7 +167,12 @@ export class CanvasManager {
       const { id } = e.data;
       snapshotInProgressMap.set(id, false);
 
-      if (!('base64' in e.data)) return;
+      if (!('base64' in e.data)) {
+        this.debug(null, 'canvas worker received empty message', {
+          status: e.data.status,
+        });
+        return;
+      }
 
       const { base64, type, dx, dy, dw, dh } = e.data;
       this.mutationCb({
@@ -205,8 +214,15 @@ export class CanvasManager {
       const matchedCanvas: HTMLCanvasElement[] = [];
       win.document.querySelectorAll('canvas').forEach((canvas) => {
         if (!isBlocked(canvas, blockClass, blockSelector, true)) {
-          this.debug(canvas, 'discovered canvas');
-          matchedCanvas.push(canvas);
+          if ((canvas as ICanvas).__context) {
+            this.debug(canvas, 'discovered valid canvas');
+            matchedCanvas.push(canvas);
+          } else {
+            this.debug(
+              canvas,
+              'discovered canvas that does not have a context, ignoring',
+            );
+          }
         }
       });
       return matchedCanvas;
@@ -246,17 +262,9 @@ export class CanvasManager {
           }
           snapshotInProgressMap.set(id, true);
           try {
-            const ctx = canvas.getContext('webgl2', {
-              preserveDrawingBuffer: true,
-            });
-            this.debug(canvas, 'got webgl2 context', {
-              context: ctx?.getContextAttributes(),
-              width: canvas.width,
-              height: canvas.height,
-            });
-
             // canvas is not yet ready... this retry on the next sampling iteration.
-            // we don't want to crash the worker if the canvas is not yet rendered.
+            // we don't want to crash the worker by sending an undefined bitmap
+            // if the canvas is not yet rendered.
             if (canvas.width === 0 || canvas.height === 0) {
               this.debug(canvas, 'not yet ready', {
                 width: canvas.width,
