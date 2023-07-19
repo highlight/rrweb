@@ -214,6 +214,10 @@ export type CanvasSamplingStrategy = Partial<{
    */
   clearWebGLBuffer?: boolean;
   /**
+   * Time (in milliseconds) to wait before the initial snapshot of canvas/video elements.
+   */
+  initialSnapshotDelay?: number;
+  /**
    * Adjust the quality of the canvas blob serialization.
    */
   dataURLOptions?: DataURLOptions;

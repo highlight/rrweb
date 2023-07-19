@@ -321,6 +321,7 @@ function record<T = eventWithTime>(
     mirror,
     sampling: sampling?.canvas?.fps,
     clearWebGLBuffer: sampling?.canvas?.clearWebGLBuffer,
+    initialSnapshotDelay: sampling?.canvas?.initialSnapshotDelay,
     dataURLOptions,
     resizeFactor: sampling?.canvas?.resizeFactor,
     maxSnapshotDimension: sampling?.canvas?.maxSnapshotDimension,

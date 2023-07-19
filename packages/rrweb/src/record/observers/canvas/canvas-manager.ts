@@ -73,6 +73,7 @@ export class CanvasManager {
     mirror: Mirror;
     sampling?: 'all' | number;
     clearWebGLBuffer?: boolean;
+    initialSnapshotDelay?: number;
     dataURLOptions: DataURLOptions;
     resizeFactor?: number;
     maxSnapshotDimension?: number;
@@ -89,6 +90,7 @@ export class CanvasManager {
       recordCanvas,
       recordVideos,
       clearWebGLBuffer,
+      initialSnapshotDelay,
       dataURLOptions,
     } = options;
     this.mutationCb = options.mutationCb;
@@ -106,6 +108,7 @@ export class CanvasManager {
         blockSelector,
         {
           clearWebGLBuffer,
+          initialSnapshotDelay,
           dataURLOptions,
         },
         options.resizeFactor,
@@ -154,6 +157,7 @@ export class CanvasManager {
     blockSelector: string | null,
     options: {
       clearWebGLBuffer?: boolean;
+      initialSnapshotDelay?: number;
       dataURLOptions: DataURLOptions;
     },
     resizeFactor?: number,
@@ -404,16 +408,21 @@ export class CanvasManager {
           }
         }),
       );
-      await Promise.all(promises);
+      Promise.all(promises).catch(console.error);
 
       rafId = requestAnimationFrame(takeSnapshots);
     };
 
-    rafId = requestAnimationFrame(takeSnapshots);
+    const delay = setTimeout(() => {
+      rafId = requestAnimationFrame(takeSnapshots);
+    }, options.initialSnapshotDelay);
 
     this.resetObservers = () => {
       canvasContextReset();
-      cancelAnimationFrame(rafId);
+      clearTimeout(delay);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }
 
