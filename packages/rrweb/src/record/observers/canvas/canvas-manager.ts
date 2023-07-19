@@ -281,12 +281,7 @@ export class CanvasManager {
                 this.debug(
                   canvas,
                   'cleared webgl canvas to load it into memory',
-                  {
-                    base64: canvas.toDataURL(
-                      options.dataURLOptions.type,
-                      options.dataURLOptions.quality,
-                    ),
-                  },
+                  { attributes: context?.getContextAttributes() },
                 );
               }
             }
