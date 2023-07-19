@@ -72,6 +72,7 @@ export class CanvasManager {
     blockSelector: string | null;
     mirror: Mirror;
     sampling?: 'all' | number;
+    clearWebGLBuffer?: boolean;
     dataURLOptions: DataURLOptions;
     resizeFactor?: number;
     maxSnapshotDimension?: number;
@@ -87,6 +88,7 @@ export class CanvasManager {
       blockSelector,
       recordCanvas,
       recordVideos,
+      clearWebGLBuffer,
       dataURLOptions,
     } = options;
     this.mutationCb = options.mutationCb;
@@ -103,6 +105,7 @@ export class CanvasManager {
         blockClass,
         blockSelector,
         {
+          clearWebGLBuffer,
           dataURLOptions,
         },
         options.resizeFactor,
@@ -150,6 +153,7 @@ export class CanvasManager {
     blockClass: blockClass,
     blockSelector: string | null,
     options: {
+      clearWebGLBuffer?: boolean;
       dataURLOptions: DataURLOptions;
     },
     resizeFactor?: number,
@@ -214,15 +218,8 @@ export class CanvasManager {
       const matchedCanvas: HTMLCanvasElement[] = [];
       win.document.querySelectorAll('canvas').forEach((canvas) => {
         if (!isBlocked(canvas, blockClass, blockSelector, true)) {
-          if ((canvas as ICanvas).__context) {
-            this.debug(canvas, 'discovered valid canvas');
-            matchedCanvas.push(canvas);
-          } else {
-            this.debug(
-              canvas,
-              'discovered canvas that does not have a context, ignoring',
-            );
-          }
+          this.debug(canvas, 'discovered canvas');
+          matchedCanvas.push(canvas);
         }
       });
       return matchedCanvas;
@@ -262,6 +259,37 @@ export class CanvasManager {
           }
           snapshotInProgressMap.set(id, true);
           try {
+            if (
+              options.clearWebGLBuffer !== false &&
+              ['webgl', 'webgl2'].includes((canvas as ICanvas).__context)
+            ) {
+              // if the canvas hasn't been modified recently,
+              // its contents won't be in memory and `createImageBitmap`
+              // will return a transparent imageBitmap
+
+              const context = canvas.getContext(
+                (canvas as ICanvas).__context,
+              ) as WebGLRenderingContext | WebGL2RenderingContext | null;
+              if (
+                context?.getContextAttributes()?.preserveDrawingBuffer === false
+              ) {
+                // Hack to load canvas back into memory so `createImageBitmap` can grab it's contents.
+                // Context: https://twitter.com/Juice10/status/1499775271758704643
+                // This hack might change the background color of the canvas in the unlikely event that
+                // the canvas background was changed but clear was not called directly afterwards.
+                context?.clear(context?.COLOR_BUFFER_BIT);
+                this.debug(
+                  canvas,
+                  'cleared webgl canvas to load it into memory',
+                  {
+                    base64: canvas.toDataURL(
+                      options.dataURLOptions.type,
+                      options.dataURLOptions.quality,
+                    ),
+                  },
+                );
+              }
+            }
             // canvas is not yet ready... this retry on the next sampling iteration.
             // we don't want to crash the worker by sending an undefined bitmap
             // if the canvas is not yet rendered.

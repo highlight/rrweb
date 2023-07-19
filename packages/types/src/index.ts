@@ -208,6 +208,12 @@ export type CanvasSamplingStrategy = Partial<{
    */
   maxSnapshotDimension: number;
   /**
+   * Default behavior for WebGL canvas elements with `preserveDrawingBuffer: false` is to clear the buffer to
+   * load the canvas into memory to avoid getting a transparent bitmap.
+   * Set to false to disable the clearing (in case there are visual glitches in the canvas).
+   */
+  clearWebGLBuffer?: boolean;
+  /**
    * Adjust the quality of the canvas blob serialization.
    */
   dataURLOptions?: DataURLOptions;
