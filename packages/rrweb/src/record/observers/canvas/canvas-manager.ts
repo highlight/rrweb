@@ -124,12 +124,12 @@ export class CanvasManager {
     const id = this.mirror.getId(element);
     let prefix = '[highlight-canvas-manager]';
     if (element) {
-      prefix = `[highlight-${element.tagName.toLowerCase()}] [id:${id}]`;
+      prefix = `[highlight-canvas] [id:${id}]`;
       if (element.tagName.toLowerCase() === 'canvas') {
         prefix += ` [ctx:${(element as ICanvas).__context}]`;
       }
     }
-    this.logger.debug(prefix, ...args);
+    this.logger.debug(prefix, element, ...args);
   }
 
   private processMutation: canvasManagerMutationCallback = (
@@ -177,6 +177,7 @@ export class CanvasManager {
 
       if (!('base64' in e.data)) {
         this.debug(null, 'canvas worker received empty message', {
+          data: e.data,
           status: e.data.status,
         });
         return;
@@ -218,24 +219,33 @@ export class CanvasManager {
     let lastSnapshotTime = 0;
     let rafId: number;
 
-    const getCanvas = (): HTMLCanvasElement[] => {
+    const elementFoundTime: Map<number, number> = new Map();
+    const getCanvas = (timestamp: DOMHighResTimeStamp): HTMLCanvasElement[] => {
       const matchedCanvas: HTMLCanvasElement[] = [];
       win.document.querySelectorAll('canvas').forEach((canvas) => {
         if (!isBlocked(canvas, blockClass, blockSelector, true)) {
           this.debug(canvas, 'discovered canvas');
           matchedCanvas.push(canvas);
+          const id = this.mirror.getId(canvas);
+          if (!elementFoundTime.has(id)) {
+            elementFoundTime.set(id, timestamp);
+          }
         }
       });
       return matchedCanvas;
     };
 
-    const getVideos = (): HTMLVideoElement[] => {
+    const getVideos = (timestamp: DOMHighResTimeStamp): HTMLVideoElement[] => {
       const matchedVideos: HTMLVideoElement[] = [];
       if (recordVideos) {
         win.document.querySelectorAll('video').forEach((video) => {
           if (video.src !== '' && video.src.indexOf('blob:') === -1) return;
           if (!isBlocked(video, blockClass, blockSelector, true)) {
             matchedVideos.push(video);
+            const id = this.mirror.getId(video);
+            if (!elementFoundTime.has(id)) {
+              elementFoundTime.set(id, timestamp);
+            }
           }
         });
       }
@@ -252,177 +262,197 @@ export class CanvasManager {
       }
       lastSnapshotTime = timestamp;
 
+      const filterElementStartTime = (
+        canvas: HTMLCanvasElement | HTMLVideoElement,
+      ) => {
+        const id = this.mirror.getId(canvas);
+        const foundTime = elementFoundTime.get(id)!;
+        const hadLoadingTime =
+          !options.initialSnapshotDelay ||
+          timestamp - foundTime > options.initialSnapshotDelay;
+        this.debug(canvas, {
+          delay: options.initialSnapshotDelay,
+          delta: timestamp - foundTime,
+          hadLoadingTime,
+        });
+        return hadLoadingTime;
+      };
+
       const promises: Promise<void>[] = [];
       promises.push(
-        ...getCanvas().map(async (canvas: HTMLCanvasElement) => {
-          this.debug(canvas, 'starting snapshotting');
-          const id = this.mirror.getId(canvas);
-          if (snapshotInProgressMap.get(id)) {
-            this.debug(canvas, 'snapshotting already in progress for', id);
-            return;
-          }
-          snapshotInProgressMap.set(id, true);
-          try {
-            if (
-              options.clearWebGLBuffer !== false &&
-              ['webgl', 'webgl2'].includes((canvas as ICanvas).__context)
-            ) {
-              // if the canvas hasn't been modified recently,
-              // its contents won't be in memory and `createImageBitmap`
-              // will return a transparent imageBitmap
-
-              const context = canvas.getContext(
-                (canvas as ICanvas).__context,
-              ) as WebGLRenderingContext | WebGL2RenderingContext | null;
-              if (
-                context?.getContextAttributes()?.preserveDrawingBuffer === false
-              ) {
-                // Hack to load canvas back into memory so `createImageBitmap` can grab it's contents.
-                // Context: https://twitter.com/Juice10/status/1499775271758704643
-                // This hack might change the background color of the canvas in the unlikely event that
-                // the canvas background was changed but clear was not called directly afterwards.
-                context?.clear(context?.COLOR_BUFFER_BIT);
-                this.debug(
-                  canvas,
-                  'cleared webgl canvas to load it into memory',
-                  { attributes: context?.getContextAttributes() },
-                );
-              }
-            }
-            // canvas is not yet ready... this retry on the next sampling iteration.
-            // we don't want to crash the worker by sending an undefined bitmap
-            // if the canvas is not yet rendered.
-            if (canvas.width === 0 || canvas.height === 0) {
-              this.debug(canvas, 'not yet ready', {
-                width: canvas.width,
-                height: canvas.height,
-              });
+        ...getCanvas(timestamp)
+          .filter(filterElementStartTime)
+          .map(async (canvas: HTMLCanvasElement) => {
+            this.debug(canvas, 'starting snapshotting');
+            const id = this.mirror.getId(canvas);
+            if (snapshotInProgressMap.get(id)) {
+              this.debug(canvas, 'snapshotting already in progress for', id);
               return;
             }
-            let scale = resizeFactor || 1;
-            if (maxSnapshotDimension) {
-              const maxDim = Math.max(canvas.width, canvas.height);
-              scale = Math.min(scale, maxSnapshotDimension / maxDim);
-            }
-            const width = canvas.width * scale;
-            const height = canvas.height * scale;
+            snapshotInProgressMap.set(id, true);
+            try {
+              if (
+                options.clearWebGLBuffer !== false &&
+                ['webgl', 'webgl2'].includes((canvas as ICanvas).__context)
+              ) {
+                // if the canvas hasn't been modified recently,
+                // its contents won't be in memory and `createImageBitmap`
+                // will return a transparent imageBitmap
 
-            const bitmap = await createImageBitmap(canvas, {
-              resizeWidth: width,
-              resizeHeight: height,
-            });
-            this.debug(canvas, 'created image bitmap', {
-              width: bitmap.width,
-              height: bitmap.height,
-            });
-            worker.postMessage(
-              {
-                id,
-                bitmap,
-                width,
-                height,
-                dx: 0,
-                dy: 0,
-                dw: canvas.width,
-                dh: canvas.height,
-                dataURLOptions: options.dataURLOptions,
-              },
-              [bitmap],
-            );
-            this.debug(canvas, 'sent message');
-          } catch (e) {
-            this.debug(canvas, 'failed to snapshot', e);
-          } finally {
-            snapshotInProgressMap.set(id, false);
-          }
-        }),
+                const context = canvas.getContext(
+                  (canvas as ICanvas).__context,
+                ) as WebGLRenderingContext | WebGL2RenderingContext | null;
+                if (
+                  context?.getContextAttributes()?.preserveDrawingBuffer ===
+                  false
+                ) {
+                  // Hack to load canvas back into memory so `createImageBitmap` can grab it's contents.
+                  // Context: https://twitter.com/Juice10/status/1499775271758704643
+                  // This hack might change the background color of the canvas in the unlikely event that
+                  // the canvas background was changed but clear was not called directly afterwards.
+                  context?.clear(context?.COLOR_BUFFER_BIT);
+                  this.debug(
+                    canvas,
+                    'cleared webgl canvas to load it into memory',
+                    { attributes: context?.getContextAttributes() },
+                  );
+                }
+              }
+              // canvas is not yet ready... this retry on the next sampling iteration.
+              // we don't want to crash the worker by sending an undefined bitmap
+              // if the canvas is not yet rendered.
+              if (canvas.width === 0 || canvas.height === 0) {
+                this.debug(canvas, 'not yet ready', {
+                  width: canvas.width,
+                  height: canvas.height,
+                });
+                return;
+              }
+              let scale = resizeFactor || 1;
+              if (maxSnapshotDimension) {
+                const maxDim = Math.max(canvas.width, canvas.height);
+                scale = Math.min(scale, maxSnapshotDimension / maxDim);
+              }
+              const width = canvas.width * scale;
+              const height = canvas.height * scale;
+
+              const bitmap = await createImageBitmap(canvas, {
+                resizeWidth: width,
+                resizeHeight: height,
+              });
+              this.debug(canvas, 'created image bitmap', {
+                width: bitmap.width,
+                height: bitmap.height,
+              });
+              worker.postMessage(
+                {
+                  id,
+                  bitmap,
+                  width,
+                  height,
+                  dx: 0,
+                  dy: 0,
+                  dw: canvas.width,
+                  dh: canvas.height,
+                  dataURLOptions: options.dataURLOptions,
+                },
+                [bitmap],
+              );
+              this.debug(canvas, 'sent message');
+            } catch (e) {
+              this.debug(canvas, 'failed to snapshot', e);
+            } finally {
+              snapshotInProgressMap.set(id, false);
+            }
+          }),
       );
       promises.push(
-        ...getVideos().map(async (video: HTMLVideoElement) => {
-          this.debug(video, 'starting video snapshotting');
-          const id = this.mirror.getId(video);
-          if (snapshotInProgressMap.get(id)) {
-            this.debug(video, 'video snapshotting already in progress for', id);
-            return;
-          }
-          snapshotInProgressMap.set(id, true);
-          try {
-            const { width: boxWidth, height: boxHeight } =
-              video.getBoundingClientRect();
-            const { actualWidth, actualHeight } = {
-              actualWidth: video.videoWidth,
-              actualHeight: video.videoHeight,
-            };
-            const maxDim = Math.max(actualWidth, actualHeight);
-            let scale = resizeFactor || 1;
-            if (maxSnapshotDimension) {
-              scale = Math.min(scale, maxSnapshotDimension / maxDim);
-            }
-            const width = actualWidth * scale;
-            const height = actualHeight * scale;
-
-            const bitmap = await createImageBitmap(video, {
-              resizeWidth: width,
-              resizeHeight: height,
-            });
-
-            let outputScale = Math.max(boxWidth, boxHeight) / maxDim;
-            const outputWidth = actualWidth * outputScale;
-            const outputHeight = actualHeight * outputScale;
-            const offsetX = (boxWidth - outputWidth) / 2;
-            const offsetY = (boxHeight - outputHeight) / 2;
-            this.debug(video, 'created image bitmap', {
-              actualWidth,
-              actualHeight,
-              boxWidth,
-              boxHeight,
-              outputWidth,
-              outputHeight,
-              resizeWidth: width,
-              resizeHeight: height,
-              scale,
-              outputScale,
-              offsetX,
-              offsetY,
-            });
-
-            worker.postMessage(
-              {
+        ...getVideos(timestamp)
+          .filter(filterElementStartTime)
+          .map(async (video: HTMLVideoElement) => {
+            this.debug(video, 'starting video snapshotting');
+            const id = this.mirror.getId(video);
+            if (snapshotInProgressMap.get(id)) {
+              this.debug(
+                video,
+                'video snapshotting already in progress for',
                 id,
-                bitmap,
-                width,
-                height,
-                dx: offsetX,
-                dy: offsetY,
-                dw: outputWidth,
-                dh: outputHeight,
-                dataURLOptions: options.dataURLOptions,
-              },
-              [bitmap],
-            );
-            this.debug(video, 'send message');
-          } catch (e) {
-            this.debug(video, 'failed to snapshot', e);
-          } finally {
-            snapshotInProgressMap.set(id, false);
-          }
-        }),
+              );
+              return;
+            }
+            snapshotInProgressMap.set(id, true);
+            try {
+              const { width: boxWidth, height: boxHeight } =
+                video.getBoundingClientRect();
+              const { actualWidth, actualHeight } = {
+                actualWidth: video.videoWidth,
+                actualHeight: video.videoHeight,
+              };
+              const maxDim = Math.max(actualWidth, actualHeight);
+              let scale = resizeFactor || 1;
+              if (maxSnapshotDimension) {
+                scale = Math.min(scale, maxSnapshotDimension / maxDim);
+              }
+              const width = actualWidth * scale;
+              const height = actualHeight * scale;
+
+              const bitmap = await createImageBitmap(video, {
+                resizeWidth: width,
+                resizeHeight: height,
+              });
+
+              let outputScale = Math.max(boxWidth, boxHeight) / maxDim;
+              const outputWidth = actualWidth * outputScale;
+              const outputHeight = actualHeight * outputScale;
+              const offsetX = (boxWidth - outputWidth) / 2;
+              const offsetY = (boxHeight - outputHeight) / 2;
+              this.debug(video, 'created image bitmap', {
+                actualWidth,
+                actualHeight,
+                boxWidth,
+                boxHeight,
+                outputWidth,
+                outputHeight,
+                resizeWidth: width,
+                resizeHeight: height,
+                scale,
+                outputScale,
+                offsetX,
+                offsetY,
+              });
+
+              worker.postMessage(
+                {
+                  id,
+                  bitmap,
+                  width,
+                  height,
+                  dx: offsetX,
+                  dy: offsetY,
+                  dw: outputWidth,
+                  dh: outputHeight,
+                  dataURLOptions: options.dataURLOptions,
+                },
+                [bitmap],
+              );
+              this.debug(video, 'send message');
+            } catch (e) {
+              this.debug(video, 'failed to snapshot', e);
+            } finally {
+              snapshotInProgressMap.set(id, false);
+            }
+          }),
       );
       Promise.all(promises).catch(console.error);
 
       rafId = requestAnimationFrame(takeSnapshots);
     };
 
-    const delay = setTimeout(() => {
-      rafId = requestAnimationFrame(takeSnapshots);
-    }, options.initialSnapshotDelay);
+    rafId = requestAnimationFrame(takeSnapshots);
 
     this.resetObservers = () => {
       canvasContextReset();
-      clearTimeout(delay);
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
+      cancelAnimationFrame(rafId);
     };
   }
 
