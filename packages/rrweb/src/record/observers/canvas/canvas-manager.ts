@@ -448,11 +448,16 @@ export class CanvasManager {
       rafId = requestAnimationFrame(takeSnapshots);
     };
 
-    rafId = requestAnimationFrame(takeSnapshots);
+    const delay = setTimeout(() => {
+      rafId = requestAnimationFrame(takeSnapshots);
+    }, 0);
 
     this.resetObservers = () => {
       canvasContextReset();
-      cancelAnimationFrame(rafId);
+      clearTimeout(delay);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }
 
