@@ -13,7 +13,7 @@ export default function initCanvasContextObserver(
 ): listenerHandler {
   const handlers: listenerHandler[] = [];
   try {
-    const restoreHandler = patch(
+    const restoreGetContext = patch(
       win.HTMLCanvasElement.prototype,
       'getContext',
       function (
@@ -21,21 +21,24 @@ export default function initCanvasContextObserver(
           this: ICanvas,
           contextType: string,
           ...args: Array<unknown>
-        ) => void,
+        ) => unknown,
       ) {
         return function (
           this: ICanvas,
           contextType: string,
           ...args: Array<unknown>
         ) {
-          if (!isBlocked(this, blockClass, blockSelector, true)) {
-            if (!this.__context) this.__context = contextType;
+          const ctx = original.apply(this, [contextType, ...args]);
+          if (ctx) {
+            if (!isBlocked(this, blockClass, blockSelector, true)) {
+              if (!this.__context) this.__context = contextType;
+            }
           }
-          return original.apply(this, [contextType, ...args]);
+          return ctx;
         };
       },
     );
-    handlers.push(restoreHandler);
+    handlers.push(restoreGetContext);
   } catch {
     console.error('failed to patch HTMLCanvasElement.prototype.getContext');
   }
