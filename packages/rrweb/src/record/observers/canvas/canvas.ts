@@ -19,7 +19,7 @@ export default function initCanvasContextObserver(
 ): listenerHandler {
   const handlers: listenerHandler[] = [];
   try {
-    const restoreHandler = patch(
+    const restoreGetContext = patch(
       win.HTMLCanvasElement.prototype,
       'getContext',
       function (
@@ -27,7 +27,7 @@ export default function initCanvasContextObserver(
           this: ICanvas | HTMLCanvasElement,
           contextType: string,
           ...args: Array<unknown>
-        ) => void,
+        ) => unknown,
       ) {
         return function (
           this: ICanvas | HTMLCanvasElement,
@@ -58,7 +58,7 @@ export default function initCanvasContextObserver(
         };
       },
     );
-    handlers.push(restoreHandler);
+    handlers.push(restoreGetContext);
   } catch {
     console.error('failed to patch HTMLCanvasElement.prototype.getContext');
   }
