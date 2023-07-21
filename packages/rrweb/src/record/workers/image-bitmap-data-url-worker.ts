@@ -71,11 +71,26 @@ worker.onmessage = async function (e) {
     // on first try we should check if canvas is transparent,
     // no need to save it's contents in that case
     if (!lastBlobMap.has(id) && (await transparentBase64) === base64) {
+      console.debug('[highlight-worker] canvas bitmap is transparent', {
+        id,
+        base64,
+      });
       lastBlobMap.set(id, base64);
-      return worker.postMessage({ id });
+      return worker.postMessage({ id, status: 'transparent' });
     }
 
-    if (lastBlobMap.get(id) === base64) return worker.postMessage({ id }); // unchanged
+    // unchanged
+    if (lastBlobMap.get(id) === base64) {
+      console.debug('[highlight-worker] canvas bitmap is unchanged', {
+        id,
+        base64,
+      });
+      return worker.postMessage({ id, status: 'unchanged' });
+    }
+    console.debug('[highlight-worker] canvas bitmap processed', {
+      id,
+      base64,
+    });
     worker.postMessage({
       id,
       type,
@@ -89,6 +104,9 @@ worker.onmessage = async function (e) {
     });
     lastBlobMap.set(id, base64);
   } else {
-    return worker.postMessage({ id: e.data.id });
+    console.debug('[highlight-worker] no offscreencanvas support', {
+      id: e.data.id,
+    });
+    return worker.postMessage({ id: e.data.id, status: 'unsupported' });
   }
 };
