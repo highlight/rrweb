@@ -228,6 +228,8 @@ export class CanvasManager {
     this.snapshotInProgressMap.set(id, true);
     try {
       if (
+        // disable buffer clearing in manual snapshot mode
+        this.options.samplingManual === undefined &&
         this.options.clearWebGLBuffer !== false &&
         ['webgl', 'webgl2'].includes((element as ICanvas).__context)
       ) {
