@@ -668,6 +668,13 @@ record.takeFullSnapshot = (isCheckout?: boolean) => {
   takeFullSnapshot(isCheckout);
 };
 
+record.snapshotCanvas = async (element: HTMLCanvasElement) => {
+  if (!canvasManager) {
+    throw new Error('canvas manager is not initialized');
+  }
+  await canvasManager.snapshot(element);
+};
+
 record.mirror = mirror;
 
 export default record;

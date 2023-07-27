@@ -36,6 +36,10 @@ export class CanvasManager {
     debug: (...args: Parameters<typeof console.debug>) => void;
     warn: (...args: Parameters<typeof console.warn>) => void;
   };
+  private worker: ImageBitmapDataURLRequestWorker;
+  private snapshotInProgressMap: Map<number, boolean>;
+  // TODO(vkorolik)
+  private options: any;
 
   private mutationCb: canvasMutationCallback;
   private resetObservers?: listenerHandler;
@@ -97,6 +101,55 @@ export class CanvasManager {
     this.mirror = options.mirror;
     this.logger = options.logger;
 
+    this.worker =
+      new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
+    this.worker.onmessage = (e) => {
+      const { id } = e.data;
+      this.snapshotInProgressMap.set(id, false);
+
+      if (!('base64' in e.data)) {
+        this.debug(null, 'canvas worker received empty message', {
+          data: e.data,
+          status: e.data.status,
+        });
+        return;
+      }
+
+      const { base64, type, dx, dy, dw, dh } = e.data;
+      this.mutationCb({
+        id,
+        type: CanvasContext['2D'],
+        commands: [
+          {
+            property: 'clearRect', // wipe canvas
+            args: [dx, dy, dw, dh],
+          },
+          {
+            property: 'drawImage', // draws (semi-transparent) image
+            args: [
+              {
+                rr_type: 'ImageBitmap',
+                args: [
+                  {
+                    rr_type: 'Blob',
+                    data: [{ rr_type: 'ArrayBuffer', base64 }],
+                    type,
+                  },
+                ],
+              } as CanvasArg,
+              dx,
+              dy,
+              dw,
+              dh,
+            ],
+          },
+        ],
+      });
+    };
+
+    this.snapshotInProgressMap = new Map();
+    this.options = options;
+
     if (recordCanvas && sampling === 'all')
       this.initCanvasMutationObserver(win, blockClass, blockSelector);
     if (recordCanvas && typeof sampling === 'number')
@@ -107,7 +160,6 @@ export class CanvasManager {
         blockClass,
         blockSelector,
         {
-          clearWebGLBuffer,
           initialSnapshotDelay,
           dataURLOptions,
         },
@@ -149,6 +201,86 @@ export class CanvasManager {
     this.pendingCanvasMutations.get(target)!.push(mutation);
   };
 
+  public async snapshot(element: HTMLCanvasElement) {
+    this.debug(element, 'starting snapshotting');
+    const id = this.mirror.getId(element);
+    if (this.snapshotInProgressMap.get(id)) {
+      this.debug(element, 'snapshotting already in progress for', id);
+      return;
+    }
+    this.snapshotInProgressMap.set(id, true);
+    try {
+      if (
+        this.options.clearWebGLBuffer !== false &&
+        ['webgl', 'webgl2'].includes((element as ICanvas).__context)
+      ) {
+        // if the canvas hasn't been modified recently,
+        // its contents won't be in memory and `createImageBitmap`
+        // will return a transparent imageBitmap
+
+        const context = element.getContext((element as ICanvas).__context) as
+          | WebGLRenderingContext
+          | WebGL2RenderingContext
+          | null;
+        if (context?.getContextAttributes()?.preserveDrawingBuffer === false) {
+          // Hack to load canvas back into memory so `createImageBitmap` can grab it's contents.
+          // Context: https://twitter.com/Juice10/status/1499775271758704643
+          // This hack might change the background color of the canvas in the unlikely event that
+          // the canvas background was changed but clear was not called directly afterwards.
+          context?.clear(context?.COLOR_BUFFER_BIT);
+          this.debug(element, 'cleared webgl canvas to load it into memory', {
+            attributes: context?.getContextAttributes(),
+          });
+        }
+      }
+      // canvas is not yet ready... this retry on the next sampling iteration.
+      // we don't want to crash the worker by sending an undefined bitmap
+      // if the canvas is not yet rendered.
+      if (element.width === 0 || element.height === 0) {
+        this.debug(element, 'not yet ready', {
+          width: element.width,
+          height: element.height,
+        });
+        return;
+      }
+      let scale = this.options.resizeFactor || 1;
+      if (this.options.maxSnapshotDimension) {
+        const maxDim = Math.max(element.width, element.height);
+        scale = Math.min(scale, this.options.maxSnapshotDimension / maxDim);
+      }
+      const width = element.width * scale;
+      const height = element.height * scale;
+
+      const bitmap = await createImageBitmap(element, {
+        resizeWidth: width,
+        resizeHeight: height,
+      });
+      this.debug(element, 'created image bitmap', {
+        width: bitmap.width,
+        height: bitmap.height,
+      });
+      this.worker.postMessage(
+        {
+          id,
+          bitmap,
+          width,
+          height,
+          dx: 0,
+          dy: 0,
+          dw: element.width,
+          dh: element.height,
+          dataURLOptions: this.options.dataURLOptions,
+        },
+        [bitmap],
+      );
+      this.debug(element, 'sent message');
+    } catch (e) {
+      this.debug(element, 'failed to snapshot', e);
+    } finally {
+      this.snapshotInProgressMap.set(id, false);
+    }
+  }
+
   private initCanvasFPSObserver(
     recordVideos: boolean,
     fps: number,
@@ -156,7 +288,6 @@ export class CanvasManager {
     blockClass: blockClass,
     blockSelector: string | null,
     options: {
-      clearWebGLBuffer?: boolean;
       initialSnapshotDelay?: number;
       dataURLOptions: DataURLOptions;
     },
@@ -168,52 +299,6 @@ export class CanvasManager {
       blockClass,
       blockSelector,
     );
-    const snapshotInProgressMap: Map<number, boolean> = new Map();
-    const worker =
-      new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
-    worker.onmessage = (e) => {
-      const { id } = e.data;
-      snapshotInProgressMap.set(id, false);
-
-      if (!('base64' in e.data)) {
-        this.debug(null, 'canvas worker received empty message', {
-          data: e.data,
-          status: e.data.status,
-        });
-        return;
-      }
-
-      const { base64, type, dx, dy, dw, dh } = e.data;
-      this.mutationCb({
-        id,
-        type: CanvasContext['2D'],
-        commands: [
-          {
-            property: 'clearRect', // wipe canvas
-            args: [dx, dy, dw, dh],
-          },
-          {
-            property: 'drawImage', // draws (semi-transparent) image
-            args: [
-              {
-                rr_type: 'ImageBitmap',
-                args: [
-                  {
-                    rr_type: 'Blob',
-                    data: [{ rr_type: 'ArrayBuffer', base64 }],
-                    type,
-                  },
-                ],
-              } as CanvasArg,
-              dx,
-              dy,
-              dw,
-              dh,
-            ],
-          },
-        ],
-      });
-    };
 
     const timeBetweenSnapshots = 1000 / fps;
     let lastSnapshotTime = 0;
@@ -282,89 +367,7 @@ export class CanvasManager {
       promises.push(
         ...getCanvas(timestamp)
           .filter(filterElementStartTime)
-          .map(async (canvas: HTMLCanvasElement) => {
-            this.debug(canvas, 'starting snapshotting');
-            const id = this.mirror.getId(canvas);
-            if (snapshotInProgressMap.get(id)) {
-              this.debug(canvas, 'snapshotting already in progress for', id);
-              return;
-            }
-            snapshotInProgressMap.set(id, true);
-            try {
-              if (
-                options.clearWebGLBuffer !== false &&
-                ['webgl', 'webgl2'].includes((canvas as ICanvas).__context)
-              ) {
-                // if the canvas hasn't been modified recently,
-                // its contents won't be in memory and `createImageBitmap`
-                // will return a transparent imageBitmap
-
-                const context = canvas.getContext(
-                  (canvas as ICanvas).__context,
-                ) as WebGLRenderingContext | WebGL2RenderingContext | null;
-                if (
-                  context?.getContextAttributes()?.preserveDrawingBuffer ===
-                  false
-                ) {
-                  // Hack to load canvas back into memory so `createImageBitmap` can grab it's contents.
-                  // Context: https://twitter.com/Juice10/status/1499775271758704643
-                  // This hack might change the background color of the canvas in the unlikely event that
-                  // the canvas background was changed but clear was not called directly afterwards.
-                  context?.clear(context?.COLOR_BUFFER_BIT);
-                  this.debug(
-                    canvas,
-                    'cleared webgl canvas to load it into memory',
-                    { attributes: context?.getContextAttributes() },
-                  );
-                }
-              }
-              // canvas is not yet ready... this retry on the next sampling iteration.
-              // we don't want to crash the worker by sending an undefined bitmap
-              // if the canvas is not yet rendered.
-              if (canvas.width === 0 || canvas.height === 0) {
-                this.debug(canvas, 'not yet ready', {
-                  width: canvas.width,
-                  height: canvas.height,
-                });
-                return;
-              }
-              let scale = resizeFactor || 1;
-              if (maxSnapshotDimension) {
-                const maxDim = Math.max(canvas.width, canvas.height);
-                scale = Math.min(scale, maxSnapshotDimension / maxDim);
-              }
-              const width = canvas.width * scale;
-              const height = canvas.height * scale;
-
-              const bitmap = await createImageBitmap(canvas, {
-                resizeWidth: width,
-                resizeHeight: height,
-              });
-              this.debug(canvas, 'created image bitmap', {
-                width: bitmap.width,
-                height: bitmap.height,
-              });
-              worker.postMessage(
-                {
-                  id,
-                  bitmap,
-                  width,
-                  height,
-                  dx: 0,
-                  dy: 0,
-                  dw: canvas.width,
-                  dh: canvas.height,
-                  dataURLOptions: options.dataURLOptions,
-                },
-                [bitmap],
-              );
-              this.debug(canvas, 'sent message');
-            } catch (e) {
-              this.debug(canvas, 'failed to snapshot', e);
-            } finally {
-              snapshotInProgressMap.set(id, false);
-            }
-          }),
+          .map(this.snapshot),
       );
       promises.push(
         ...getVideos(timestamp)
@@ -372,7 +375,7 @@ export class CanvasManager {
           .map(async (video: HTMLVideoElement) => {
             this.debug(video, 'starting video snapshotting');
             const id = this.mirror.getId(video);
-            if (snapshotInProgressMap.get(id)) {
+            if (this.snapshotInProgressMap.get(id)) {
               this.debug(
                 video,
                 'video snapshotting already in progress for',
@@ -380,7 +383,7 @@ export class CanvasManager {
               );
               return;
             }
-            snapshotInProgressMap.set(id, true);
+            this.snapshotInProgressMap.set(id, true);
             try {
               const { width: boxWidth, height: boxHeight } =
                 video.getBoundingClientRect();
@@ -421,7 +424,7 @@ export class CanvasManager {
                 offsetY,
               });
 
-              worker.postMessage(
+              this.worker.postMessage(
                 {
                   id,
                   bitmap,
@@ -439,22 +442,18 @@ export class CanvasManager {
             } catch (e) {
               this.debug(video, 'failed to snapshot', e);
             } finally {
-              snapshotInProgressMap.set(id, false);
+              this.snapshotInProgressMap.set(id, false);
             }
           }),
       );
-      Promise.all(promises).catch(console.error);
+      await Promise.all(promises).catch(console.error);
 
       rafId = requestAnimationFrame(takeSnapshots);
     };
 
-    const delay = setTimeout(() => {
-      rafId = requestAnimationFrame(takeSnapshots);
-    }, 0);
-
+    rafId = requestAnimationFrame(takeSnapshots);
     this.resetObservers = () => {
       canvasContextReset();
-      clearTimeout(delay);
       if (rafId) {
         cancelAnimationFrame(rafId);
       }
