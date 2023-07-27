@@ -28,6 +28,27 @@ type pendingCanvasMutationsMap = Map<
   canvasMutationWithType[]
 >;
 
+interface Options {
+  recordCanvas: boolean;
+  recordVideos: boolean;
+  mutationCb: canvasMutationCallback;
+  win: IWindow;
+  blockClass: blockClass;
+  blockSelector: string | null;
+  mirror: Mirror;
+  sampling?: 'all' | number;
+  samplingManual?: number;
+  clearWebGLBuffer?: boolean;
+  initialSnapshotDelay?: number;
+  dataURLOptions: DataURLOptions;
+  resizeFactor?: number;
+  maxSnapshotDimension?: number;
+  logger?: {
+    debug: (...args: Parameters<typeof console.debug>) => void;
+    warn: (...args: Parameters<typeof console.warn>) => void;
+  };
+}
+
 export class CanvasManager {
   private pendingCanvasMutations: pendingCanvasMutationsMap = new Map();
   private rafStamps: RafStamps = { latestId: 0, invokeId: null };
@@ -37,9 +58,9 @@ export class CanvasManager {
     warn: (...args: Parameters<typeof console.warn>) => void;
   };
   private worker: ImageBitmapDataURLRequestWorker;
-  private snapshotInProgressMap: Map<number, boolean>;
-  // TODO(vkorolik)
-  private options: any;
+  private snapshotInProgressMap: Map<number, boolean> = new Map();
+  private lastSnapshotTime: Map<number, number> = new Map();
+  private options: Options;
 
   private mutationCb: canvasMutationCallback;
   private resetObservers?: listenerHandler;
@@ -67,33 +88,14 @@ export class CanvasManager {
     this.locked = false;
   }
 
-  constructor(options: {
-    recordCanvas: boolean;
-    recordVideos: boolean;
-    mutationCb: canvasMutationCallback;
-    win: IWindow;
-    blockClass: blockClass;
-    blockSelector: string | null;
-    mirror: Mirror;
-    sampling?: 'all' | number;
-    clearWebGLBuffer?: boolean;
-    initialSnapshotDelay?: number;
-    dataURLOptions: DataURLOptions;
-    resizeFactor?: number;
-    maxSnapshotDimension?: number;
-    logger?: {
-      debug: (...args: Parameters<typeof console.debug>) => void;
-      warn: (...args: Parameters<typeof console.warn>) => void;
-    };
-  }) {
+  constructor(options: Options) {
     const {
-      sampling = 'all',
+      sampling,
       win,
       blockClass,
       blockSelector,
       recordCanvas,
       recordVideos,
-      clearWebGLBuffer,
       initialSnapshotDelay,
       dataURLOptions,
     } = options;
@@ -147,15 +149,16 @@ export class CanvasManager {
       });
     };
 
-    this.snapshotInProgressMap = new Map();
     this.options = options;
 
-    if (recordCanvas && sampling === 'all')
+    if (recordCanvas && sampling === 'all') {
+      this.debug(null, 'initializing canvas mutation observer', { sampling });
       this.initCanvasMutationObserver(win, blockClass, blockSelector);
-    if (recordCanvas && typeof sampling === 'number')
+    } else if (recordCanvas && typeof sampling === 'number') {
+      this.debug(null, 'initializing canvas fps observer', { sampling });
       this.initCanvasFPSObserver(
         recordVideos,
-        sampling,
+        sampling as number,
         win,
         blockClass,
         blockSelector,
@@ -166,6 +169,7 @@ export class CanvasManager {
         options.resizeFactor,
         options.maxSnapshotDimension,
       );
+    }
   }
 
   private debug(
@@ -201,13 +205,26 @@ export class CanvasManager {
     this.pendingCanvasMutations.get(target)!.push(mutation);
   };
 
-  public async snapshot(element: HTMLCanvasElement) {
-    this.debug(element, 'starting snapshotting');
+  public snapshot = async (element: HTMLCanvasElement) => {
     const id = this.mirror.getId(element);
     if (this.snapshotInProgressMap.get(id)) {
       this.debug(element, 'snapshotting already in progress for', id);
       return;
     }
+    const timeBetweenSnapshots =
+      1000 /
+      (typeof this.options.samplingManual === 'number'
+        ? this.options.samplingManual
+        : 1);
+    const lastSnapshotTime = this.lastSnapshotTime.get(id);
+    if (
+      lastSnapshotTime &&
+      new Date().getTime() - lastSnapshotTime < timeBetweenSnapshots
+    ) {
+      return;
+    }
+    this.debug(element, 'starting snapshotting');
+    this.lastSnapshotTime.set(id, new Date().getTime());
     this.snapshotInProgressMap.set(id, true);
     try {
       if (
@@ -279,7 +296,7 @@ export class CanvasManager {
     } finally {
       this.snapshotInProgressMap.set(id, false);
     }
-  }
+  };
 
   private initCanvasFPSObserver(
     recordVideos: boolean,

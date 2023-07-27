@@ -320,6 +320,7 @@ function record<T = eventWithTime>(
     blockSelector,
     mirror,
     sampling: sampling?.canvas?.fps,
+    samplingManual: sampling?.canvas?.fpsManual,
     clearWebGLBuffer: sampling?.canvas?.clearWebGLBuffer,
     initialSnapshotDelay: sampling?.canvas?.initialSnapshotDelay,
     dataURLOptions,
