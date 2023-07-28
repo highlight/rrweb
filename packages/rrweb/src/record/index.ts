@@ -330,6 +330,7 @@ function record<T = eventWithTime>(
     blockSelector,
     mirror,
     sampling: sampling?.canvas?.fps,
+    samplingManual: sampling?.canvas?.fpsManual,
     clearWebGLBuffer: sampling?.canvas?.clearWebGLBuffer,
     initialSnapshotDelay: sampling?.canvas?.initialSnapshotDelay,
     dataURLOptions,
@@ -665,6 +666,13 @@ record.takeFullSnapshot = (isCheckout?: boolean) => {
     throw new Error('please take full snapshot after start recording');
   }
   takeFullSnapshot(isCheckout);
+};
+
+record.snapshotCanvas = async (element: HTMLCanvasElement) => {
+  if (!canvasManager) {
+    throw new Error('canvas manager is not initialized');
+  }
+  await canvasManager.snapshot(element);
 };
 
 record.mirror = mirror;
