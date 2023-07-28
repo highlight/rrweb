@@ -200,6 +200,12 @@ export type CanvasSamplingStrategy = Partial<{
    */
   fps: 'all' | number;
   /**
+   * 'all' will record every single canvas call
+   * number between 1 and 60, will record an image snapshots in a web-worker a (maximum) number of times per second.
+   *                          Number only supported where [`OffscreenCanvas`](http://mdn.io/offscreencanvas) is supported.
+   */
+  fpsManual: number;
+  /**
    * A scaling to apply to canvas shapshotting. Adjusts the resolution at which
    * canvases are recorded by this multiple.
    */
