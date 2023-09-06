@@ -105,7 +105,6 @@ export class CanvasManager {
 
     this.worker =
       new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
-    this.worker.debug = !!this.logger;
     this.worker.onmessage = (e) => {
       const { id } = e.data;
       this.snapshotInProgressMap.set(id, false);
@@ -290,6 +289,7 @@ export class CanvasManager {
           dw: element.width,
           dh: element.height,
           dataURLOptions: this.options.dataURLOptions,
+          logDebug: !!this.logger,
         },
         [bitmap],
       );
@@ -455,6 +455,7 @@ export class CanvasManager {
                   dw: outputWidth,
                   dh: outputHeight,
                   dataURLOptions: options.dataURLOptions,
+                  logDebug: !!this.logger,
                 },
                 [bitmap],
               );

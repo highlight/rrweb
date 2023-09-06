@@ -14,7 +14,6 @@ export interface ImageBitmapDataURLRequestWorker {
     transfer?: [ImageBitmap],
   ) => void;
   onmessage: (message: MessageEvent<ImageBitmapDataURLWorkerResponse>) => void;
-  debug?: boolean;
 }
 
 interface ImageBitmapDataURLResponseWorker {
@@ -22,7 +21,6 @@ interface ImageBitmapDataURLResponseWorker {
     | null
     | ((message: MessageEvent<ImageBitmapDataURLWorkerParams>) => void);
   postMessage(e: ImageBitmapDataURLWorkerResponse): void;
-  debug?: boolean;
 }
 
 async function getTransparentBlobFor(
@@ -45,17 +43,18 @@ async function getTransparentBlobFor(
   }
 }
 
-// `as any` because: https://github.com/Microsoft/TypeScript/issues/20595
 const worker: ImageBitmapDataURLResponseWorker = self;
+let logDebug: boolean = false;
 
 const debug = (...args: any[]) => {
-  if (worker.debug) {
+  if (logDebug) {
     console.debug(...args);
   }
 };
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 worker.onmessage = async function (e) {
+  logDebug = !!e.data.logDebug;
   if ('OffscreenCanvas' in globalThis) {
     const { id, bitmap, width, height, dx, dy, dw, dh, dataURLOptions } =
       e.data;
