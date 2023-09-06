@@ -105,6 +105,7 @@ export class CanvasManager {
 
     this.worker =
       new ImageBitmapDataURLWorker() as ImageBitmapDataURLRequestWorker;
+    this.worker.debug = !!this.logger;
     this.worker.onmessage = (e) => {
       const { id } = e.data;
       this.snapshotInProgressMap.set(id, false);

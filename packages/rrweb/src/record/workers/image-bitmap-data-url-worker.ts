@@ -14,6 +14,7 @@ export interface ImageBitmapDataURLRequestWorker {
     transfer?: [ImageBitmap],
   ) => void;
   onmessage: (message: MessageEvent<ImageBitmapDataURLWorkerResponse>) => void;
+  debug?: boolean;
 }
 
 interface ImageBitmapDataURLResponseWorker {
@@ -21,6 +22,7 @@ interface ImageBitmapDataURLResponseWorker {
     | null
     | ((message: MessageEvent<ImageBitmapDataURLWorkerParams>) => void);
   postMessage(e: ImageBitmapDataURLWorkerResponse): void;
+  debug?: boolean;
 }
 
 async function getTransparentBlobFor(
@@ -45,6 +47,12 @@ async function getTransparentBlobFor(
 
 // `as any` because: https://github.com/Microsoft/TypeScript/issues/20595
 const worker: ImageBitmapDataURLResponseWorker = self;
+
+const debug = (...args: any[]) => {
+  if (worker.debug) {
+    console.debug(...args);
+  }
+};
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 worker.onmessage = async function (e) {
@@ -71,7 +79,7 @@ worker.onmessage = async function (e) {
     // on first try we should check if canvas is transparent,
     // no need to save it's contents in that case
     if (!lastBlobMap.has(id) && (await transparentBase64) === base64) {
-      console.debug('[highlight-worker] canvas bitmap is transparent', {
+      debug('[highlight-worker] canvas bitmap is transparent', {
         id,
         base64,
       });
@@ -81,13 +89,13 @@ worker.onmessage = async function (e) {
 
     // unchanged
     if (lastBlobMap.get(id) === base64) {
-      console.debug('[highlight-worker] canvas bitmap is unchanged', {
+      debug('[highlight-worker] canvas bitmap is unchanged', {
         id,
         base64,
       });
       return worker.postMessage({ id, status: 'unchanged' });
     }
-    console.debug('[highlight-worker] canvas bitmap processed', {
+    debug('[highlight-worker] canvas bitmap processed', {
       id,
       base64,
     });
@@ -104,7 +112,7 @@ worker.onmessage = async function (e) {
     });
     lastBlobMap.set(id, base64);
   } else {
-    console.debug('[highlight-worker] no offscreencanvas support', {
+    debug('[highlight-worker] no offscreencanvas support', {
       id: e.data.id,
     });
     return worker.postMessage({ id: e.data.id, status: 'unsupported' });
