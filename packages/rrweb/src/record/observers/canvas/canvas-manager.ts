@@ -302,6 +302,7 @@ export class CanvasManager {
           dw: canvas.width,
           dh: canvas.height,
           dataURLOptions: this.options.dataURLOptions,
+          logDebug: !!this.logger,
         },
         [bitmap],
       );
@@ -468,6 +469,7 @@ export class CanvasManager {
                   dw: outputWidth,
                   dh: outputHeight,
                   dataURLOptions: options.dataURLOptions,
+                  logDebug: !!this.logger,
                 },
                 [bitmap],
               );
