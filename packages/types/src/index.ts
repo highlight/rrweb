@@ -568,6 +568,7 @@ export type ImageBitmapDataURLWorkerParams = {
   dy: number;
   dw: number;
   dh: number;
+  logDebug?: boolean;
 };
 
 export type ImageBitmapDataURLWorkerResponse =

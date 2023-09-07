@@ -43,11 +43,18 @@ async function getTransparentBlobFor(
   }
 }
 
-// `as any` because: https://github.com/Microsoft/TypeScript/issues/20595
 const worker: ImageBitmapDataURLResponseWorker = self;
+let logDebug: boolean = false;
+
+const debug = (...args: any[]) => {
+  if (logDebug) {
+    console.debug(...args);
+  }
+};
 
 // eslint-disable-next-line @typescript-eslint/no-misused-promises
 worker.onmessage = async function (e) {
+  logDebug = !!e.data.logDebug;
   if ('OffscreenCanvas' in globalThis) {
     const { id, bitmap, width, height, dx, dy, dw, dh, dataURLOptions } =
       e.data;
@@ -71,7 +78,7 @@ worker.onmessage = async function (e) {
     // on first try we should check if canvas is transparent,
     // no need to save it's contents in that case
     if (!lastBlobMap.has(id) && (await transparentBase64) === base64) {
-      console.debug('[highlight-worker] canvas bitmap is transparent', {
+      debug('[highlight-worker] canvas bitmap is transparent', {
         id,
         base64,
       });
@@ -81,13 +88,13 @@ worker.onmessage = async function (e) {
 
     // unchanged
     if (lastBlobMap.get(id) === base64) {
-      console.debug('[highlight-worker] canvas bitmap is unchanged', {
+      debug('[highlight-worker] canvas bitmap is unchanged', {
         id,
         base64,
       });
       return worker.postMessage({ id, status: 'unchanged' });
     }
-    console.debug('[highlight-worker] canvas bitmap processed', {
+    debug('[highlight-worker] canvas bitmap processed', {
       id,
       base64,
     });
@@ -104,7 +111,7 @@ worker.onmessage = async function (e) {
     });
     lastBlobMap.set(id, base64);
   } else {
-    console.debug('[highlight-worker] no offscreencanvas support', {
+    debug('[highlight-worker] no offscreencanvas support', {
       id: e.data.id,
     });
     return worker.postMessage({ id: e.data.id, status: 'unsupported' });
