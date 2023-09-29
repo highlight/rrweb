@@ -326,7 +326,7 @@ export class CanvasManager {
     const elementFoundTime: Map<number, number> = new Map();
     const getCanvas = (timestamp: DOMHighResTimeStamp): HTMLCanvasElement[] => {
       const matchedCanvas: HTMLCanvasElement[] = [];
-      win.document.querySelectorAll('canvas').forEach((canvas) => {
+      const addCanvas = (canvas: HTMLCanvasElement) => {
         if (!isBlocked(canvas, blockClass, blockSelector, true)) {
           this.debug(canvas, 'discovered canvas');
           matchedCanvas.push(canvas);
@@ -335,7 +335,12 @@ export class CanvasManager {
             elementFoundTime.set(id, timestamp);
           }
         }
-      });
+      };
+      win.document.querySelectorAll('canvas').forEach(addCanvas);
+      win.document
+        .querySelectorAll('flt-glass-pane')[0]
+        ?.shadowRoot?.querySelectorAll('canvas')
+        ?.forEach(addCanvas);
       return matchedCanvas;
     };
 
