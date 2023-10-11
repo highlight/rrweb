@@ -86,7 +86,6 @@ function record<T = eventWithTime>(
     inlineImages = false,
     plugins,
     keepIframeSrcFn = () => false,
-    enableStrictPrivacy = false,
     privacySetting = 'default',
     ignoreCSSAttributes = new Set([]),
     errorHandler,
@@ -345,7 +344,6 @@ function record<T = eventWithTime>(
       maskInputFn,
       recordCanvas,
       inlineImages,
-      enableStrictPrivacy,
       privacySetting,
       sampling,
       slimDOMOptions,
@@ -390,7 +388,6 @@ function record<T = eventWithTime>(
       dataURLOptions,
       recordCanvas,
       inlineImages,
-      enableStrictPrivacy,
       privacySetting,
       onSerialize: (n) => {
         if (isSerializedIframe(n, mirror)) {
@@ -562,7 +559,6 @@ function record<T = eventWithTime>(
           processedNodeManager,
           canvasManager,
           ignoreCSSAttributes,
-          enableStrictPrivacy,
           privacySetting,
           plugins:
             plugins

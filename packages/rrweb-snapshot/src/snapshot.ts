@@ -450,7 +450,6 @@ function serializeNode(
      */
     newlyAddedElement?: boolean;
     /** Highlight Options Start */
-    enableStrictPrivacy: boolean;
     privacySetting: 'strict' | 'default' | 'none';
     /** Highlight Options End */
   },
@@ -471,7 +470,6 @@ function serializeNode(
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement = false,
-    enableStrictPrivacy,
     privacySetting,
   } = options;
   // Only record root id when document object is not the base document
@@ -512,7 +510,6 @@ function serializeNode(
         recordCanvas,
         keepIframeSrcFn,
         newlyAddedElement,
-        enableStrictPrivacy,
         privacySetting,
         rootId,
       });
@@ -521,7 +518,6 @@ function serializeNode(
         maskTextClass,
         maskTextSelector,
         maskTextFn,
-        enableStrictPrivacy,
         privacySetting,
         rootId,
       });
@@ -554,7 +550,6 @@ function serializeTextNode(
     maskTextClass: string | RegExp;
     maskTextSelector: string | null;
     maskTextFn: MaskTextFn | undefined;
-    enableStrictPrivacy: boolean;
     privacySetting: 'strict' | 'default' | 'none';
     rootId: number | undefined;
   },
@@ -563,7 +558,6 @@ function serializeTextNode(
     maskTextClass,
     maskTextSelector,
     maskTextFn,
-    enableStrictPrivacy,
     privacySetting,
     rootId,
   } = options;
@@ -618,7 +612,7 @@ function serializeTextNode(
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
   // TODO(spenny): check here for regex expressions if default
-  console.log('snapshot obfuscate', privacySetting, enableStrictPrivacy);
+  const enableStrictPrivacy = privacySetting === 'strict';
   if (enableStrictPrivacy && !textContentHandled && parentTagName) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
@@ -661,7 +655,6 @@ function serializeElementNode(
      * `newlyAddedElement: true` skips scrollTop and scrollLeft check
      */
     newlyAddedElement?: boolean;
-    enableStrictPrivacy: boolean;
     privacySetting: 'strict' | 'default' | 'none';
     rootId: number | undefined;
   },
@@ -679,12 +672,12 @@ function serializeElementNode(
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement = false,
-    enableStrictPrivacy,
     privacySetting,
     rootId,
   } = options;
   let needBlock = _isBlockedElement(n, blockClass, blockSelector);
   const needMask = _isBlockedElement(n, maskTextClass, null);
+  const enableStrictPrivacy = privacySetting === 'strict';
   let tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
@@ -802,7 +795,6 @@ function serializeElementNode(
     !needMask &&
     !enableStrictPrivacy
   ) {
-    console.log('snapshot inlineImages', privacySetting, enableStrictPrivacy);
     if (!canvasService) {
       canvasService = doc.createElement('canvas');
       canvasCtx = canvasService.getContext('2d');
@@ -869,7 +861,6 @@ function serializeElementNode(
   }
   // TODO(spenny): check here for regex expressions if default
   if (enableStrictPrivacy && isElementSrcBlocked(tagName)) {
-    console.log('src blocked', privacySetting, enableStrictPrivacy);
     needBlock = true;
   }
   // iframe
@@ -1036,7 +1027,6 @@ export function serializeNodeWithId(
       node: serializedElementNodeWithId,
     ) => unknown;
     iframeLoadTimeout?: number;
-    enableStrictPrivacy: boolean;
     privacySetting: 'strict' | 'default' | 'none';
     onStylesheetLoad?: (
       linkNode: HTMLLinkElement,
@@ -1068,7 +1058,6 @@ export function serializeNodeWithId(
     stylesheetLoadTimeout = 5000,
     keepIframeSrcFn = () => false,
     newlyAddedElement = false,
-    enableStrictPrivacy,
     privacySetting,
   } = options;
   let { preserveWhiteSpace = true } = options;
@@ -1088,7 +1077,6 @@ export function serializeNodeWithId(
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement,
-    enableStrictPrivacy,
     privacySetting,
   });
   if (!_serializedNode) {
@@ -1126,12 +1114,10 @@ export function serializeNodeWithId(
   }
   let recordChild = !skipChild;
   // TODO(spenny): check here for regex expressions if default
-  let strictPrivacy = enableStrictPrivacy;
+  let strictPrivacy = privacySetting === 'strict';
   if (serializedNode.type === NodeType.Element) {
-    console.log('Node element', privacySetting, enableStrictPrivacy);
     recordChild = recordChild && !serializedNode.needBlock;
-    strictPrivacy =
-      enableStrictPrivacy ||
+    strictPrivacy ||=
       !!serializedNode.needBlock ||
       !!serializedNode.needMask;
 
@@ -1187,6 +1173,7 @@ export function serializeNodeWithId(
       onStylesheetLoad,
       stylesheetLoadTimeout,
       keepIframeSrcFn,
+      // TODO(spenny): how to deal with overwitten value here
       enableStrictPrivacy: strictPrivacy,
       privacySetting,
     };
@@ -1249,7 +1236,6 @@ export function serializeNodeWithId(
             onStylesheetLoad,
             stylesheetLoadTimeout,
             keepIframeSrcFn,
-            enableStrictPrivacy,
             privacySetting,
           });
 
@@ -1298,7 +1284,6 @@ export function serializeNodeWithId(
             onStylesheetLoad,
             stylesheetLoadTimeout,
             keepIframeSrcFn,
-            enableStrictPrivacy,
             privacySetting,
           });
 
@@ -1346,7 +1331,6 @@ function snapshot(
     ) => unknown;
     stylesheetLoadTimeout?: number;
     keepIframeSrcFn?: KeepIframeSrcFn;
-    enableStrictPrivacy: boolean;
     privacySetting: 'strict' | 'default' | 'none';
   },
 ): serializedNodeWithId | null {
@@ -1371,7 +1355,6 @@ function snapshot(
     onStylesheetLoad,
     stylesheetLoadTimeout,
     keepIframeSrcFn = () => false,
-    enableStrictPrivacy = false,
     privacySetting = 'default',
   } = options || {};
   const maskInputOptions: MaskInputOptions =
@@ -1441,7 +1424,6 @@ function snapshot(
     stylesheetLoadTimeout,
     keepIframeSrcFn,
     newlyAddedElement: false,
-    enableStrictPrivacy,
     privacySetting,
   });
 }
