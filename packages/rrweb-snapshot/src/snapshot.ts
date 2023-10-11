@@ -618,7 +618,7 @@ function serializeTextNode(
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
   // TODO(spenny): check here for regex expressions if default
-  console.log("snapshot obfuscate", privacySetting, enableStrictPrivacy)
+  console.log('snapshot obfuscate', privacySetting, enableStrictPrivacy);
   if (enableStrictPrivacy && !textContentHandled && parentTagName) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
@@ -802,7 +802,7 @@ function serializeElementNode(
     !needMask &&
     !enableStrictPrivacy
   ) {
-    console.log("snapshot inlineImages", privacySetting, enableStrictPrivacy)
+    console.log('snapshot inlineImages', privacySetting, enableStrictPrivacy);
     if (!canvasService) {
       canvasService = doc.createElement('canvas');
       canvasCtx = canvasService.getContext('2d');
@@ -860,7 +860,6 @@ function serializeElementNode(
     needMask ||
     (enableStrictPrivacy && isElementSrcBlocked(tagName))
   ) {
-
     const { width, height } = n.getBoundingClientRect();
     attributes = {
       class: attributes.class,
@@ -870,7 +869,7 @@ function serializeElementNode(
   }
   // TODO(spenny): check here for regex expressions if default
   if (enableStrictPrivacy && isElementSrcBlocked(tagName)) {
-    console.log("src blocked", privacySetting, enableStrictPrivacy)
+    console.log('src blocked', privacySetting, enableStrictPrivacy);
     needBlock = true;
   }
   // iframe
@@ -1129,7 +1128,7 @@ export function serializeNodeWithId(
   // TODO(spenny): check here for regex expressions if default
   let strictPrivacy = enableStrictPrivacy;
   if (serializedNode.type === NodeType.Element) {
-    console.log("Node element", privacySetting, enableStrictPrivacy)
+    console.log('Node element', privacySetting, enableStrictPrivacy);
     recordChild = recordChild && !serializedNode.needBlock;
     strictPrivacy =
       enableStrictPrivacy ||

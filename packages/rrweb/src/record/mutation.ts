@@ -431,7 +431,12 @@ export default class MutationBuffer {
           /* Begin Highlight Code */
           let value = text.value;
           // TODO(spenny): check here to obfuscate if default
-          console.log("mutation obfuscate", this.privacySetting, this.enableStrictPrivacy, value)
+          console.log(
+            'mutation obfuscate',
+            this.privacySetting,
+            this.enableStrictPrivacy,
+            value,
+          );
           if (this.enableStrictPrivacy && value) {
             value = obfuscateText(value);
           }
