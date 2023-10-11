@@ -75,6 +75,7 @@ export type recordOptions<T> = {
    * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
    */
   enableStrictPrivacy?: boolean;
+  privacySetting?: 'strict' | 'default' | 'none';
   logger?: {
     debug: (...args: Parameters<typeof console.debug>) => void;
     warn: (...args: Parameters<typeof console.warn>) => void;
@@ -108,6 +109,7 @@ export type observerParam = {
   recordCanvas: boolean;
   inlineImages: boolean;
   enableStrictPrivacy: boolean;
+  privacySetting: 'strict' | 'default' | 'none';
   userTriggeredOnInput: boolean;
   collectFonts: boolean;
   slimDOMOptions: SlimDOMOptions;
@@ -146,6 +148,7 @@ export type MutationBufferParam = Pick<
   | 'recordCanvas'
   | 'inlineImages'
   | 'enableStrictPrivacy'
+  | 'privacySetting'
   | 'slimDOMOptions'
   | 'dataURLOptions'
   | 'doc'

@@ -451,6 +451,7 @@ function serializeNode(
     newlyAddedElement?: boolean;
     /** Highlight Options Start */
     enableStrictPrivacy: boolean;
+    privacySetting: 'strict' | 'default' | 'none';
     /** Highlight Options End */
   },
 ): serializedNode | false {
@@ -471,6 +472,7 @@ function serializeNode(
     keepIframeSrcFn,
     newlyAddedElement = false,
     enableStrictPrivacy,
+    privacySetting,
   } = options;
   // Only record root id when document object is not the base document
   const rootId = getRootId(doc, mirror);
@@ -511,6 +513,7 @@ function serializeNode(
         keepIframeSrcFn,
         newlyAddedElement,
         enableStrictPrivacy,
+        privacySetting,
         rootId,
       });
     case n.TEXT_NODE:
@@ -519,6 +522,7 @@ function serializeNode(
         maskTextSelector,
         maskTextFn,
         enableStrictPrivacy,
+        privacySetting,
         rootId,
       });
     case n.CDATA_SECTION_NODE:
@@ -551,6 +555,7 @@ function serializeTextNode(
     maskTextSelector: string | null;
     maskTextFn: MaskTextFn | undefined;
     enableStrictPrivacy: boolean;
+    privacySetting: 'strict' | 'default' | 'none';
     rootId: number | undefined;
   },
 ): serializedNode {
@@ -559,6 +564,7 @@ function serializeTextNode(
     maskTextSelector,
     maskTextFn,
     enableStrictPrivacy,
+    privacySetting,
     rootId,
   } = options;
   // The parent node may not be a html element which has a tagName attribute.
@@ -611,6 +617,8 @@ function serializeTextNode(
 
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
+  // TODO(spenny): check here for regex expressions if default
+  console.log("snapshot obfuscate", privacySetting, enableStrictPrivacy)
   if (enableStrictPrivacy && !textContentHandled && parentTagName) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
@@ -654,6 +662,7 @@ function serializeElementNode(
      */
     newlyAddedElement?: boolean;
     enableStrictPrivacy: boolean;
+    privacySetting: 'strict' | 'default' | 'none';
     rootId: number | undefined;
   },
 ): serializedNode | false {
@@ -671,6 +680,7 @@ function serializeElementNode(
     keepIframeSrcFn,
     newlyAddedElement = false,
     enableStrictPrivacy,
+    privacySetting,
     rootId,
   } = options;
   let needBlock = _isBlockedElement(n, blockClass, blockSelector);
@@ -719,6 +729,7 @@ function serializeElementNode(
     }
   }
   // form fields
+  // TODO(spenny): check here to obfuscate text if default
   if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
     const value = (n as HTMLInputElement | HTMLTextAreaElement).value;
     const checked = (n as HTMLInputElement).checked;
@@ -783,6 +794,7 @@ function serializeElementNode(
     }
   }
   // save image offline
+  // TODO(spenny): check here for regex expressions if default
   if (
     tagName === 'img' &&
     inlineImages &&
@@ -790,6 +802,7 @@ function serializeElementNode(
     !needMask &&
     !enableStrictPrivacy
   ) {
+    console.log("snapshot inlineImages", privacySetting, enableStrictPrivacy)
     if (!canvasService) {
       canvasService = doc.createElement('canvas');
       canvasCtx = canvasService.getContext('2d');
@@ -841,11 +854,13 @@ function serializeElementNode(
     }
   }
   // block element
+  // TODO(spenny): check here for regex expressions if default
   if (
     needBlock ||
     needMask ||
     (enableStrictPrivacy && isElementSrcBlocked(tagName))
   ) {
+
     const { width, height } = n.getBoundingClientRect();
     attributes = {
       class: attributes.class,
@@ -853,7 +868,9 @@ function serializeElementNode(
       rr_height: `${height}px`,
     };
   }
+  // TODO(spenny): check here for regex expressions if default
   if (enableStrictPrivacy && isElementSrcBlocked(tagName)) {
+    console.log("src blocked", privacySetting, enableStrictPrivacy)
     needBlock = true;
   }
   // iframe
@@ -1021,6 +1038,7 @@ export function serializeNodeWithId(
     ) => unknown;
     iframeLoadTimeout?: number;
     enableStrictPrivacy: boolean;
+    privacySetting: 'strict' | 'default' | 'none';
     onStylesheetLoad?: (
       linkNode: HTMLLinkElement,
       node: serializedElementNodeWithId,
@@ -1052,6 +1070,7 @@ export function serializeNodeWithId(
     keepIframeSrcFn = () => false,
     newlyAddedElement = false,
     enableStrictPrivacy,
+    privacySetting,
   } = options;
   let { preserveWhiteSpace = true } = options;
   const _serializedNode = serializeNode(n, {
@@ -1071,6 +1090,7 @@ export function serializeNodeWithId(
     keepIframeSrcFn,
     newlyAddedElement,
     enableStrictPrivacy,
+    privacySetting,
   });
   if (!_serializedNode) {
     // TODO: dev only
@@ -1106,8 +1126,10 @@ export function serializeNodeWithId(
     onSerialize(n);
   }
   let recordChild = !skipChild;
+  // TODO(spenny): check here for regex expressions if default
   let strictPrivacy = enableStrictPrivacy;
   if (serializedNode.type === NodeType.Element) {
+    console.log("Node element", privacySetting, enableStrictPrivacy)
     recordChild = recordChild && !serializedNode.needBlock;
     strictPrivacy =
       enableStrictPrivacy ||
@@ -1167,6 +1189,7 @@ export function serializeNodeWithId(
       stylesheetLoadTimeout,
       keepIframeSrcFn,
       enableStrictPrivacy: strictPrivacy,
+      privacySetting,
     };
     for (const childN of Array.from(n.childNodes)) {
       const serializedChildNode = serializeNodeWithId(childN, bypassOptions);
@@ -1228,6 +1251,7 @@ export function serializeNodeWithId(
             stylesheetLoadTimeout,
             keepIframeSrcFn,
             enableStrictPrivacy,
+            privacySetting,
           });
 
           if (serializedIframeNode) {
@@ -1276,6 +1300,7 @@ export function serializeNodeWithId(
             stylesheetLoadTimeout,
             keepIframeSrcFn,
             enableStrictPrivacy,
+            privacySetting,
           });
 
           if (serializedLinkNode) {
@@ -1323,6 +1348,7 @@ function snapshot(
     stylesheetLoadTimeout?: number;
     keepIframeSrcFn?: KeepIframeSrcFn;
     enableStrictPrivacy: boolean;
+    privacySetting: 'strict' | 'default' | 'none';
   },
 ): serializedNodeWithId | null {
   const {
@@ -1347,6 +1373,7 @@ function snapshot(
     stylesheetLoadTimeout,
     keepIframeSrcFn = () => false,
     enableStrictPrivacy = false,
+    privacySetting = 'default',
   } = options || {};
   const maskInputOptions: MaskInputOptions =
     maskAllInputs === true
@@ -1416,6 +1443,7 @@ function snapshot(
     keepIframeSrcFn,
     newlyAddedElement: false,
     enableStrictPrivacy,
+    privacySetting,
   });
 }
 

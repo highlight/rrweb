@@ -173,6 +173,7 @@ export default class MutationBuffer {
   private recordCanvas: observerParam['recordCanvas'];
   private inlineImages: observerParam['inlineImages'];
   private enableStrictPrivacy: observerParam['enableStrictPrivacy'];
+  private privacySetting: observerParam['privacySetting'];
   private slimDOMOptions: observerParam['slimDOMOptions'];
   private dataURLOptions: observerParam['dataURLOptions'];
   private doc: observerParam['doc'];
@@ -199,6 +200,7 @@ export default class MutationBuffer {
         'recordCanvas',
         'inlineImages',
         'enableStrictPrivacy',
+        'privacySetting',
         'slimDOMOptions',
         'dataURLOptions',
         'doc',
@@ -304,6 +306,7 @@ export default class MutationBuffer {
         recordCanvas: this.recordCanvas,
         inlineImages: this.inlineImages,
         enableStrictPrivacy: this.enableStrictPrivacy,
+        privacySetting: this.privacySetting,
         onSerialize: (currentN) => {
           if (isSerializedIframe(currentN, this.mirror)) {
             this.iframeManager.addIframe(currentN as HTMLIFrameElement);
@@ -427,6 +430,8 @@ export default class MutationBuffer {
         .map((text) => {
           /* Begin Highlight Code */
           let value = text.value;
+          // TODO(spenny): check here to obfuscate if default
+          console.log("mutation obfuscate", this.privacySetting, this.enableStrictPrivacy, value)
           if (this.enableStrictPrivacy && value) {
             value = obfuscateText(value);
           }
