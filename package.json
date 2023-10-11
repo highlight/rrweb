@@ -1,5 +1,5 @@
 {
-  "description": "record and replay the web",
+  "description": "record and replay the web foo",
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/rrweb-io/rrweb.git"
