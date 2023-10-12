@@ -294,10 +294,39 @@ export function shouldObfuscateTextByDefault(text: string | null): boolean {
   return DEFAULT_OBFUSCATE_REGEXES.some((regex) => regex.test(text));
 }
 
+export const maskedInputType = ({
+  maskInputOptions,
+  tagName,
+  type,
+  inputId,
+  inputName,
+  autocomplete,
+}: {
+  maskInputOptions: MaskInputOptions;
+  tagName: string;
+  type: string | null;
+  inputId: string | null;
+  inputName: string | null;
+  autocomplete: boolean | string | null;
+}): boolean => {
+  const actualType = type && type.toLowerCase();
+
+  return (
+    maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
+    (actualType && maskInputOptions[actualType as keyof MaskInputOptions]) ||
+    (inputId && maskInputOptions[inputId as keyof MaskInputOptions]) ||
+    (inputName && maskInputOptions[inputName as keyof MaskInputOptions]) ||
+    (!!autocomplete && typeof autocomplete === 'string' && !!maskInputOptions[autocomplete as keyof MaskInputOptions])
+  )
+}
+
+// overwritten from rrweb
 export function maskInputValue({
   maskInputOptions,
   tagName,
   type,
+  inputId,
+  inputName,
   autocomplete,
   value,
   maskInputFn,
@@ -305,20 +334,15 @@ export function maskInputValue({
   maskInputOptions: MaskInputOptions;
   tagName: string;
   type: string | null;
+  inputId: string | null;
+  inputName: string | null;
   autocomplete: boolean | string | null;
   value: string | null;
   maskInputFn?: MaskInputFn;
 }): string {
   let text = value || '';
-  const actualType = type && type.toLowerCase();
 
-  if (
-    maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
-    (actualType && maskInputOptions[actualType as keyof MaskInputOptions]) ||
-    (autocomplete &&
-      typeof autocomplete === 'string' &&
-      maskInputOptions[autocomplete as keyof MaskInputOptions])
-  ) {
+  if (maskedInputType({maskInputOptions, tagName, type, inputId, inputName, autocomplete})) {
     if (maskInputFn) {
       text = maskInputFn(text);
     } else {

@@ -515,6 +515,8 @@ export default class MutationBuffer {
             tagName: target.tagName,
             type,
             value,
+            inputId: target.id,
+            inputName: target.getAttribute('name'),
             autocomplete: target.getAttribute('autocomplete'),
             maskInputFn: this.maskInputFn,
           });

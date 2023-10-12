@@ -743,6 +743,8 @@ function serializeElementNode(
         type,
         tagName,
         value,
+        inputId: (n as HTMLInputElement).id,
+        inputName: (n as HTMLInputElement).name,
         autocomplete: (n as HTMLInputElement).autocomplete,
         maskInputOptions,
         maskInputFn,
