@@ -74,7 +74,7 @@ export type recordOptions<T> = {
   errorHandler?: ErrorHandler;
   /**
    * Privacy 'strict' will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
-   * Pravacy 'default' will disable recording of text data on the page that matches regex expressions associated with common PII data.
+   * Privacy 'default' will disable recording of text data on the page that matches regex expressions associated with common PII data.
    * Text will be randomized. For example, instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
    */
   privacySetting?: PrivacySettingOption;
