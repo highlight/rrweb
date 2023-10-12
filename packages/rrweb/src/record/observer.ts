@@ -406,6 +406,7 @@ function initInputObserver({
         tagName,
         type,
         value: text,
+        autocomplete: (target as HTMLInputElement).autocomplete,
         maskInputFn,
       });
     }

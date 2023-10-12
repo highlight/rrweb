@@ -153,35 +153,6 @@ export function createMirror(): Mirror {
   return new Mirror();
 }
 
-export function maskInputValue({
-  maskInputOptions,
-  tagName,
-  type,
-  value,
-  maskInputFn,
-}: {
-  maskInputOptions: MaskInputOptions;
-  tagName: string;
-  type: string | null;
-  value: string | null;
-  maskInputFn?: MaskInputFn;
-}): string {
-  let text = value || '';
-  const actualType = type && type.toLowerCase();
-
-  if (
-    maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
-    (actualType && maskInputOptions[actualType as keyof MaskInputOptions])
-  ) {
-    if (maskInputFn) {
-      text = maskInputFn(text);
-    } else {
-      text = '*'.repeat(text.length);
-    }
-  }
-  return text;
-}
-
 const ORIGINAL_ATTRIBUTE_NAME = '__rrweb_original__';
 type PatchedGetImageData = {
   [ORIGINAL_ATTRIBUTE_NAME]: CanvasImageData['getImageData'];
@@ -311,10 +282,42 @@ const DEFAULT_OBFUSCATE_REGEXES = [
   IP_REGEX,
 ]
 
-export function shouldObfuscateTextByDefault(text: string): boolean {
-  const rv = DEFAULT_OBFUSCATE_REGEXES.some((regex) => regex.test(text))
-  console.log(text, rv)
-  return rv
+export function shouldObfuscateTextByDefault(text: string | null): boolean {
+  if (!text) return false;
+  
+  return DEFAULT_OBFUSCATE_REGEXES.some((regex) => regex.test(text))
+}
+
+export function maskInputValue({
+  maskInputOptions,
+  tagName,
+  type,
+  autocomplete,
+  value,
+  maskInputFn,
+}: {
+  maskInputOptions: MaskInputOptions;
+  tagName: string;
+  type: string | null;
+  autocomplete: boolean | string | null;
+  value: string | null;
+  maskInputFn?: MaskInputFn;
+}): string {
+  let text = value || '';
+  const actualType = type && type.toLowerCase();
+
+  if (
+    maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
+    (actualType && maskInputOptions[actualType as keyof MaskInputOptions]) ||
+    (autocomplete && typeof autocomplete === 'string' && maskInputOptions[autocomplete as keyof MaskInputOptions])
+  ) {
+    if (maskInputFn) {
+      text = maskInputFn(text);
+    } else {
+      text = '*'.repeat(text.length);
+    }
+  }
+  return text;
 }
 
 /* End of Highlight Code */

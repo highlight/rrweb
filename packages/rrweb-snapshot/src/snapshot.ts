@@ -613,7 +613,7 @@ function serializeTextNode(
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
   const enableStrictPrivacy = privacySetting === 'strict';
-  const obfuscateDefaultPrivacy = privacySetting === 'default' && textContent && shouldObfuscateTextByDefault(textContent);
+  const obfuscateDefaultPrivacy = privacySetting === 'default' && shouldObfuscateTextByDefault(textContent);
   if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && !textContentHandled && parentTagName) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
@@ -723,7 +723,6 @@ function serializeElementNode(
     }
   }
   // form fields
-  // TODO(spenny): check here to obfuscate text if default
   if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
     const value = (n as HTMLInputElement | HTMLTextAreaElement).value;
     const checked = (n as HTMLInputElement).checked;
@@ -739,6 +738,7 @@ function serializeElementNode(
         type,
         tagName,
         value,
+        autocomplete: (n as HTMLInputElement).autocomplete,
         maskInputOptions,
         maskInputFn,
       });
@@ -846,7 +846,6 @@ function serializeElementNode(
     }
   }
   // block element
-  // TODO(spenny): check here for regex expressions if default
   if (
     needBlock ||
     needMask ||
@@ -859,7 +858,6 @@ function serializeElementNode(
       rr_height: `${height}px`,
     };
   }
-  // TODO(spenny): check here for regex expressions if default
   if (enableStrictPrivacy && isElementSrcBlocked(tagName)) {
     needBlock = true;
   }
@@ -1113,13 +1111,14 @@ export function serializeNodeWithId(
     onSerialize(n);
   }
   let recordChild = !skipChild;
-  // TODO(spenny): check here for regex expressions if default
+  let overwrittenPrivacySetting = privacySetting;
   let strictPrivacy = privacySetting === 'strict';
+
   if (serializedNode.type === NodeType.Element) {
+    // overwrite values for child components if needs to be blocked
     recordChild = recordChild && !serializedNode.needBlock;
-    strictPrivacy ||=
-      !!serializedNode.needBlock ||
-      !!serializedNode.needMask;
+    strictPrivacy ||= !!serializedNode.needBlock || !!serializedNode.needMask
+    overwrittenPrivacySetting = strictPrivacy ? "strict" : overwrittenPrivacySetting;
 
     /** Highlight Code Begin */
     // process enableStrictPrivacy obfuscation of non-text elements
@@ -1173,9 +1172,7 @@ export function serializeNodeWithId(
       onStylesheetLoad,
       stylesheetLoadTimeout,
       keepIframeSrcFn,
-      // TODO(spenny): how to deal with overwitten value here
-      enableStrictPrivacy: strictPrivacy,
-      privacySetting,
+      privacySetting: overwrittenPrivacySetting,
     };
     for (const childN of Array.from(n.childNodes)) {
       const serializedChildNode = serializeNodeWithId(childN, bypassOptions);
