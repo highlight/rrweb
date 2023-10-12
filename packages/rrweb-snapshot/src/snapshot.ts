@@ -11,6 +11,7 @@ import {
   KeepIframeSrcFn,
   ICanvas,
   serializedElementNodeWithId,
+  PrivacySettingOption,
 } from './types';
 import {
   Mirror,
@@ -451,7 +452,7 @@ function serializeNode(
      */
     newlyAddedElement?: boolean;
     /** Highlight Options Start */
-    privacySetting: 'strict' | 'default' | 'none';
+    privacySetting: PrivacySettingOption;
     /** Highlight Options End */
   },
 ): serializedNode | false {
@@ -551,7 +552,7 @@ function serializeTextNode(
     maskTextClass: string | RegExp;
     maskTextSelector: string | null;
     maskTextFn: MaskTextFn | undefined;
-    privacySetting: 'strict' | 'default' | 'none';
+    privacySetting: PrivacySettingOption;
     rootId: number | undefined;
   },
 ): serializedNode {
@@ -661,7 +662,7 @@ function serializeElementNode(
      * `newlyAddedElement: true` skips scrollTop and scrollLeft check
      */
     newlyAddedElement?: boolean;
-    privacySetting: 'strict' | 'default' | 'none';
+    privacySetting: PrivacySettingOption;
     rootId: number | undefined;
   },
 ): serializedNode | false {
@@ -1032,7 +1033,7 @@ export function serializeNodeWithId(
       node: serializedElementNodeWithId,
     ) => unknown;
     iframeLoadTimeout?: number;
-    privacySetting: 'strict' | 'default' | 'none';
+    privacySetting: PrivacySettingOption;
     onStylesheetLoad?: (
       linkNode: HTMLLinkElement,
       node: serializedElementNodeWithId,
@@ -1337,7 +1338,7 @@ function snapshot(
     ) => unknown;
     stylesheetLoadTimeout?: number;
     keepIframeSrcFn?: KeepIframeSrcFn;
-    privacySetting: 'strict' | 'default' | 'none';
+    privacySetting: PrivacySettingOption;
   },
 ): serializedNodeWithId | null {
   const {

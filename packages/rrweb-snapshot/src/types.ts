@@ -205,3 +205,5 @@ export type KeepIframeSrcFn = (src: string) => boolean;
 export type BuildCache = {
   stylesWithHoverClass: Map<string, string>;
 };
+
+export type PrivacySettingOption = 'strict' | 'default' | 'none';
