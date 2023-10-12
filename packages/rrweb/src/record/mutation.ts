@@ -7,6 +7,7 @@ import {
   needMaskingText,
   maskInputValue,
   obfuscateText,
+  shouldObfuscateTextByDefault,
   Mirror,
   isNativeShadowDom,
   getInputType,
@@ -427,9 +428,9 @@ export default class MutationBuffer {
         .map((text) => {
           /* Begin Highlight Code */
           let value = text.value;
-          // TODO(spenny): check here to obfuscate if default
-          const enableStrictPrivacy = this.privacySetting = 'strict';
-          if (enableStrictPrivacy && value) {
+          const enableStrictPrivacy = this.privacySetting === 'strict';
+          const obfuscateDefaultPrivacy = this.privacySetting === 'default' && value && shouldObfuscateTextByDefault(value);
+          if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && value) {
             value = obfuscateText(value);
           }
           return {

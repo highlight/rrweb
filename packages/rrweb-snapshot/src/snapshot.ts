@@ -19,6 +19,7 @@ import {
   isShadowRoot,
   maskInputValue,
   obfuscateText,
+  shouldObfuscateTextByDefault,
   isNativeShadowDom,
   getCssRulesString,
   getInputType,
@@ -611,9 +612,9 @@ function serializeTextNode(
 
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
-  // TODO(spenny): check here for regex expressions if default
   const enableStrictPrivacy = privacySetting === 'strict';
-  if (enableStrictPrivacy && !textContentHandled && parentTagName) {
+  const obfuscateDefaultPrivacy = privacySetting === 'default' && textContent && shouldObfuscateTextByDefault(textContent);
+  if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && !textContentHandled && parentTagName) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
       'TITLE',
@@ -787,7 +788,6 @@ function serializeElementNode(
     }
   }
   // save image offline
-  // TODO(spenny): check here for regex expressions if default
   if (
     tagName === 'img' &&
     inlineImages &&
