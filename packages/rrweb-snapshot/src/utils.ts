@@ -316,9 +316,11 @@ export const maskedInputType = ({
     (actualType && maskInputOptions[actualType as keyof MaskInputOptions]) ||
     (inputId && maskInputOptions[inputId as keyof MaskInputOptions]) ||
     (inputName && maskInputOptions[inputName as keyof MaskInputOptions]) ||
-    (!!autocomplete && typeof autocomplete === 'string' && !!maskInputOptions[autocomplete as keyof MaskInputOptions])
-  )
-}
+    (!!autocomplete &&
+      typeof autocomplete === 'string' &&
+      !!maskInputOptions[autocomplete as keyof MaskInputOptions])
+  );
+};
 
 // overwritten from rrweb
 export function maskInputValue({
@@ -342,7 +344,16 @@ export function maskInputValue({
 }): string {
   let text = value || '';
 
-  if (maskedInputType({maskInputOptions, tagName, type, inputId, inputName, autocomplete})) {
+  if (
+    maskedInputType({
+      maskInputOptions,
+      tagName,
+      type,
+      inputId,
+      inputName,
+      autocomplete,
+    })
+  ) {
     if (maskInputFn) {
       text = maskInputFn(text);
     } else {
