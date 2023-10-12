@@ -142,6 +142,7 @@ export type MaskInputOptions = Partial<{
   'additional-name': boolean;
   'one-time-code': boolean;
   'street-address': boolean;
+  address: boolean;
   'address-line1': boolean;
   'address-line2': boolean;
   'address-line3': boolean;
@@ -149,7 +150,10 @@ export type MaskInputOptions = Partial<{
   'address-level3': boolean;
   'address-level2': boolean;
   'address-level1': boolean;
+  city: boolean;
+  state: boolean;
   country: boolean;
+  zip: boolean;
   'country-name': boolean;
   'postal-code': boolean;
   'cc-name': boolean;
