@@ -264,13 +264,19 @@ export function isElementSrcBlocked(tagName: string): boolean {
   );
 }
 
-const EMAIL_REGEX = new RegExp("[a-zA-Z0-9.!#$%&'*+=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*");
-const LONG_NUMBER_REGEX = new RegExp("\d{9,16}") // unformatted ssn, phone numbers, or credit card numbers
-const SSN_REGEX = new RegExp("\d{3}-?\d{2}-?\d{4}")
-const PHONE_NUMBER_REGEX = new RegExp("[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}")
-const CREDIT_CARD_REGEX = new RegExp("\d{4}-?\d{4}-?\d{4}-?\d{4}")
-const ADDRESS_REGEX = new RegExp("\d{1,3}.?\d{0,3}\s[a-zA-Z]{2,30}\s[a-zA-Z]{2,15}")
-const IP_REGEX = new RegExp("(?:[0-9]{1,3}\.){3}[0-9]{1,3}")
+const EMAIL_REGEX = new RegExp(
+  "[a-zA-Z0-9.!#$%&'*+=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:.[a-zA-Z0-9-]+)*",
+);
+const LONG_NUMBER_REGEX = new RegExp('d{9,16}'); // unformatted ssn, phone numbers, or credit card numbers
+const SSN_REGEX = new RegExp('d{3}-?d{2}-?d{4}');
+const PHONE_NUMBER_REGEX = new RegExp(
+  '[+]?[(]?[0-9]{3}[)]?[-s.]?[0-9]{3}[-s.]?[0-9]{4,6}',
+);
+const CREDIT_CARD_REGEX = new RegExp('d{4}-?d{4}-?d{4}-?d{4}');
+const ADDRESS_REGEX = new RegExp(
+  'd{1,3}.?d{0,3}s[a-zA-Z]{2,30}s[a-zA-Z]{2,15}',
+);
+const IP_REGEX = new RegExp('(?:[0-9]{1,3}.){3}[0-9]{1,3}');
 
 const DEFAULT_OBFUSCATE_REGEXES = [
   EMAIL_REGEX,
@@ -280,12 +286,12 @@ const DEFAULT_OBFUSCATE_REGEXES = [
   CREDIT_CARD_REGEX,
   ADDRESS_REGEX,
   IP_REGEX,
-]
+];
 
 export function shouldObfuscateTextByDefault(text: string | null): boolean {
   if (!text) return false;
-  
-  return DEFAULT_OBFUSCATE_REGEXES.some((regex) => regex.test(text))
+
+  return DEFAULT_OBFUSCATE_REGEXES.some((regex) => regex.test(text));
 }
 
 export function maskInputValue({
@@ -309,7 +315,9 @@ export function maskInputValue({
   if (
     maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
     (actualType && maskInputOptions[actualType as keyof MaskInputOptions]) ||
-    (autocomplete && typeof autocomplete === 'string' && maskInputOptions[autocomplete as keyof MaskInputOptions])
+    (autocomplete &&
+      typeof autocomplete === 'string' &&
+      maskInputOptions[autocomplete as keyof MaskInputOptions])
   ) {
     if (maskInputFn) {
       text = maskInputFn(text);

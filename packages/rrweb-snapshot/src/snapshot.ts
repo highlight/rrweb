@@ -613,8 +613,13 @@ function serializeTextNode(
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
   const enableStrictPrivacy = privacySetting === 'strict';
-  const obfuscateDefaultPrivacy = privacySetting === 'default' && shouldObfuscateTextByDefault(textContent);
-  if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && !textContentHandled && parentTagName) {
+  const obfuscateDefaultPrivacy =
+    privacySetting === 'default' && shouldObfuscateTextByDefault(textContent);
+  if (
+    (enableStrictPrivacy || obfuscateDefaultPrivacy) &&
+    !textContentHandled &&
+    parentTagName
+  ) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
       'TITLE',
@@ -1117,8 +1122,10 @@ export function serializeNodeWithId(
   if (serializedNode.type === NodeType.Element) {
     // overwrite values for child components if needs to be blocked
     recordChild = recordChild && !serializedNode.needBlock;
-    strictPrivacy ||= !!serializedNode.needBlock || !!serializedNode.needMask
-    overwrittenPrivacySetting = strictPrivacy ? "strict" : overwrittenPrivacySetting;
+    strictPrivacy ||= !!serializedNode.needBlock || !!serializedNode.needMask;
+    overwrittenPrivacySetting = strictPrivacy
+      ? 'strict'
+      : overwrittenPrivacySetting;
 
     /** Highlight Code Begin */
     // process enableStrictPrivacy obfuscation of non-text elements

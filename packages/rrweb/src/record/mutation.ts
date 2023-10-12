@@ -429,7 +429,9 @@ export default class MutationBuffer {
           /* Begin Highlight Code */
           let value = text.value;
           const enableStrictPrivacy = this.privacySetting === 'strict';
-          const obfuscateDefaultPrivacy = this.privacySetting === 'default' && shouldObfuscateTextByDefault(value);
+          const obfuscateDefaultPrivacy =
+            this.privacySetting === 'default' &&
+            shouldObfuscateTextByDefault(value);
           if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && value) {
             value = obfuscateText(value);
           }
