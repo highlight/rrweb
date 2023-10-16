@@ -268,13 +268,13 @@ const EMAIL_REGEX = new RegExp(
   "[a-zA-Z0-9.!#$%&'*+=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:.[a-zA-Z0-9-]+)*",
 );
 const LONG_NUMBER_REGEX = new RegExp('d{9,16}'); // unformatted ssn, phone numbers, or credit card numbers
-const SSN_REGEX = new RegExp('d{3}-?d{2}-?d{4}');
+const SSN_REGEX = new RegExp('\d{3}-?\d{2}-?\d{4}');
 const PHONE_NUMBER_REGEX = new RegExp(
   '[+]?[(]?[0-9]{3}[)]?[-s.]?[0-9]{3}[-s.]?[0-9]{4,6}',
 );
-const CREDIT_CARD_REGEX = new RegExp('d{4}-?d{4}-?d{4}-?d{4}');
+const CREDIT_CARD_REGEX = new RegExp('\d{4}-?\d{4}-?\d{4}-?\d{4}');
 const ADDRESS_REGEX = new RegExp(
-  'd{1,3}.?d{0,3}s[a-zA-Z]{2,30}s[a-zA-Z]{2,15}',
+  '\d{1,5}.?d{0,3}s[a-zA-Z]{2,30}s[a-zA-Z]{2,15}',
 );
 const IP_REGEX = new RegExp('(?:[0-9]{1,3}.){3}[0-9]{1,3}');
 
