@@ -1,5 +1,5 @@
 import {
-  MaskInputOptions,
+  maskedInputType,
   maskInputValue,
   Mirror,
   getInputType,
@@ -459,11 +459,23 @@ function initInputObserver({
     let isChecked = false;
     const type: Lowercase<string> = getInputType(target) || '';
 
+    const {
+      id: inputId,
+      name: inputName,
+      autocomplete,
+    } = target as HTMLInputElement;
+
     if (type === 'radio' || type === 'checkbox') {
       isChecked = (target as HTMLInputElement).checked;
     } else if (
-      maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
-      maskInputOptions[type as keyof MaskInputOptions]
+      maskedInputType({
+        maskInputOptions,
+        type,
+        tagName,
+        inputId,
+        inputName,
+        autocomplete,
+      })
     ) {
       text = maskInputValue({
         element: target,
@@ -471,6 +483,9 @@ function initInputObserver({
         tagName,
         type,
         value: text,
+        inputId,
+        inputName,
+        autocomplete,
         maskInputFn,
       });
     }
