@@ -270,11 +270,11 @@ const EMAIL_REGEX = new RegExp(
 const LONG_NUMBER_REGEX = new RegExp('[0-9]{9,16}'); // unformatted ssn, phone numbers, or credit card numbers
 const SSN_REGEX = new RegExp('[0-9]{3}-?[0-9]{2}-?[0-9]{4}');
 const PHONE_NUMBER_REGEX = new RegExp(
-  '[+]?[(]?[0-9]{3}[)]?[-s.]?[0-9]{3}[-s.]?[0-9]{4,6}',
+  '[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}',
 );
 const CREDIT_CARD_REGEX = new RegExp('[0-9]{4}-?[0-9]{4}-?[0-9]{4}-?[0-9]{4}');
 const ADDRESS_REGEX = new RegExp(
-  '[0-9]{1,5}.?[0-9]{0,3}s[a-zA-Z]{2,30}s[a-zA-Z]{2,15}',
+  '[0-9]{1,5}.?[0-9]{0,3}\s[a-zA-Z]{2,30}\s[a-zA-Z]{2,15}',
 );
 const IP_REGEX = new RegExp('(?:[0-9]{1,3}.){3}[0-9]{1,3}');
 
@@ -298,27 +298,20 @@ export const maskedInputType = ({
   maskInputOptions,
   tagName,
   type,
-  inputId,
-  inputName,
-  autocomplete,
+  overwriteRecord,
 }: {
   maskInputOptions: MaskInputOptions;
   tagName: string;
   type: string | null;
-  inputId: string | null;
-  inputName: string | null;
-  autocomplete: boolean | string | null;
+  overwriteRecord: string | null;
 }): boolean => {
   const actualType = type && type.toLowerCase();
 
   return (
-    maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
-    (actualType && maskInputOptions[actualType as keyof MaskInputOptions]) ||
-    (inputId && maskInputOptions[inputId as keyof MaskInputOptions]) ||
-    (inputName && maskInputOptions[inputName as keyof MaskInputOptions]) ||
-    (!!autocomplete &&
-      typeof autocomplete === 'string' &&
-      !!maskInputOptions[autocomplete as keyof MaskInputOptions])
+    overwriteRecord !== 'true' && (
+      !!maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
+      !!(actualType && maskInputOptions[actualType as keyof MaskInputOptions])
+    )
   );
 };
 
@@ -327,19 +320,15 @@ export function maskInputValue({
   maskInputOptions,
   tagName,
   type,
-  inputId,
-  inputName,
-  autocomplete,
   value,
+  overwriteRecord,
   maskInputFn,
 }: {
   maskInputOptions: MaskInputOptions;
   tagName: string;
   type: string | null;
-  inputId: string | null;
-  inputName: string | null;
-  autocomplete: boolean | string | null;
   value: string | null;
+  overwriteRecord: string | null;
   maskInputFn?: MaskInputFn;
 }): string {
   let text = value || '';
@@ -349,9 +338,7 @@ export function maskInputValue({
       maskInputOptions,
       tagName,
       type,
-      inputId,
-      inputName,
-      autocomplete,
+      overwriteRecord,
     })
   ) {
     if (maskInputFn) {
