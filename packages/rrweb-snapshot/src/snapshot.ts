@@ -614,7 +614,8 @@ function serializeTextNode(
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
   const enableStrictPrivacy = privacySetting === 'strict';
-  const highlightOverwriteRecord = n.parentElement?.getAttribute("data-hl-record");
+  const highlightOverwriteRecord =
+    n.parentElement?.getAttribute('data-hl-record');
   const obfuscateDefaultPrivacy =
     privacySetting === 'default' && shouldObfuscateTextByDefault(textContent);
   if (
@@ -746,7 +747,7 @@ function serializeElementNode(
         type,
         tagName,
         value,
-        overwriteRecord: n.getAttribute("data-hl-record"),
+        overwriteRecord: n.getAttribute('data-hl-record'),
         maskInputOptions,
         maskInputFn,
       });

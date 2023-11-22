@@ -394,7 +394,7 @@ function initInputObserver({
     let text = (target as HTMLInputElement).value;
     let isChecked = false;
     const type: Lowercase<string> = getInputType(target) || '';
-    const overwriteRecord = target.getAttribute('data-hl-record')
+    const overwriteRecord = target.getAttribute('data-hl-record');
 
     if (type === 'radio' || type === 'checkbox') {
       isChecked = (target as HTMLInputElement).checked;

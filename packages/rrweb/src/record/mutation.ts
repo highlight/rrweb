@@ -432,8 +432,13 @@ export default class MutationBuffer {
           const obfuscateDefaultPrivacy =
             this.privacySetting === 'default' &&
             shouldObfuscateTextByDefault(value);
-          const highlightOverwriteRecord = text.node?.parentElement?.getAttribute("data-hl-record");
-          if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && highlightOverwriteRecord && value) {
+          const highlightOverwriteRecord =
+            text.node?.parentElement?.getAttribute('data-hl-record');
+          if (
+            (enableStrictPrivacy || obfuscateDefaultPrivacy) &&
+            highlightOverwriteRecord &&
+            value
+          ) {
             value = obfuscateText(value);
           }
           return {
