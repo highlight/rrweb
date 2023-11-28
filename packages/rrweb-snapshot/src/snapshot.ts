@@ -614,10 +614,13 @@ function serializeTextNode(
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
   const enableStrictPrivacy = privacySetting === 'strict';
+  const highlightOverwriteRecord =
+    n.parentElement?.getAttribute('data-hl-record');
   const obfuscateDefaultPrivacy =
     privacySetting === 'default' && shouldObfuscateTextByDefault(textContent);
   if (
     (enableStrictPrivacy || obfuscateDefaultPrivacy) &&
+    !highlightOverwriteRecord &&
     !textContentHandled &&
     parentTagName
   ) {
@@ -744,9 +747,7 @@ function serializeElementNode(
         type,
         tagName,
         value,
-        inputId: (n as HTMLInputElement).id,
-        inputName: (n as HTMLInputElement).name,
-        autocomplete: (n as HTMLInputElement).autocomplete,
+        overwriteRecord: n.getAttribute('data-hl-record'),
         maskInputOptions,
         maskInputFn,
       });
