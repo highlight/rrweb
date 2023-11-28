@@ -458,12 +458,7 @@ function initInputObserver({
     let text = (target as HTMLInputElement).value;
     let isChecked = false;
     const type: Lowercase<string> = getInputType(target) || '';
-
-    const {
-      id: inputId,
-      name: inputName,
-      autocomplete,
-    } = target as HTMLInputElement;
+    const overwriteRecord = target.getAttribute('data-hl-record');
 
     if (type === 'radio' || type === 'checkbox') {
       isChecked = (target as HTMLInputElement).checked;
@@ -472,9 +467,7 @@ function initInputObserver({
         maskInputOptions,
         type,
         tagName,
-        inputId,
-        inputName,
-        autocomplete,
+        overwriteRecord,
       })
     ) {
       text = maskInputValue({
@@ -483,9 +476,7 @@ function initInputObserver({
         tagName,
         type,
         value: text,
-        inputId,
-        inputName,
-        autocomplete,
+        overwriteRecord,
         maskInputFn,
       });
     }
