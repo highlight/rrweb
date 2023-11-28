@@ -48,48 +48,6 @@ export type MaskInputOptions = Partial<{
   textarea: boolean;
   select: boolean;
   password: boolean;
-  // Highlight: added additonal fields to obfuscate
-  name: boolean;
-  'given-name': boolean;
-  'family-name': boolean;
-  'additional-name': boolean;
-  'one-time-code': boolean;
-  'street-address': boolean;
-  address: boolean;
-  'address-line1': boolean;
-  'address-line2': boolean;
-  'address-line3': boolean;
-  'address-level4': boolean;
-  'address-level3': boolean;
-  'address-level2': boolean;
-  'address-level1': boolean;
-  city: boolean;
-  state: boolean;
-  country: boolean;
-  zip: boolean;
-  'country-name': boolean;
-  'postal-code': boolean;
-  'cc-name': boolean;
-  'cc-given-name': boolean;
-  'cc-additional-name': boolean;
-  'cc-family-name': boolean;
-  'cc-number': boolean;
-  'cc-exp': boolean;
-  'cc-exp-month': boolean;
-  'cc-exp-year': boolean;
-  'cc-csc': boolean;
-  'cc-type': boolean;
-  bday: boolean;
-  'bday-day': boolean;
-  'bday-month': boolean;
-  'bday-year': boolean;
-  sex: boolean;
-  'tel-country-code': boolean;
-  'tel-national': boolean;
-  'tel-area-code': boolean;
-  'tel-local': boolean;
-  'tel-extension': boolean;
-  ssn: boolean;
 }>;
 
 export type SlimDOMOptions = Partial<{
