@@ -467,7 +467,13 @@ export default class MutationBuffer {
           const obfuscateDefaultPrivacy =
             this.privacySetting === 'default' &&
             shouldObfuscateTextByDefault(value);
-          if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && value) {
+          const highlightOverwriteRecord =
+            text.node?.parentElement?.getAttribute('data-hl-record');
+          if (
+            (enableStrictPrivacy || obfuscateDefaultPrivacy) &&
+            highlightOverwriteRecord &&
+            value
+          ) {
               value = obfuscateText(value);
           }
           return {
@@ -595,9 +601,7 @@ export default class MutationBuffer {
             tagName: target.tagName,
             type,
             value,
-            inputId: target.id,
-            inputName: target.getAttribute('name'),
-            autocomplete: target.getAttribute('autocomplete'),
+            overwriteRecord: target.getAttribute('data-hl-record'),
             maskInputFn: this.maskInputFn,
           });
         }
