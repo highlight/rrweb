@@ -48,14 +48,13 @@ async function injectRecording(frame) {
 
         win.events = [];
         window.record = win.rrweb.record;
-        window.plugin = new rrwebCanvasWebRTCRecord.RRWebPluginCanvasWebRTCRecord(
-          {
+        window.plugin =
+          new rrwebCanvasWebRTCRecord.RRWebPluginCanvasWebRTCRecord({
             signalSendCallback: (msg) => {
               // [record#callback] provides canvas id, stream, and webrtc sdpOffer signal & connect message
               _signal(msg);
             },
-          },
-        );
+          });
 
         window.record({
           emit: (event) => {

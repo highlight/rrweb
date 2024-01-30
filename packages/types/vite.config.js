@@ -15,6 +15,6 @@ export default {
     minify: false,
 
     sourcemap: true,
-    emptyOutDir: false
+    emptyOutDir: false,
   },
 };

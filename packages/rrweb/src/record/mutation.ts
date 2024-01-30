@@ -458,7 +458,7 @@ export default class MutationBuffer {
             !highlightOverwriteRecord &&
             value
           ) {
-              value = obfuscateText(value);
+            value = obfuscateText(value);
           }
           /* End Highlight Code */
           const n = text.node;
@@ -640,11 +640,11 @@ export default class MutationBuffer {
           /* Begin Highlight Code */
           const tagName = (m.target as HTMLElement).tagName;
           if (tagName === 'INPUT') {
-              const node = m.target as HTMLInputElement;
-              if (node.type === 'password') {
-                  item.attributes['value'] = '*'.repeat(node.value.length);
-                  break;
-              }
+            const node = m.target as HTMLInputElement;
+            if (node.type === 'password') {
+              item.attributes['value'] = '*'.repeat(node.value.length);
+              break;
+            }
           }
           /* End Highlight Code */
           // overwrite attribute if the mutations was triggered in same time

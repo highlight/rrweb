@@ -427,11 +427,13 @@ export function maskInputValue({
       tagName,
       type,
       overwriteRecord,
-    }) || (actualType && maskedInputType({
-          maskInputOptions,
-          tagName,
-          type: actualType,
-          overwriteRecord,
+    }) ||
+    (actualType &&
+      maskedInputType({
+        maskInputOptions,
+        tagName,
+        type: actualType,
+        overwriteRecord,
       }))
   ) {
     if (maskInputFn) {
