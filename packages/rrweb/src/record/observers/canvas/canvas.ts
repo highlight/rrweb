@@ -53,7 +53,7 @@ export default function initCanvasContextObserver(
               }
             }
           }
-          return ctx;
+          return original.apply(this, [contextType, ...args]);
         };
       },
     );

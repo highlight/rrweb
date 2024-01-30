@@ -437,6 +437,7 @@ function serializeNode(
     mirror: Mirror;
     blockClass: string | RegExp;
     blockSelector: string | null;
+    maskTextClass: string | RegExp;
     needsMask: boolean | undefined;
     inlineStylesheet: boolean;
     maskInputOptions: MaskInputOptions;
@@ -460,6 +461,7 @@ function serializeNode(
     mirror,
     blockClass,
     blockSelector,
+    maskTextClass,
     needsMask,
     inlineStylesheet,
     maskInputOptions = {},
@@ -1083,6 +1085,7 @@ export function serializeNodeWithId(
     mirror,
     blockClass,
     blockSelector,
+    maskTextClass,
     needsMask,
     inlineStylesheet,
     maskInputOptions,
