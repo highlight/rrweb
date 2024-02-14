@@ -472,7 +472,7 @@ export default class MutationBuffer {
             text.node?.parentElement?.getAttribute('data-hl-record');
           if (
             (enableStrictPrivacy || obfuscateDefaultPrivacy) &&
-            highlightOverwriteRecord &&
+            !highlightOverwriteRecord &&
             value
           ) {
             value = obfuscateText(value);
