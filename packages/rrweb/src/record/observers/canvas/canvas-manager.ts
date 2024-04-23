@@ -384,7 +384,7 @@ export class CanvasManager {
       promises.push(
         ...getCanvas(timestamp)
           .filter(filterElementStartTime)
-          .map(this.snapshot),
+          .map((canvas) => this.snapshot(canvas)),
       );
       promises.push(
         ...getVideos(timestamp)
