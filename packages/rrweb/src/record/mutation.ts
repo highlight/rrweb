@@ -1,37 +1,38 @@
 import {
-  serializeNodeWithId,
-  transformAttribute,
-  IGNORED_NODE,
-  ignoreAttribute,
-  isShadowRoot,
-  needMaskingText,
-  maskInputValue,
-  obfuscateText,
-  Mirror,
-  isNativeShadowDom,
   getInputType,
+  ignoreAttribute,
+  IGNORED_NODE,
+  isNativeShadowDom,
+  isShadowRoot,
+  maskInputValue,
+  Mirror,
+  needMaskingText,
+  obfuscateText,
+  serializeNodeWithId,
+  shouldObfuscateTextByDefault,
   toLowerCase,
+  transformAttribute,
 } from 'rrweb-snapshot';
-import type { observerParam, MutationBufferParam } from '../types';
+import type { MutationBufferParam, observerParam } from '../types';
 import type {
-  mutationRecord,
-  textCursor,
-  attributeCursor,
-  removedNodeMutation,
   addedNodeMutation,
+  attributeCursor,
+  mutationRecord,
   Optional,
+  removedNodeMutation,
+  textCursor,
 } from '@rrweb/types';
 import {
-  isBlocked,
+  closestElementOfNode,
+  getShadowHost,
+  hasShadowRoot,
+  inDom,
   isAncestorRemoved,
+  isBlocked,
   isIgnored,
   isSerialized,
-  hasShadowRoot,
   isSerializedIframe,
   isSerializedStylesheet,
-  inDom,
-  getShadowHost,
-  closestElementOfNode,
 } from '../utils';
 import dom from '@rrweb/utils';
 
@@ -184,7 +185,7 @@ export default class MutationBuffer {
   private keepIframeSrcFn: observerParam['keepIframeSrcFn'];
   private recordCanvas: observerParam['recordCanvas'];
   private inlineImages: observerParam['inlineImages'];
-  private enableStrictPrivacy: observerParam['enableStrictPrivacy'];
+  private privacySetting: observerParam['privacySetting'];
   private slimDOMOptions: observerParam['slimDOMOptions'];
   private dataURLOptions: observerParam['dataURLOptions'];
   private doc: observerParam['doc'];
@@ -211,7 +212,7 @@ export default class MutationBuffer {
         'keepIframeSrcFn',
         'recordCanvas',
         'inlineImages',
-        'enableStrictPrivacy',
+        'privacySetting',
         'slimDOMOptions',
         'dataURLOptions',
         'doc',
@@ -332,7 +333,7 @@ export default class MutationBuffer {
         dataURLOptions: this.dataURLOptions,
         recordCanvas: this.recordCanvas,
         inlineImages: this.inlineImages,
-        enableStrictPrivacy: this.enableStrictPrivacy,
+        privacySetting: this.privacySetting,
         onSerialize: (currentN) => {
           if (isSerializedIframe(currentN, this.mirror)) {
             this.iframeManager.addIframe(currentN as HTMLIFrameElement);
@@ -463,8 +464,12 @@ export default class MutationBuffer {
           }
           /* Begin Highlight Code */
           let value = text.value;
-          if (this.enableStrictPrivacy && value) {
-              value = obfuscateText(value);
+          const enableStrictPrivacy = this.privacySetting === 'strict';
+          const obfuscateDefaultPrivacy =
+            this.privacySetting === 'default' &&
+            shouldObfuscateTextByDefault(value);
+          if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && value) {
+            value = obfuscateText(value);
           }
           return {
             id: this.mirror.getId(n),
@@ -548,6 +553,9 @@ export default class MutationBuffer {
       (cn) => dom.textContent(cn) || '',
     ).join('');
     item.attributes.value = maskInputValue({
+      autocomplete: null,
+      inputId: '',
+      inputName: '',
       element: textarea,
       maskInputOptions: this.maskInputOptions,
       tagName: textarea.tagName,
@@ -600,6 +608,9 @@ export default class MutationBuffer {
             tagName: target.tagName,
             type,
             value,
+            inputId: target.id,
+            inputName: target.getAttribute('name'),
+            autocomplete: target.getAttribute('autocomplete'),
             maskInputFn: this.maskInputFn,
           });
         }
@@ -651,8 +662,8 @@ export default class MutationBuffer {
           if (tagName === 'INPUT') {
             const node = m.target as HTMLInputElement;
             if (node.type === 'password') {
-                item.attributes['value'] = '*'.repeat(node.value.length);
-                break;
+              item.attributes['value'] = '*'.repeat(node.value.length);
+              break;
             }
           }
           /* End Highlight Code */
