@@ -12,7 +12,6 @@ import type { RRNode } from 'rrdom';
 import type { CanvasManager } from './record/observers/canvas/canvas-manager';
 import type { StylesheetManager } from './record/stylesheet-manager';
 import type {
-  DataURLOptions,
   addedNodeMutation,
   blockClass,
   canvasMutationCallback,
@@ -38,8 +37,11 @@ import type {
   viewportResizeCallback,
   PackFn,
   UnpackFn,
+  DataURLOptions,
 } from '@rrweb/types';
 import type ProcessedNodeManager from './record/processed-node-manager';
+
+export type PrivacySettingOption = 'strict' | 'default' | 'none';
 
 export type recordOptions<T> = {
   emit?: (e: T, isCheckout?: boolean) => void;
@@ -75,10 +77,11 @@ export type recordOptions<T> = {
   keepIframeSrcFn?: KeepIframeSrcFn;
   errorHandler?: ErrorHandler;
   /**
-   * Enabling this will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
-   * Text will be randomized. Instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
+   * Privacy 'strict' will disable recording of text data on the page. This is useful if you do not want to record personally identifiable information.
+   * Privacy 'default' will disable recording of text data on the page that matches regex expressions associated with common PII data.
+   * Text will be randomized. For example, instead of seeing "Hello World" in a recording, you will see "1fds1 j59a0".
    */
-  enableStrictPrivacy?: boolean;
+  privacySetting?: PrivacySettingOption;
   logger?: {
     debug: (...args: Parameters<typeof console.debug>) => void;
     warn: (...args: Parameters<typeof console.warn>) => void;
@@ -114,7 +117,7 @@ export type observerParam = {
   recordDOM: boolean;
   recordCanvas: boolean;
   inlineImages: boolean;
-  enableStrictPrivacy: boolean;
+  privacySetting: PrivacySettingOption;
   userTriggeredOnInput: boolean;
   collectFonts: boolean;
   slimDOMOptions: SlimDOMOptions;
@@ -152,7 +155,7 @@ export type MutationBufferParam = Pick<
   | 'keepIframeSrcFn'
   | 'recordCanvas'
   | 'inlineImages'
-  | 'enableStrictPrivacy'
+  | 'privacySetting'
   | 'slimDOMOptions'
   | 'dataURLOptions'
   | 'doc'

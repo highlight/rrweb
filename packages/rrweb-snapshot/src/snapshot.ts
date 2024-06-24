@@ -6,6 +6,7 @@ import type {
   KeepIframeSrcFn,
   ICanvas,
   DialogAttributes,
+  PrivacySettingOption,
 } from './types';
 import { NodeType } from '@rrweb/types';
 import type {
@@ -24,6 +25,7 @@ import {
   isShadowRoot,
   maskInputValue,
   obfuscateText,
+  shouldObfuscateTextByDefault,
   isNativeShadowDom,
   stringifyStylesheet,
   getInputType,
@@ -411,7 +413,7 @@ function serializeNode(
     newlyAddedElement?: boolean;
     cssCaptured?: boolean;
     /** Highlight Options Start */
-    enableStrictPrivacy: boolean;
+    privacySetting: PrivacySettingOption;
     /** Highlight Options End */
   },
 ): serializedNode | false {
@@ -432,7 +434,7 @@ function serializeNode(
     keepIframeSrcFn,
     newlyAddedElement = false,
     cssCaptured = false,
-    enableStrictPrivacy,
+    privacySetting,
   } = options;
   // Only record root id when document object is not the base document
   const rootId = getRootId(doc, mirror);
@@ -472,7 +474,7 @@ function serializeNode(
         recordCanvas,
         keepIframeSrcFn,
         newlyAddedElement,
-        enableStrictPrivacy,
+        privacySetting,
         rootId,
       });
     case n.TEXT_NODE:
@@ -480,7 +482,7 @@ function serializeNode(
         doc,
         needsMask,
         maskTextFn,
-        enableStrictPrivacy,
+        privacySetting,
         rootId,
         cssCaptured,
       });
@@ -513,12 +515,13 @@ function serializeTextNode(
     doc: Document;
     needsMask: boolean;
     maskTextFn: MaskTextFn | undefined;
-    enableStrictPrivacy: boolean;
+    privacySetting: PrivacySettingOption;
     rootId: number | undefined;
     cssCaptured?: boolean;
   },
 ): serializedNode {
-  const { needsMask, maskTextFn, enableStrictPrivacy, rootId, cssCaptured } = options;
+  const { needsMask, maskTextFn, privacySetting, rootId, cssCaptured } =
+    options;
   // The parent node may not be a html element which has a tagName attribute.
   // So just let it be undefined which is ok in this use case.
   const parent = dom.parentNode(n);
@@ -546,7 +549,10 @@ function serializeTextNode(
 
   /* Start of Highlight */
   // Randomizes the text content to a string of the same length.
-  if (enableStrictPrivacy && parentTagName) {
+  const enableStrictPrivacy = privacySetting === 'strict';
+  const obfuscateDefaultPrivacy =
+    privacySetting === 'default' && shouldObfuscateTextByDefault(textContent);
+  if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && parentTagName) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
       'TITLE',
@@ -587,7 +593,7 @@ function serializeElementNode(
      * `newlyAddedElement: true` skips scrollTop and scrollLeft check
      */
     newlyAddedElement?: boolean;
-    enableStrictPrivacy: boolean;
+    privacySetting: PrivacySettingOption;
     rootId: number | undefined;
   },
 ): serializedNode | false {
@@ -604,11 +610,12 @@ function serializeElementNode(
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement = false,
-    enableStrictPrivacy,
+    privacySetting,
     rootId,
   } = options;
   let needBlock = _isBlockedElement(n, blockClass, blockSelector);
   const needMask = _isBlockedElement(n, maskTextClass, null);
+  const enableStrictPrivacy = privacySetting === 'strict';
   let tagName = getValidTagName(n);
   let attributes: attributes = {};
   const len = n.attributes.length;
@@ -666,6 +673,9 @@ function serializeElementNode(
         type: getInputType(n),
         tagName,
         value,
+        inputId: (n as HTMLInputElement).id,
+        inputName: (n as HTMLInputElement).name,
+        autocomplete: (n as HTMLInputElement).autocomplete,
         maskInputOptions,
         maskInputFn,
       });
@@ -986,7 +996,7 @@ export function serializeNodeWithId(
       node: serializedElementNodeWithId,
     ) => unknown;
     iframeLoadTimeout?: number;
-    enableStrictPrivacy: boolean;
+    privacySetting: PrivacySettingOption;
     onStylesheetLoad?: (
       linkNode: HTMLLinkElement,
       node: serializedElementNodeWithId,
@@ -1019,7 +1029,7 @@ export function serializeNodeWithId(
     keepIframeSrcFn = () => false,
     newlyAddedElement = false,
     cssCaptured = false,
-    enableStrictPrivacy,
+    privacySetting,
   } = options;
   let { needsMask } = options;
   let { preserveWhiteSpace = true } = options;
@@ -1052,7 +1062,7 @@ export function serializeNodeWithId(
     keepIframeSrcFn,
     newlyAddedElement,
     cssCaptured,
-    enableStrictPrivacy,
+    privacySetting,
   });
   if (!_serializedNode) {
     // TODO: dev only
@@ -1087,13 +1097,16 @@ export function serializeNodeWithId(
     onSerialize(n);
   }
   let recordChild = !skipChild;
-  let strictPrivacy = enableStrictPrivacy;
+  let overwrittenPrivacySetting = privacySetting;
+  let strictPrivacy = privacySetting === 'strict';
+
   if (serializedNode.type === NodeType.Element) {
+    // overwrite values for child components if needs to be blocked
     recordChild = recordChild && !serializedNode.needBlock;
-    strictPrivacy =
-      enableStrictPrivacy ||
-      !!serializedNode.needBlock ||
-      !!serializedNode.needMask;
+    strictPrivacy ||= !!serializedNode.needBlock || !!serializedNode.needMask;
+    overwrittenPrivacySetting = strictPrivacy
+      ? 'strict'
+      : overwrittenPrivacySetting;
 
     /** Highlight Code Begin */
     // process enableStrictPrivacy obfuscation of non-text elements
@@ -1149,7 +1162,7 @@ export function serializeNodeWithId(
       stylesheetLoadTimeout,
       keepIframeSrcFn,
       cssCaptured: false,
-      enableStrictPrivacy: strictPrivacy,
+      privacySetting: overwrittenPrivacySetting,
     };
 
     if (
@@ -1225,7 +1238,7 @@ export function serializeNodeWithId(
             onStylesheetLoad,
             stylesheetLoadTimeout,
             keepIframeSrcFn,
-            enableStrictPrivacy,
+            privacySetting,
           });
 
           if (serializedIframeNode) {
@@ -1278,7 +1291,7 @@ export function serializeNodeWithId(
             onStylesheetLoad,
             stylesheetLoadTimeout,
             keepIframeSrcFn,
-            enableStrictPrivacy,
+            privacySetting,
           });
 
           if (serializedLinkNode) {
@@ -1325,7 +1338,7 @@ function snapshot(
     ) => unknown;
     stylesheetLoadTimeout?: number;
     keepIframeSrcFn?: KeepIframeSrcFn;
-    enableStrictPrivacy: boolean;
+    privacySetting: PrivacySettingOption;
   },
 ): serializedNodeWithId | null {
   const {
@@ -1349,7 +1362,7 @@ function snapshot(
     onStylesheetLoad,
     stylesheetLoadTimeout,
     keepIframeSrcFn = () => false,
-    enableStrictPrivacy = false,
+    privacySetting = 'default',
   } = options || {};
   const maskInputOptions: MaskInputOptions =
     maskAllInputs === true
@@ -1418,7 +1431,7 @@ function snapshot(
     stylesheetLoadTimeout,
     keepIframeSrcFn,
     newlyAddedElement: false,
-    enableStrictPrivacy,
+    privacySetting,
   });
 }
 
