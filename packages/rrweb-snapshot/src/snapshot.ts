@@ -846,11 +846,23 @@ function serializeElementNode(
     if (video.src === '' || video.src.indexOf('blob:') !== -1) {
       const { width, height } = n.getBoundingClientRect();
       attributes = {
+        width,
+        height,
         rr_width: `${width}px`,
         rr_height: `${height}px`,
         rr_inlined_video: true,
       };
       tagName = 'canvas';
+
+      // create blank canvas of same dimensions
+      const blankCanvas = doc.createElement('canvas');
+      blankCanvas.width = (n as HTMLCanvasElement).width;
+      blankCanvas.height = (n as HTMLCanvasElement).height;
+
+      attributes.rr_dataURL = blankCanvas.toDataURL(
+        dataURLOptions.type,
+        dataURLOptions.quality,
+      );
     }
   }
 
