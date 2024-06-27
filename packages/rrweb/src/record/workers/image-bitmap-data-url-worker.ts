@@ -44,7 +44,7 @@ async function getTransparentBlobFor(
 }
 
 const worker: ImageBitmapDataURLResponseWorker = self;
-let logDebug: boolean = false;
+let logDebug = false;
 
 const debug = (...args: any[]) => {
   if (logDebug) {
@@ -94,11 +94,7 @@ worker.onmessage = async function (e) {
       });
       return worker.postMessage({ id, status: 'unchanged' });
     }
-    debug('[highlight-worker] canvas bitmap processed', {
-      id,
-      base64,
-    });
-    worker.postMessage({
+    const msg = {
       id,
       type,
       base64,
@@ -108,7 +104,9 @@ worker.onmessage = async function (e) {
       dy,
       dw,
       dh,
-    });
+    }
+    debug('[highlight-worker] canvas bitmap processed', msg);
+    worker.postMessage(msg);
     lastBlobMap.set(id, base64);
   } else {
     debug('[highlight-worker] no offscreencanvas support', {
