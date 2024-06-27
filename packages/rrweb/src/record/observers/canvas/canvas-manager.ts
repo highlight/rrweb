@@ -118,7 +118,7 @@ export class CanvasManager {
       }
 
       const { base64, type, dx, dy, dw, dh } = e.data;
-      this.mutationCb({
+      const mutation = {
         id,
         type: CanvasContext['2D'],
         commands: [
@@ -146,7 +146,9 @@ export class CanvasManager {
             ],
           },
         ],
-      });
+      }
+      this.debug(null, 'canvas worker recording mutation', mutation);
+      this.mutationCb(mutation);
     };
 
     this.options = options;
@@ -426,6 +428,18 @@ export class CanvasManager {
                 actualHeight: video.videoHeight,
               };
               const maxDim = Math.max(actualWidth, actualHeight);
+
+              // video is not yet ready... this retry on the next sampling iteration.
+              // we don't want to crash the worker by sending an undefined bitmap
+              // if the video is not yet rendered.
+              if (video.width === 0 || video.height === 0 || actualWidth === 0 || actualHeight === 0 || boxWidth === 0 || boxHeight === 0) {
+                this.debug(video, 'not yet ready', {
+                  width: video.width,
+                  height: video.height,
+                });
+                return;
+              }
+
               let scale = resizeFactor || 1;
               if (maxSnapshotDimension) {
                 scale = Math.min(scale, maxSnapshotDimension / maxDim);
