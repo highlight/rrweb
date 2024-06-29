@@ -19,6 +19,7 @@ yarn.lock
 
 packages/rrweb-player/lib
 packages/rrweb-player/public
+packages/rrweb-player/.svelte-kit/ambient.d.ts
 
 temp
 
