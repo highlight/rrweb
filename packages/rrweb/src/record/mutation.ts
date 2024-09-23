@@ -183,10 +183,10 @@ export default class MutationBuffer {
   private maskInputFn: observerParam['maskInputFn'];
   private keepIframeSrcFn: observerParam['keepIframeSrcFn'];
   private recordCanvas: observerParam['recordCanvas'];
+  private sampling: observerParam['sampling'];
   private inlineImages: observerParam['inlineImages'];
   private privacySetting: observerParam['privacySetting'];
   private slimDOMOptions: observerParam['slimDOMOptions'];
-  private dataURLOptions: observerParam['dataURLOptions'];
   private doc: observerParam['doc'];
   private mirror: observerParam['mirror'];
   private iframeManager: observerParam['iframeManager'];
@@ -210,10 +210,10 @@ export default class MutationBuffer {
         'maskInputFn',
         'keepIframeSrcFn',
         'recordCanvas',
+        'sampling',
         'inlineImages',
         'privacySetting',
         'slimDOMOptions',
-        'dataURLOptions',
         'doc',
         'mirror',
         'iframeManager',
@@ -329,8 +329,8 @@ export default class MutationBuffer {
         maskTextFn: this.maskTextFn,
         maskInputFn: this.maskInputFn,
         slimDOMOptions: this.slimDOMOptions,
-        dataURLOptions: this.dataURLOptions,
         recordCanvas: this.recordCanvas,
+        canvasSampling: this.sampling?.canvas,
         inlineImages: this.inlineImages,
         privacySetting: this.privacySetting,
         onSerialize: (currentN) => {
@@ -474,7 +474,7 @@ export default class MutationBuffer {
             !highlightOverwriteRecord &&
             value
           ) {
-              value = obfuscateText(value);
+            value = obfuscateText(value);
           }
           return {
             id: this.mirror.getId(n),
@@ -653,8 +653,8 @@ export default class MutationBuffer {
           if (tagName === 'INPUT') {
             const node = m.target as HTMLInputElement;
             if (node.type === 'password') {
-                item.attributes['value'] = '*'.repeat(node.value.length);
-                break;
+              item.attributes['value'] = '*'.repeat(node.value.length);
+              break;
             }
           }
           /* End Highlight Code */

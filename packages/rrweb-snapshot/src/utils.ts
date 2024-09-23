@@ -10,6 +10,7 @@ import type {
   documentTypeNode,
   textNode,
   elementNode,
+  CanvasSamplingStrategy,
 } from './types';
 import dom from '@rrweb/utils';
 import { NodeType } from './types';
@@ -247,14 +248,14 @@ export function createMirror(): Mirror {
 /* Start of Highlight Code */
 // overwritten from rrweb
 export function maskInputValue({
-                                 element,
-                                 maskInputOptions,
-                                 tagName,
-                                 type,
-                                 value,
-                                 overwriteRecord,
-                                 maskInputFn,
-                               }: {
+  element,
+  maskInputOptions,
+  tagName,
+  type,
+  value,
+  overwriteRecord,
+  maskInputFn,
+}: {
   element: HTMLElement;
   maskInputOptions: MaskInputOptions;
   tagName: string;
@@ -270,7 +271,7 @@ export function maskInputValue({
       maskInputOptions,
       tagName,
       type,
-      overwriteRecord
+      overwriteRecord,
     })
   ) {
     if (maskInputFn) {
@@ -586,6 +587,37 @@ export const maskedInputType = ({
     overwriteRecord !== 'true' &&
     (!!maskInputOptions[tagName.toLowerCase() as keyof MaskInputOptions] ||
       !!(actualType && maskInputOptions[actualType as keyof MaskInputOptions]))
+  );
+};
+
+export const resizeCanvas = (
+  canvas: HTMLCanvasElement,
+  sampling: CanvasSamplingStrategy,
+) => {
+  let scale = sampling.resizeFactor || 1;
+  if (sampling.maxSnapshotDimension) {
+    const maxDim = Math.max(canvas.width, canvas.height);
+    scale = Math.min(scale, sampling.maxSnapshotDimension / maxDim);
+  }
+  const width = canvas.width * scale;
+  const height = canvas.height * scale;
+  return { width, height };
+};
+
+export const snapshot2DCanvas = (
+  canvas: HTMLCanvasElement,
+  sampling: CanvasSamplingStrategy,
+) => {
+  const { width, height } = resizeCanvas(canvas, sampling);
+  const resizedCanvas = document.createElement('canvas');
+  const resizedContext = resizedCanvas.getContext('2d');
+  if (resizedContext === null) return '';
+  resizedCanvas.width = width;
+  resizedCanvas.height = height;
+  resizedContext.drawImage(canvas, 0, 0, width, height);
+  return resizedCanvas.toDataURL(
+    sampling.dataURLOptions?.type ?? 'image/webp',
+    sampling.dataURLOptions?.quality ?? 0.9,
   );
 };
 

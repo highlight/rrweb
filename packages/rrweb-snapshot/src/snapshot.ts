@@ -15,6 +15,7 @@ import {
   type serializedElementNodeWithId,
   type mediaAttributes,
   type PrivacySettingOption,
+  type CanvasSamplingStrategy,
 } from './types';
 import {
   Mirror,
@@ -32,6 +33,7 @@ import {
   absolutifyURLs,
   markCssSplits,
   isElementSrcBlocked,
+  snapshot2DCanvas,
 } from './utils';
 import dom from '@rrweb/utils';
 
@@ -404,6 +406,7 @@ function serializeNode(
     dataURLOptions?: DataURLOptions;
     inlineImages: boolean;
     recordCanvas: boolean;
+    canvasSampling: CanvasSamplingStrategy;
     keepIframeSrcFn: KeepIframeSrcFn;
     /**
      * `newlyAddedElement: true` skips scrollTop and scrollLeft check
@@ -426,9 +429,9 @@ function serializeNode(
     maskTextClass,
     maskTextFn,
     maskInputFn,
-    dataURLOptions = {},
     inlineImages,
     recordCanvas,
+    canvasSampling,
     keepIframeSrcFn,
     newlyAddedElement = false,
     cssCaptured = false,
@@ -467,7 +470,7 @@ function serializeNode(
         maskInputOptions,
         maskInputFn,
         maskTextClass,
-        dataURLOptions,
+        canvasSampling,
         inlineImages,
         recordCanvas,
         keepIframeSrcFn,
@@ -589,9 +592,9 @@ function serializeElementNode(
     maskInputOptions: MaskInputOptions;
     maskInputFn: MaskInputFn | undefined;
     maskTextClass: string | RegExp;
-    dataURLOptions?: DataURLOptions;
     inlineImages: boolean;
     recordCanvas: boolean;
+    canvasSampling: CanvasSamplingStrategy;
     keepIframeSrcFn: KeepIframeSrcFn;
     /**
      * `newlyAddedElement: true` skips scrollTop and scrollLeft check
@@ -609,9 +612,9 @@ function serializeElementNode(
     maskInputOptions = {},
     maskInputFn,
     maskTextClass,
-    dataURLOptions = {},
     inlineImages,
     recordCanvas,
+    canvasSampling,
     keepIframeSrcFn,
     newlyAddedElement = false,
     privacySetting,
@@ -709,29 +712,23 @@ function serializeElementNode(
     if ((n as ICanvas).__context === '2d') {
       // only record this on 2d canvas
       if (!is2DCanvasBlank(n as HTMLCanvasElement)) {
-        /** Start of Highlight Code
-         * Avoid capturing non-blank 2d canvas here - defer to canvas-manager.ts for better performance
-        attributes.rr_dataURL = (n as HTMLCanvasElement).toDataURL(
-          dataURLOptions.type,
-          dataURLOptions.quality,
+        attributes.rr_dataURL = snapshot2DCanvas(
+          n as HTMLCanvasElement,
+          canvasSampling,
         );
-        End of Highlight Code **/
       }
     } else if (!('__context' in n)) {
       // context is unknown, better not call getContext to trigger it
-      const canvasDataURL = (n as HTMLCanvasElement).toDataURL(
-        dataURLOptions.type,
-        dataURLOptions.quality,
+      const canvasDataURL = snapshot2DCanvas(
+        n as HTMLCanvasElement,
+        canvasSampling,
       );
 
       // create blank canvas of same dimensions
       const blankCanvas = doc.createElement('canvas');
       blankCanvas.width = (n as HTMLCanvasElement).width;
       blankCanvas.height = (n as HTMLCanvasElement).height;
-      const blankCanvasDataURL = blankCanvas.toDataURL(
-        dataURLOptions.type,
-        dataURLOptions.quality,
-      );
+      const blankCanvasDataURL = snapshot2DCanvas(blankCanvas, canvasSampling);
 
       // no need to save dataURL if it's the same as blank canvas
       if (canvasDataURL !== blankCanvasDataURL) {
@@ -761,9 +758,9 @@ function serializeElementNode(
         canvasService!.width = image.naturalWidth;
         canvasService!.height = image.naturalHeight;
         canvasCtx!.drawImage(image, 0, 0);
-        attributes.rr_dataURL = canvasService!.toDataURL(
-          dataURLOptions.type,
-          dataURLOptions.quality,
+        attributes.rr_dataURL = snapshot2DCanvas(
+          canvasService!,
+          canvasSampling,
         );
       } catch (err) {
         if (image.crossOrigin !== 'anonymous') {
@@ -866,10 +863,7 @@ function serializeElementNode(
       blankCanvas.width = (n as HTMLCanvasElement).width;
       blankCanvas.height = (n as HTMLCanvasElement).height;
 
-      attributes.rr_dataURL = blankCanvas.toDataURL(
-        dataURLOptions.type,
-        dataURLOptions.quality,
-      );
+      attributes.rr_dataURL = snapshot2DCanvas(blankCanvas, canvasSampling);
     }
   }
 
@@ -1005,10 +999,10 @@ export function serializeNodeWithId(
     maskTextFn: MaskTextFn | undefined;
     maskInputFn: MaskInputFn | undefined;
     slimDOMOptions: SlimDOMOptions;
-    dataURLOptions?: DataURLOptions;
     keepIframeSrcFn?: KeepIframeSrcFn;
     inlineImages?: boolean;
     recordCanvas?: boolean;
+    canvasSampling?: CanvasSamplingStrategy;
     preserveWhiteSpace?: boolean;
     onSerialize?: (n: Node) => unknown;
     onIframeLoad?: (
@@ -1038,9 +1032,9 @@ export function serializeNodeWithId(
     maskTextFn,
     maskInputFn,
     slimDOMOptions,
-    dataURLOptions = {},
     inlineImages = false,
     recordCanvas = false,
+    canvasSampling = {},
     onSerialize,
     onIframeLoad,
     iframeLoadTimeout = 5000,
@@ -1076,9 +1070,9 @@ export function serializeNodeWithId(
     maskTextClass,
     maskTextFn,
     maskInputFn,
-    dataURLOptions,
     inlineImages,
     recordCanvas,
+    canvasSampling,
     keepIframeSrcFn,
     newlyAddedElement,
     cssCaptured,
@@ -1171,9 +1165,9 @@ export function serializeNodeWithId(
       maskTextFn,
       maskInputFn,
       slimDOMOptions,
-      dataURLOptions,
       inlineImages,
       recordCanvas,
+      canvasSampling,
       preserveWhiteSpace,
       onSerialize,
       onIframeLoad,
@@ -1248,9 +1242,9 @@ export function serializeNodeWithId(
             maskTextFn,
             maskInputFn,
             slimDOMOptions,
-            dataURLOptions,
             inlineImages,
             recordCanvas,
+            canvasSampling,
             preserveWhiteSpace,
             onSerialize,
             onIframeLoad,
@@ -1301,9 +1295,9 @@ export function serializeNodeWithId(
             maskTextFn,
             maskInputFn,
             slimDOMOptions,
-            dataURLOptions,
             inlineImages,
             recordCanvas,
+            canvasSampling,
             preserveWhiteSpace,
             onSerialize,
             onIframeLoad,
@@ -1345,6 +1339,7 @@ function snapshot(
     dataURLOptions?: DataURLOptions;
     inlineImages?: boolean;
     recordCanvas?: boolean;
+    canvasSampling?: CanvasSamplingStrategy;
     preserveWhiteSpace?: boolean;
     onSerialize?: (n: Node) => unknown;
     onIframeLoad?: (
@@ -1370,11 +1365,11 @@ function snapshot(
     inlineStylesheet = true,
     inlineImages = false,
     recordCanvas = false,
+    canvasSampling = {},
     maskAllInputs = false,
     maskTextFn,
     maskInputFn,
     slimDOM = false,
-    dataURLOptions,
     preserveWhiteSpace,
     onSerialize,
     onIframeLoad,
@@ -1440,9 +1435,9 @@ function snapshot(
     maskTextFn,
     maskInputFn,
     slimDOMOptions,
-    dataURLOptions,
     inlineImages,
     recordCanvas,
+    canvasSampling,
     preserveWhiteSpace,
     onSerialize,
     onIframeLoad,
