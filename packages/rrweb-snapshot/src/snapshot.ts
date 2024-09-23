@@ -513,7 +513,8 @@ function serializeTextNode(
     rootId: number | undefined;
   },
 ): serializedNode {
-  const { needsMask, maskTextFn, privacySetting, rootId } = options;
+  const { needsMask, maskTextFn, privacySetting, rootId } =
+    options;
   // The parent node may not be a html element which has a tagName attribute.
   // So just let it be undefined which is ok in this use case.
   const parent = dom.parentNode(n);
@@ -556,7 +557,11 @@ function serializeTextNode(
     n.parentElement?.getAttribute('data-hl-record');
   const obfuscateDefaultPrivacy =
     privacySetting === 'default' && shouldObfuscateTextByDefault(text);
-  if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && !highlightOverwriteRecord && parentTagName) {
+  if (
+    (enableStrictPrivacy || obfuscateDefaultPrivacy) &&
+    !highlightOverwriteRecord &&
+    parentTagName
+  ) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
       'TITLE',
@@ -713,10 +718,13 @@ function serializeElementNode(
     if ((n as ICanvas).__context === '2d') {
       // only record this on 2d canvas
       if (!is2DCanvasBlank(n as HTMLCanvasElement)) {
+        /** Start of Highlight Code
+         * Avoid capturing non-blank 2d canvas here - defer to canvas-manager.ts for better performance
         attributes.rr_dataURL = (n as HTMLCanvasElement).toDataURL(
           dataURLOptions.type,
           dataURLOptions.quality,
         );
+        End of Highlight Code **/
       }
     } else if (!('__context' in n)) {
       // context is unknown, better not call getContext to trigger it
