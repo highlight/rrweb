@@ -554,7 +554,11 @@ function serializeTextNode(
     n.parentElement?.getAttribute('data-hl-record');
   const obfuscateDefaultPrivacy =
     privacySetting === 'default' && shouldObfuscateTextByDefault(textContent);
-  if ((enableStrictPrivacy || obfuscateDefaultPrivacy) && !highlightOverwriteRecord && parentTagName) {
+  if (
+    (enableStrictPrivacy || obfuscateDefaultPrivacy) &&
+    !highlightOverwriteRecord &&
+    parentTagName
+  ) {
     const IGNORE_TAG_NAMES = new Set([
       'HEAD',
       'TITLE',
@@ -707,10 +711,13 @@ function serializeElementNode(
     if ((n as ICanvas).__context === '2d') {
       // only record this on 2d canvas
       if (!is2DCanvasBlank(n as HTMLCanvasElement)) {
+        /** Start of Highlight Code
+         * Avoid capturing non-blank 2d canvas here - defer to canvas-manager.ts for better performance
         attributes.rr_dataURL = (n as HTMLCanvasElement).toDataURL(
           dataURLOptions.type,
           dataURLOptions.quality,
         );
+        End of Highlight Code **/
       }
     } else if (!('__context' in n)) {
       // context is unknown, better not call getContext to trigger it

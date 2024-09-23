@@ -146,7 +146,7 @@ export class CanvasManager {
             ],
           },
         ],
-      }
+      };
       this.debug(null, 'canvas worker recording mutation', mutation);
       this.mutationCb(mutation);
     };
@@ -341,9 +341,27 @@ export class CanvasManager {
     let rafId: number;
 
     const elementFoundTime: Map<number, number> = new Map();
+
+    const querySelectorAll = <T extends 'canvas' | 'video'>(
+      node: ParentNode,
+      selector: T,
+    ): (T extends 'canvas' ? HTMLCanvasElement : HTMLVideoElement)[] => {
+      type NodeType = T extends 'canvas' ? HTMLCanvasElement : HTMLVideoElement;
+      const nodes: NodeType[] = [];
+      node.querySelectorAll(selector).forEach((n) => nodes.push(n as NodeType));
+      const nodeIterator = document.createNodeIterator(node, Node.ELEMENT_NODE);
+      let currentNode: Element | null;
+      while ((currentNode = nodeIterator.nextNode() as Element | null)) {
+        if (currentNode?.shadowRoot) {
+          nodes.push(...querySelectorAll(currentNode.shadowRoot, selector));
+        }
+      }
+      return nodes;
+    };
+
     const getCanvas = (timestamp: DOMHighResTimeStamp): HTMLCanvasElement[] => {
       const matchedCanvas: HTMLCanvasElement[] = [];
-      win.document.querySelectorAll('canvas').forEach((canvas) => {
+      querySelectorAll(win.document, 'canvas').forEach((canvas) => {
         if (!isBlocked(canvas, blockClass, blockSelector, true)) {
           this.debug(canvas, 'discovered canvas');
           matchedCanvas.push(canvas);
@@ -359,7 +377,7 @@ export class CanvasManager {
     const getVideos = (timestamp: DOMHighResTimeStamp): HTMLVideoElement[] => {
       const matchedVideos: HTMLVideoElement[] = [];
       if (recordVideos) {
-        win.document.querySelectorAll('video').forEach((video) => {
+        querySelectorAll(win.document, 'video').forEach((video) => {
           if (video.src !== '' && video.src.indexOf('blob:') === -1) return;
           if (!isBlocked(video, blockClass, blockSelector, true)) {
             matchedVideos.push(video);
@@ -432,7 +450,14 @@ export class CanvasManager {
               // video is not yet ready... this retry on the next sampling iteration.
               // we don't want to crash the worker by sending an undefined bitmap
               // if the video is not yet rendered.
-              if (video.width === 0 || video.height === 0 || actualWidth === 0 || actualHeight === 0 || boxWidth === 0 || boxHeight === 0) {
+              if (
+                video.width === 0 ||
+                video.height === 0 ||
+                actualWidth === 0 ||
+                actualHeight === 0 ||
+                boxWidth === 0 ||
+                boxHeight === 0
+              ) {
                 this.debug(video, 'not yet ready', {
                   width: video.width,
                   height: video.height,
