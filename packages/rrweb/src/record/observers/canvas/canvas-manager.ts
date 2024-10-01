@@ -450,17 +450,14 @@ export class CanvasManager {
               // video is not yet ready... this retry on the next sampling iteration.
               // we don't want to crash the worker by sending an undefined bitmap
               // if the video is not yet rendered.
-              if (
-                video.width === 0 ||
-                video.height === 0 ||
-                actualWidth === 0 ||
-                actualHeight === 0 ||
-                boxWidth === 0 ||
-                boxHeight === 0
-              ) {
+              if (maxDim === 0) {
                 this.debug(video, 'not yet ready', {
                   width: video.width,
                   height: video.height,
+                  actualWidth,
+                  actualHeight,
+                  boxWidth,
+                  boxHeight,
                 });
                 return;
               }
