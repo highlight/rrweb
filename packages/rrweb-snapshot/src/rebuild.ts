@@ -273,7 +273,11 @@ function buildNode(
         } else if (tagName === 'textarea' && name === 'value') {
           // create without an ID or presence in mirror
           node.appendChild(doc.createTextNode(value));
-          n.childNodes = []; // value overrides childNodes
+          try {
+            n.childNodes = []; // value overrides childNodes
+          } catch (err: unknown) {
+            console.warn(`Highlight failed to set rrweb text area child nodes ${err}`);
+          }
           continue;
         }
 
