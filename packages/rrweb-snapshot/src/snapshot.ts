@@ -858,6 +858,8 @@ function serializeElementNode(
         rr_width: `${width}px`,
         rr_height: `${height}px`,
         rr_inlined_video: true,
+        class: attributes.class,
+        style: attributes.style,
       };
       tagName = 'canvas';
 
