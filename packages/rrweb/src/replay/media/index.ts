@@ -53,7 +53,7 @@ export class MediaManager {
   private syncAllMediaElements(options = { pause: false }) {
     this.mediaMap.forEach((_mediaState, target) => {
       this.syncTargetWithState(target);
-      if (options.pause) {
+      if (options.pause && target.pause) {
         target.pause();
       }
     });
