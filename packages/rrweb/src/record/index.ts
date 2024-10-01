@@ -350,6 +350,7 @@ function record<T = eventWithTime>(
       maskTextSelector,
       inlineStylesheet,
       maskInputOptions,
+      dataURLOptions,
       maskTextFn,
       maskInputFn,
       recordCanvas,
@@ -399,8 +400,8 @@ function record<T = eventWithTime>(
       maskTextFn,
       maskInputFn,
       slimDOM: slimDOMOptions,
+      dataURLOptions,
       recordCanvas,
-      canvasSampling: sampling.canvas,
       inlineImages,
       privacySetting,
       onSerialize: (n) => {
