@@ -163,7 +163,11 @@ function buildNode(
           // https://github.com/rrweb-io/rrweb/issues/112
           // https://github.com/rrweb-io/rrweb/pull/1351
           node.appendChild(doc.createTextNode(value));
-          n.childNodes = []; // value overrides childNodes
+          try {
+            n.childNodes = []; // value overrides childNodes
+          } catch (err: unknown) {
+            console.warn(`Highlight failed to set rrweb text area child nodes ${err}`);
+          }
           continue;
         }
 
