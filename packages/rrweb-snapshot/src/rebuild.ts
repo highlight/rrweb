@@ -177,9 +177,13 @@ export function applyCssSplits(
     if (childTextNode && cssTextSection) {
       // id will be assigned when these child nodes are
       // iterated over in buildNodeWithSN
-      childTextNode.textContent = hackCss
-        ? adaptCssForReplay(cssTextSection, cache)
-        : cssTextSection;
+      try {
+        childTextNode.textContent = hackCss
+          ? adaptCssForReplay(cssTextSection, cache)
+          : cssTextSection;
+      } catch (err: unknown) {
+        console.warn(`Highlight failed to set rrweb css ${err}`);
+      }
     }
   }
 }
