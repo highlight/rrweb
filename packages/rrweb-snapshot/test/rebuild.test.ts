@@ -11,6 +11,7 @@ import {
 } from '../src/rebuild';
 import { NodeType } from '@rrweb/types';
 import { createMirror, Mirror, normalizeCssString } from '../src/utils';
+import postcss from 'postcss';
 
 const expect = _expect as unknown as {
   <T = unknown>(actual: T): {
