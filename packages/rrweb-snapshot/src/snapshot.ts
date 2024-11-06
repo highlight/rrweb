@@ -758,8 +758,8 @@ function serializeElementNode(
     const recordInlineImage = () => {
       image.removeEventListener('load', recordInlineImage);
       try {
-        canvasService!.width = image.naturalWidth;
-        canvasService!.height = image.naturalHeight;
+        canvasService!.width = image.width;
+        canvasService!.height = image.height;
         canvasCtx!.drawImage(image, 0, 0);
         attributes.rr_dataURL = canvasService!.toDataURL(
           dataURLOptions.type,
