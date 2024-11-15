@@ -10,7 +10,7 @@ import {
   createCache,
 } from '../src/rebuild';
 import { NodeType } from '../src/types';
-import { createMirror, Mirror, normalizeCssString } from '../src/utils';
+import { createMirror, Mirror } from '../src/utils';
 import postcss from 'postcss';
 
 const expect = _expect as unknown as {
@@ -21,7 +21,7 @@ const expect = _expect as unknown as {
 
 expect.extend({
   toMatchCss: function (received: string, expected: string) {
-    const pass = normalizeCssString(received) === normalizeCssString(expected);
+    const pass = normCss(received) === normCss(expected);
     const message: () => string = () =>
       pass
         ? ''
@@ -32,6 +32,10 @@ expect.extend({
     };
   },
 });
+
+function normCss(cssText: string): string {
+  return cssText.replace(/[\s;]/g, '');
+}
 
 function getDuration(hrtime: [number, number]) {
   const [seconds, nanoseconds] = hrtime;
