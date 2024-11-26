@@ -30,7 +30,8 @@ type pendingCanvasMutationsMap = Map<
 
 interface Options {
   recordCanvas: boolean;
-  recordVideos: boolean;
+  recordLocalVideos: boolean;
+  recordRemoteVideos: boolean;
   mutationCb: canvasMutationCallback;
   win: IWindow;
   blockClass: blockClass;
@@ -95,7 +96,8 @@ export class CanvasManager {
       blockClass,
       blockSelector,
       recordCanvas,
-      recordVideos,
+      recordLocalVideos,
+      recordRemoteVideos,
       initialSnapshotDelay,
       dataURLOptions,
     } = options;
@@ -111,6 +113,7 @@ export class CanvasManager {
 
       if (!('base64' in e.data)) {
         this.debug(null, 'canvas worker received empty message', {
+          id,
           data: e.data,
           status: e.data.status,
         });
@@ -159,7 +162,8 @@ export class CanvasManager {
     } else if (recordCanvas && typeof sampling === 'number') {
       this.debug(null, 'initializing canvas fps observer', { sampling });
       this.initCanvasFPSObserver(
-        recordVideos,
+        recordLocalVideos,
+        recordRemoteVideos,
         sampling,
         win,
         blockClass,
@@ -317,7 +321,8 @@ export class CanvasManager {
   }
 
   private initCanvasFPSObserver(
-    recordVideos: boolean,
+    recordLocalVideos: boolean,
+    recordRemoteVideos: boolean,
     fps: number,
     win: IWindow,
     blockClass: blockClass,
@@ -376,9 +381,20 @@ export class CanvasManager {
 
     const getVideos = (timestamp: DOMHighResTimeStamp): HTMLVideoElement[] => {
       const matchedVideos: HTMLVideoElement[] = [];
-      if (recordVideos) {
+      if (recordLocalVideos || recordRemoteVideos) {
         querySelectorAll(win.document, 'video').forEach((video) => {
-          if (video.src !== '' && video.src.indexOf('blob:') === -1) return;
+          if (!recordRemoteVideos) {
+            // remote video
+            if (video.src !== '' && video.src.indexOf('blob:') === -1) {
+              return;
+            }
+          }
+          if (!recordLocalVideos) {
+            // local video - webcam (no src) or memory (blob)
+            if (video.src === '' || video.src.indexOf('blob:') !== -1) {
+              return;
+            }
+          }
           if (!isBlocked(video, blockClass, blockSelector, true)) {
             matchedVideos.push(video);
             const id = this.mirror.getId(video);

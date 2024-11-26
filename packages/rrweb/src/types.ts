@@ -71,6 +71,7 @@ export type recordOptions<T> = {
   userTriggeredOnInput?: boolean;
   collectFonts?: boolean;
   inlineImages?: boolean;
+  inlineVideos?: boolean;
   plugins?: RecordPlugin[];
   // departed, please use sampling options
   mousemoveWait?: number;
@@ -117,6 +118,7 @@ export type observerParam = {
   recordDOM: boolean;
   recordCanvas: boolean;
   inlineImages: boolean;
+  inlineVideos: boolean;
   privacySetting: PrivacySettingOption;
   userTriggeredOnInput: boolean;
   collectFonts: boolean;
@@ -155,6 +157,7 @@ export type MutationBufferParam = Pick<
   | 'keepIframeSrcFn'
   | 'recordCanvas'
   | 'inlineImages'
+  | 'inlineVideos'
   | 'privacySetting'
   | 'slimDOMOptions'
   | 'dataURLOptions'

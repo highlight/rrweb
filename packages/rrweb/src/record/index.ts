@@ -95,6 +95,7 @@ function record<T = eventWithTime>(
     userTriggeredOnInput = false,
     collectFonts = false,
     inlineImages = false,
+    inlineVideos = false,
     plugins,
     keepIframeSrcFn = () => false,
     privacySetting = 'default',
@@ -324,7 +325,8 @@ function record<T = eventWithTime>(
 
   canvasManager = new CanvasManager({
     recordCanvas,
-    recordVideos: inlineImages,
+    recordLocalVideos: inlineImages,
+    recordRemoteVideos: inlineVideos,
     mutationCb: wrappedCanvasMutationEmit,
     win: window,
     blockClass,
@@ -355,6 +357,7 @@ function record<T = eventWithTime>(
       maskInputFn,
       recordCanvas,
       inlineImages,
+      inlineVideos,
       privacySetting,
       sampling,
       slimDOMOptions,
@@ -403,6 +406,7 @@ function record<T = eventWithTime>(
       dataURLOptions,
       recordCanvas,
       inlineImages,
+      inlineVideos,
       privacySetting,
       onSerialize: (n) => {
         if (isSerializedIframe(n, mirror)) {
@@ -552,6 +556,7 @@ function record<T = eventWithTime>(
           recordDOM,
           recordCanvas,
           inlineImages,
+          inlineVideos,
           userTriggeredOnInput,
           collectFonts,
           doc,
