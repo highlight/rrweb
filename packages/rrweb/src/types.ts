@@ -71,6 +71,7 @@ export type recordOptions<T> = {
   userTriggeredOnInput?: boolean;
   collectFonts?: boolean;
   inlineImages?: boolean;
+  inlineVideos?: boolean;
   plugins?: RecordPlugin[];
   // departed, please use sampling options
   mousemoveWait?: number;

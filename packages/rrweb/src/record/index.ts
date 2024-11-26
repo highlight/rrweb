@@ -95,6 +95,7 @@ function record<T = eventWithTime>(
     userTriggeredOnInput = false,
     collectFonts = false,
     inlineImages = false,
+    inlineVideos = false,
     plugins,
     keepIframeSrcFn = () => false,
     privacySetting = 'default',
@@ -324,7 +325,8 @@ function record<T = eventWithTime>(
 
   canvasManager = new CanvasManager({
     recordCanvas,
-    recordVideos: inlineImages,
+    recordLocalVideos: inlineImages,
+    recordRemoteVideos: inlineVideos,
     mutationCb: wrappedCanvasMutationEmit,
     win: window,
     blockClass,
