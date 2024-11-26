@@ -185,6 +185,7 @@ export default class MutationBuffer {
   private keepIframeSrcFn: observerParam['keepIframeSrcFn'];
   private recordCanvas: observerParam['recordCanvas'];
   private inlineImages: observerParam['inlineImages'];
+  private inlineVideos: observerParam['inlineVideos'];
   private privacySetting: observerParam['privacySetting'];
   private slimDOMOptions: observerParam['slimDOMOptions'];
   private dataURLOptions: observerParam['dataURLOptions'];
@@ -212,6 +213,7 @@ export default class MutationBuffer {
         'keepIframeSrcFn',
         'recordCanvas',
         'inlineImages',
+        'inlineVideos',
         'privacySetting',
         'slimDOMOptions',
         'dataURLOptions',
@@ -319,6 +321,7 @@ export default class MutationBuffer {
         dataURLOptions: this.dataURLOptions,
         recordCanvas: this.recordCanvas,
         inlineImages: this.inlineImages,
+        inlineVideos: this.inlineVideos,
         privacySetting: this.privacySetting,
         onSerialize: (currentN) => {
           if (isSerializedIframe(currentN, this.mirror)) {
@@ -460,7 +463,7 @@ export default class MutationBuffer {
             !highlightOverwriteRecord &&
             value
           ) {
-              value = obfuscateText(value);
+            value = obfuscateText(value);
           }
           return {
             id: this.mirror.getId(n),
@@ -640,8 +643,8 @@ export default class MutationBuffer {
           if (tagName === 'INPUT') {
             const node = m.target as HTMLInputElement;
             if (node.type === 'password') {
-                item.attributes['value'] = '*'.repeat(node.value.length);
-                break;
+              item.attributes['value'] = '*'.repeat(node.value.length);
+              break;
             }
           }
           /* End Highlight Code */

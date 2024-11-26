@@ -92,7 +92,6 @@ worker.onmessage = async function (e) {
         id,
         base64,
       });
-      return worker.postMessage({ id, status: 'unchanged' });
     }
     const msg = {
       id,
@@ -104,7 +103,7 @@ worker.onmessage = async function (e) {
       dy,
       dw,
       dh,
-    }
+    };
     debug('[highlight-worker] canvas bitmap processed', msg);
     worker.postMessage(msg);
     lastBlobMap.set(id, base64);
