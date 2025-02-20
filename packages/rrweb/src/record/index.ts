@@ -357,6 +357,7 @@ function record<T = eventWithTime>(
       maskInputFn,
       recordCanvas,
       inlineImages,
+      inlineVideos,
       privacySetting,
       sampling,
       slimDOMOptions,
@@ -405,6 +406,7 @@ function record<T = eventWithTime>(
       dataURLOptions,
       recordCanvas,
       inlineImages,
+      inlineVideos,
       privacySetting,
       onSerialize: (n) => {
         if (isSerializedIframe(n, mirror)) {
@@ -554,6 +556,7 @@ function record<T = eventWithTime>(
           recordDOM,
           recordCanvas,
           inlineImages,
+          inlineVideos,
           userTriggeredOnInput,
           collectFonts,
           doc,

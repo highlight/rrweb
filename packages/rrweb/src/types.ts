@@ -118,6 +118,7 @@ export type observerParam = {
   recordDOM: boolean;
   recordCanvas: boolean;
   inlineImages: boolean;
+  inlineVideos: boolean;
   privacySetting: PrivacySettingOption;
   userTriggeredOnInput: boolean;
   collectFonts: boolean;
@@ -156,6 +157,7 @@ export type MutationBufferParam = Pick<
   | 'keepIframeSrcFn'
   | 'recordCanvas'
   | 'inlineImages'
+  | 'inlineVideos'
   | 'privacySetting'
   | 'slimDOMOptions'
   | 'dataURLOptions'

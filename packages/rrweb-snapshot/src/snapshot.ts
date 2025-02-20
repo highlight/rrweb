@@ -402,6 +402,7 @@ function serializeNode(
     maskInputFn: MaskInputFn | undefined;
     dataURLOptions?: DataURLOptions;
     inlineImages: boolean;
+    inlineVideos: boolean;
     recordCanvas: boolean;
     keepIframeSrcFn: KeepIframeSrcFn;
     /**
@@ -426,6 +427,7 @@ function serializeNode(
     maskInputFn,
     dataURLOptions = {},
     inlineImages,
+    inlineVideos,
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement = false,
@@ -466,6 +468,7 @@ function serializeNode(
         maskTextClass,
         dataURLOptions,
         inlineImages,
+        inlineVideos,
         recordCanvas,
         keepIframeSrcFn,
         newlyAddedElement,
@@ -596,6 +599,7 @@ function serializeElementNode(
     maskTextClass: string | RegExp;
     dataURLOptions?: DataURLOptions;
     inlineImages: boolean;
+    inlineVideos: boolean;
     recordCanvas: boolean;
     keepIframeSrcFn: KeepIframeSrcFn;
     /**
@@ -616,6 +620,7 @@ function serializeElementNode(
     maskTextClass,
     dataURLOptions = {},
     inlineImages,
+    inlineVideos,
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement = false,
@@ -854,30 +859,43 @@ function serializeElementNode(
     // In case old browsers don't support customElements
   }
 
-  if (inlineImages && tagName === 'video') {
+  const saveVideoAsCanvas = (video: HTMLVideoElement) => {
+    const { width, height } = video.getBoundingClientRect();
+    attributes = {
+      width,
+      height,
+      rr_width: `${width}px`,
+      rr_height: `${height}px`,
+      rr_inlined_video: true,
+      class: attributes.class,
+      style: attributes.style,
+    };
+    tagName = 'canvas';
+
+    // create blank canvas of same dimensions
+    const blankCanvas = doc.createElement('canvas');
+    blankCanvas.width = (n as HTMLCanvasElement).width;
+    blankCanvas.height = (n as HTMLCanvasElement).height;
+
+    attributes.rr_dataURL = blankCanvas.toDataURL(
+      dataURLOptions.type,
+      dataURLOptions.quality,
+    );
+  };
+
+  if (tagName === 'video') {
     const video = n as HTMLVideoElement;
-    if (video.src === '' || video.src.indexOf('blob:') !== -1) {
-      const { width, height } = n.getBoundingClientRect();
-      attributes = {
-        width,
-        height,
-        rr_width: `${width}px`,
-        rr_height: `${height}px`,
-        rr_inlined_video: true,
-        class: attributes.class,
-        style: attributes.style,
-      };
-      tagName = 'canvas';
-
-      // create blank canvas of same dimensions
-      const blankCanvas = doc.createElement('canvas');
-      blankCanvas.width = (n as HTMLCanvasElement).width;
-      blankCanvas.height = (n as HTMLCanvasElement).height;
-
-      attributes.rr_dataURL = blankCanvas.toDataURL(
-        dataURLOptions.type,
-        dataURLOptions.quality,
-      );
+    if (inlineImages) {
+      // local video - webcam (no src) or memory (blob)
+      if (video.src === '' || video.src.indexOf('blob:') !== -1) {
+        saveVideoAsCanvas(video);
+      }
+    }
+    if (inlineVideos) {
+      // remote video
+      if (video.src !== '' && video.src.indexOf('blob:') === -1) {
+        saveVideoAsCanvas(video);
+      }
     }
   }
 
@@ -1016,6 +1034,7 @@ export function serializeNodeWithId(
     dataURLOptions?: DataURLOptions;
     keepIframeSrcFn?: KeepIframeSrcFn;
     inlineImages?: boolean;
+    inlineVideos?: boolean;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
     onSerialize?: (n: Node) => unknown;
@@ -1047,6 +1066,7 @@ export function serializeNodeWithId(
     slimDOMOptions,
     dataURLOptions = {},
     inlineImages = false,
+    inlineVideos = false,
     recordCanvas = false,
     onSerialize,
     onIframeLoad,
@@ -1084,6 +1104,7 @@ export function serializeNodeWithId(
     maskInputFn,
     dataURLOptions,
     inlineImages,
+    inlineVideos,
     recordCanvas,
     keepIframeSrcFn,
     newlyAddedElement,
@@ -1179,6 +1200,7 @@ export function serializeNodeWithId(
       slimDOMOptions,
       dataURLOptions,
       inlineImages,
+      inlineVideos,
       recordCanvas,
       preserveWhiteSpace,
       onSerialize,
@@ -1248,6 +1270,7 @@ export function serializeNodeWithId(
             slimDOMOptions,
             dataURLOptions,
             inlineImages,
+            inlineVideos,
             recordCanvas,
             preserveWhiteSpace,
             onSerialize,
@@ -1301,6 +1324,7 @@ export function serializeNodeWithId(
             slimDOMOptions,
             dataURLOptions,
             inlineImages,
+            inlineVideos,
             recordCanvas,
             preserveWhiteSpace,
             onSerialize,
@@ -1342,6 +1366,7 @@ function snapshot(
     slimDOM?: 'all' | boolean | SlimDOMOptions;
     dataURLOptions?: DataURLOptions;
     inlineImages?: boolean;
+    inlineVideos?: boolean;
     recordCanvas?: boolean;
     preserveWhiteSpace?: boolean;
     onSerialize?: (n: Node) => unknown;
@@ -1367,6 +1392,7 @@ function snapshot(
     maskTextSelector = null,
     inlineStylesheet = true,
     inlineImages = false,
+    inlineVideos = false,
     recordCanvas = false,
     maskAllInputs = false,
     maskTextFn,
@@ -1440,6 +1466,7 @@ function snapshot(
     slimDOMOptions,
     dataURLOptions,
     inlineImages,
+    inlineVideos,
     recordCanvas,
     preserveWhiteSpace,
     onSerialize,

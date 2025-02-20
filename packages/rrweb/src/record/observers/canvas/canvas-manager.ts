@@ -109,6 +109,7 @@ export class CanvasManager {
 
       if (!('base64' in e.data)) {
         this.debug(null, 'canvas worker received empty message', {
+          id,
           data: e.data,
           status: e.data.status,
         });
