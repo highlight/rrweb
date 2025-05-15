@@ -52,8 +52,14 @@ export class Timer {
   }
 
   public replaceActions(actions: actionWithDelay[]) {
+    const rafWasActive = this.raf === true;
+
     this.actions.length = 0;
-    this.actions.splice(0, 0, ...actions);
+    this.actions = [...actions];
+
+    if (rafWasActive) {
+      this.raf = requestAnimationFrame(this.rafCheck.bind(this));
+    }
   }
   /* End Highlight Code */
 

@@ -250,28 +250,30 @@ export function createPlayerService(
         }),
         /* Highlight Code Start */
         replaceEvents: assign((ctx, machineEvent) => {
-          const { events: curEvents, timer, baselineTime } = ctx;
-          if (machineEvent.type === 'REPLACE_EVENTS') {
-            const { events: newEvents } = machineEvent.payload;
-            curEvents.length = 0;
-            const actions: actionWithDelay[] = [];
-            for (const event of newEvents) {
-              addDelay(event, baselineTime);
-              curEvents.push(event);
-              if (event.timestamp >= timer.timeOffset + baselineTime) {
-                const castFn = getCastFn(event, false);
-                actions.push({
-                  doAction: () => {
-                    castFn();
-                  },
-                  delay: event.delay!,
-                });
-              }
-            }
+          if (machineEvent.type !== 'REPLACE_EVENTS') return ctx;
 
-            if (timer.isActive()) {
-              timer.replaceActions(actions);
+          const { events: curEvents, timer, baselineTime } = ctx;
+          const { events: newEvents } = machineEvent.payload;
+
+          if (newEvents.length === 0) return ctx;
+
+          curEvents.length = 0;
+          const actions: actionWithDelay[] = [];
+          const timeThreshold = timer.timeOffset + baselineTime;
+
+          for (const event of newEvents) {
+            addDelay(event, baselineTime);
+            curEvents.push(event);
+            if (event.timestamp >= timeThreshold) {
+              actions.push({
+                doAction: getCastFn(event, false),
+                delay: event.delay!,
+              });
             }
+          }
+
+          if (timer.isActive()) {
+            timer.replaceActions(actions);
           }
           return { ...ctx, events: curEvents };
         }),
