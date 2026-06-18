@@ -1,7 +1,4 @@
-import type {
-  ICanvas,
-  Mirror,
-} from 'rrweb-snapshot';
+import type { ICanvas, Mirror } from 'rrweb-snapshot';
 import type {
   blockClass,
   canvasManagerMutationCallback,
@@ -27,6 +24,8 @@ type pendingCanvasMutationsMap = Map<
   HTMLCanvasElement,
   canvasMutationWithType[]
 >;
+
+type SnapshotSource = HTMLCanvasElement | HTMLVideoElement;
 
 interface Options {
   recordCanvas: boolean;
@@ -67,6 +66,7 @@ export class CanvasManager {
   private resetObservers?: listenerHandler;
   private frozen = false;
   private locked = false;
+  private useManualBitmapResize: boolean;
 
   public reset() {
     this.pendingCanvasMutations.clear();
@@ -155,6 +155,7 @@ export class CanvasManager {
     };
 
     this.options = options;
+    this.useManualBitmapResize = CanvasManager.shouldUseManualBitmapResize(win);
 
     if (recordCanvas && sampling === 'all') {
       this.debug(null, 'initializing canvas mutation observer', { sampling });
@@ -289,10 +290,7 @@ export class CanvasManager {
       const width = canvas.width * scale;
       const height = canvas.height * scale;
 
-      const bitmap = await createImageBitmap(canvas, {
-        resizeWidth: width,
-        resizeHeight: height,
-      });
+      const bitmap = await this.createSnapshotBitmap(canvas, width, height);
       this.debug(canvas, 'created image bitmap', {
         width: bitmap.width,
         height: bitmap.height,
@@ -407,12 +405,18 @@ export class CanvasManager {
       return matchedVideos;
     };
 
+    const scheduleTakeSnapshots = () => {
+      rafId = requestAnimationFrame((timestamp) => {
+        void takeSnapshots(timestamp);
+      });
+    };
+
     const takeSnapshots = async (timestamp: DOMHighResTimeStamp) => {
       if (
         lastSnapshotTime &&
         timestamp - lastSnapshotTime < timeBetweenSnapshots
       ) {
-        rafId = requestAnimationFrame(takeSnapshots);
+        scheduleTakeSnapshots();
         return;
       }
       lastSnapshotTime = timestamp;
@@ -485,10 +489,11 @@ export class CanvasManager {
               const width = actualWidth * scale;
               const height = actualHeight * scale;
 
-              const bitmap = await createImageBitmap(video, {
-                resizeWidth: width,
-                resizeHeight: height,
-              });
+              const bitmap = await this.createSnapshotBitmap(
+                video,
+                width,
+                height,
+              );
 
               const outputScale = Math.max(boxWidth, boxHeight) / maxDim;
               const outputWidth = actualWidth * outputScale;
@@ -535,10 +540,10 @@ export class CanvasManager {
       );
       await Promise.all(promises).catch(console.error);
 
-      rafId = requestAnimationFrame(takeSnapshots);
+      scheduleTakeSnapshots();
     };
 
-    rafId = requestAnimationFrame(takeSnapshots);
+    scheduleTakeSnapshots();
     this.resetObservers = () => {
       canvasContextReset();
       if (rafId) {
@@ -613,7 +618,8 @@ export class CanvasManager {
     if (!valuesWithType || id === -1) return;
 
     const values = valuesWithType.map((value) => {
-      const { type, ...rest } = value;
+      const { type: omittedType, ...rest } = value;
+      void omittedType;
       return rest;
     });
     const { type } = valuesWithType[0];
@@ -621,5 +627,103 @@ export class CanvasManager {
     this.mutationCb({ id, type, commands: values });
 
     this.pendingCanvasMutations.delete(canvas);
+  }
+
+  private static shouldUseManualBitmapResize(win: IWindow): boolean {
+    const navigator = win.navigator as Navigator & { maxTouchPoints?: number };
+    const userAgent = navigator?.userAgent || '';
+    const vendor = navigator?.vendor || '';
+    const platform = navigator?.platform || '';
+
+    const isIOSWebKit =
+      /iP(ad|hone|od)/.test(userAgent) ||
+      (platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+    const isDesktopSafari =
+      vendor === 'Apple Computer, Inc.' &&
+      /AppleWebKit\//.test(userAgent) &&
+      /Safari\//.test(userAgent) &&
+      !/(Chrome|Chromium|Edg|OPR)\//.test(userAgent);
+
+    return isIOSWebKit || isDesktopSafari;
+  }
+
+  private createResizeCanvas(
+    width: number,
+    height: number,
+  ): HTMLCanvasElement | OffscreenCanvas | null {
+    const OffscreenCanvasConstructor =
+      (
+        this.options.win as IWindow & {
+          OffscreenCanvas?: typeof OffscreenCanvas;
+        }
+      ).OffscreenCanvas ||
+      (typeof OffscreenCanvas !== 'undefined' ? OffscreenCanvas : undefined);
+
+    if (OffscreenCanvasConstructor) {
+      return new OffscreenCanvasConstructor(width, height);
+    }
+
+    const resizeCanvas = this.options.win.document?.createElement?.('canvas');
+    if (!resizeCanvas) {
+      return null;
+    }
+    resizeCanvas.width = width;
+    resizeCanvas.height = height;
+    return resizeCanvas;
+  }
+
+  private getSnapshotSourceDimensions(source: SnapshotSource) {
+    if ('videoWidth' in source) {
+      return {
+        width: source.videoWidth,
+        height: source.videoHeight,
+      };
+    }
+
+    return {
+      width: source.width,
+      height: source.height,
+    };
+  }
+
+  private async createSnapshotBitmap(
+    source: SnapshotSource,
+    width: number,
+    height: number,
+  ) {
+    const resizeWidth = Math.max(1, Math.round(width));
+    const resizeHeight = Math.max(1, Math.round(height));
+
+    if (!this.useManualBitmapResize) {
+      return createImageBitmap(source, {
+        resizeWidth,
+        resizeHeight,
+      });
+    }
+
+    const sourceDimensions = this.getSnapshotSourceDimensions(source);
+    if (
+      sourceDimensions.width === resizeWidth &&
+      sourceDimensions.height === resizeHeight
+    ) {
+      return createImageBitmap(source);
+    }
+
+    const resizeCanvas = this.createResizeCanvas(resizeWidth, resizeHeight);
+    const context = resizeCanvas?.getContext('2d');
+    if (!resizeCanvas || !context) {
+      return createImageBitmap(source, {
+        resizeWidth,
+        resizeHeight,
+      });
+    }
+
+    context.imageSmoothingEnabled = true;
+    if ('imageSmoothingQuality' in context) {
+      context.imageSmoothingQuality = 'medium';
+    }
+    context.drawImage(source, 0, 0, resizeWidth, resizeHeight);
+
+    return createImageBitmap(resizeCanvas);
   }
 }

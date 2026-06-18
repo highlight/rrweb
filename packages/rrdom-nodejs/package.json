@@ -53,11 +53,11 @@
     "vitest": "^1.4.0"
   },
   "dependencies": {
-    "@rrweb/types": "workspace:*",
+    "@rrweb/types": "^2.0.0-alpha.18",
     "cssom": "^0.5.0",
     "cssstyle": "^2.3.0",
     "nwsapi": "^2.2.0",
-    "rrdom": "workspace:*",
-    "rrweb-snapshot": "workspace:*"
+    "rrdom": "^2.0.0-alpha.18",
+    "rrweb-snapshot": "^2.0.0-alpha.18"
   }
 }

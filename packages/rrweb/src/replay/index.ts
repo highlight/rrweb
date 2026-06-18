@@ -47,6 +47,7 @@ import type {
   attributes,
   fullSnapshotEvent,
   eventWithTime,
+  metaEvent,
   playerMetaData,
   viewportResizeDimension,
   addedNodeMutation,
@@ -58,7 +59,6 @@ import type {
   scrollData,
   inputData,
   canvasMutationData,
-  styleValueWithPriority,
   mouseMovePos,
   IWindow,
   canvasMutationCommand,
@@ -396,13 +396,13 @@ export class Replayer {
     // rebuild first full snapshot as the poster of the player
     // maybe we can cache it for performance optimization
     const firstMeta = this.service.state.context.events.find(
-      (e) => e.type === EventType.Meta,
+      (e): e is eventWithTime & metaEvent => e.type === EventType.Meta,
     );
     const firstFullsnapshot = this.service.state.context.events.find(
       (e) => e.type === EventType.FullSnapshot,
     );
     if (firstMeta) {
-      const { width, height } = firstMeta.data ;
+      const { width, height } = firstMeta.data;
       setTimeout(() => {
         this.emitter.emit(ReplayerEvents.Resize, {
           width,
@@ -2012,14 +2012,13 @@ export class Replayer {
             const styleValues = value;
             const targetEl = target as HTMLElement | RRElement;
             for (const s in styleValues) {
-              if (styleValues[s] === false) {
+              const styleValue = styleValues[s];
+              if (styleValue === false) {
                 targetEl.style.removeProperty(s);
-              } else if (styleValues[s] instanceof Array) {
-                const svp = styleValues[s] as styleValueWithPriority;
-                targetEl.style.setProperty(s, svp[0], svp[1]);
+              } else if (styleValue instanceof Array) {
+                targetEl.style.setProperty(s, styleValue[0], styleValue[1]);
               } else {
-                const svs = styleValues[s] ;
-                targetEl.style.setProperty(s, svs);
+                targetEl.style.setProperty(s, styleValue);
               }
             }
           }
@@ -2251,7 +2250,7 @@ export class Replayer {
     const adoptStyleSheets = (targetHost: Node, styleIds: number[]) => {
       const stylesToAdopt = styleIds
         .map((styleId) => this.styleMirror.getStyle(styleId))
-        .filter((style) => style !== null);
+        .filter((style): style is CSSStyleSheet => style !== null);
       if (hasShadowRoot(targetHost))
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         (targetHost as HTMLElement).shadowRoot!.adoptedStyleSheets =

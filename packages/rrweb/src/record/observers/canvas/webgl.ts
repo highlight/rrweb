@@ -49,7 +49,8 @@ function patchGLPrototype(
             const result = original.apply(this, args);
             saveWebGLVar(result, win, this);
             if (
-              'tagName' in this.canvas &&!isBlocked(
+              'tagName' in this.canvas &&
+              !isBlocked(
                 this.canvas as HTMLCanvasElement,
                 blockClass,
                 blockSelector,

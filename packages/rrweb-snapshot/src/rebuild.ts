@@ -276,7 +276,9 @@ function buildNode(
           try {
             n.childNodes = []; // value overrides childNodes
           } catch (err: unknown) {
-            console.warn(`Highlight failed to set rrweb text area child nodes ${err}`);
+            console.warn(
+              `Highlight failed to set rrweb text area child nodes ${err}`,
+            );
           }
           continue;
         }

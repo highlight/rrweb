@@ -56,9 +56,9 @@
     "vitest": "^1.4.0"
   },
   "dependencies": {
-    "@rrweb/types": "workspace:*",
-    "@rrweb/utils": "workspace:*",
-    "rrweb": "workspace:*"
+    "@rrweb/types": "^2.0.0-alpha.18",
+    "@rrweb/utils": "^2.0.0-alpha.18",
+    "rrweb": "^2.0.0-alpha.18"
   },
   "browserslist": [
     "supports es6-class"

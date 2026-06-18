@@ -250,14 +250,14 @@ export function createMirror(): Mirror {
 /* Start of Highlight Code */
 // overwritten from rrweb
 export function maskInputValue({
-                                 element,
-                                 maskInputOptions,
-                                 tagName,
-                                 type,
-                                 value,
-                                 overwriteRecord,
-                                 maskInputFn,
-                               }: {
+  element,
+  maskInputOptions,
+  tagName,
+  type,
+  value,
+  overwriteRecord,
+  maskInputFn,
+}: {
   element: HTMLElement;
   maskInputOptions: MaskInputOptions;
   tagName: string;
@@ -273,7 +273,7 @@ export function maskInputValue({
       maskInputOptions,
       tagName,
       type,
-      overwriteRecord
+      overwriteRecord,
     })
   ) {
     if (maskInputFn) {

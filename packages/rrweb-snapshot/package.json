@@ -54,8 +54,8 @@
   },
   "homepage": "https://github.com/rrweb-io/rrweb/tree/master/packages/rrweb-snapshot#readme",
   "devDependencies": {
-    "@rrweb/types": "workspace:*",
-    "@rrweb/utils": "workspace:*",
+    "@rrweb/types": "^2.0.0-alpha.18",
+    "@rrweb/utils": "^2.0.0-alpha.18",
     "@types/jsdom": "^20.0.0",
     "@types/node": "^18.15.11",
     "@types/puppeteer": "^5.4.4",

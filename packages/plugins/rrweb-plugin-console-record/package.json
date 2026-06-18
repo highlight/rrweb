@@ -46,7 +46,7 @@
   "homepage": "https://github.com/rrweb-io/rrweb#readme",
   "devDependencies": {
     "puppeteer": "^20.9.0",
-    "rrweb": "workspace:*",
+    "rrweb": "^2.0.0-alpha.18",
     "turbo": "^2.0.5",
     "typescript": "^5.4.5",
     "vite": "^5.3.1",
@@ -54,7 +54,7 @@
     "vitest": "^1.4.0"
   },
   "peerDependencies": {
-    "@rrweb/utils": "workspace:*",
-    "rrweb": "workspace:*"
+    "@rrweb/utils": "^2.0.0-alpha.18",
+    "rrweb": "^2.0.0-alpha.18"
   }
 }

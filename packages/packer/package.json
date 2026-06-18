@@ -78,7 +78,7 @@
     "vitest": "^1.4.0"
   },
   "dependencies": {
-    "@rrweb/types": "workspace:*",
+    "@rrweb/types": "^2.0.0-alpha.18",
     "fflate": "^0.4.4"
   },
   "browserslist": [

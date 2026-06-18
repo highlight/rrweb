@@ -23,8 +23,20 @@ module.exports = {
   rules: {
     'tsdoc/syntax': 'warn',
     '@typescript-eslint/prefer-as-const': 'warn',
-    'camelcase': ['error', {
-      allow: ['rr_.*', 'legacy_.*', 'UNSAFE_.*', '__rrweb_.*'],
-    }],
+    '@typescript-eslint/no-unsafe-argument': 'off',
+    '@typescript-eslint/no-unsafe-assignment': 'off',
+    '@typescript-eslint/no-unsafe-call': 'off',
+    '@typescript-eslint/no-unsafe-member-access': 'off',
+    '@typescript-eslint/no-unsafe-return': 'off',
+    '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+    '@typescript-eslint/no-redundant-type-constituents': 'off',
+    '@typescript-eslint/restrict-plus-operands': 'off',
+    '@typescript-eslint/restrict-template-expressions': 'off',
+    camelcase: [
+      'error',
+      {
+        allow: ['rr_.*', 'legacy_.*', 'UNSAFE_.*', '__rrweb_.*'],
+      },
+    ],
   },
 };
