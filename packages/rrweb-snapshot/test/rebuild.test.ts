@@ -71,6 +71,47 @@ describe('rebuild', function () {
       ) as HTMLImageElement;
       expect(node?.src).toBe(dataURI);
     });
+
+    it('should keep other attributes when srcset is also backed up', function () {
+      // Regression test for https://github.com/highlight/highlight/issues/4853:
+      // when an img has both `srcset` and an inlined `rr_dataURL`, every
+      // attribute (not just `srcset`) was being replaced by a repeated
+      // `rrweb-original-srcset` backup instead of being set normally,
+      // because the `name === 'srcset'` check was missing from the branch
+      // condition (it only checked the *node's* attributes, not which
+      // attribute was currently being applied).
+      const dataURI =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      const node = buildNodeWithSN(
+        {
+          id: 1,
+          tagName: 'img',
+          type: NodeType.Element,
+          attributes: {
+            class: 'logo',
+            alt: 'Logo',
+            sizes: '32px',
+            srcset: 'http://example.com/image.png 1x, http://example.com/image2x.png 2x',
+            rr_dataURL: dataURI,
+            src: 'http://example.com/image.png',
+          },
+          childNodes: [],
+        },
+        {
+          doc: document,
+          mirror,
+          hackCss: false,
+          cache,
+        },
+      ) as HTMLImageElement;
+      expect(node?.src).toBe(dataURI);
+      expect(node?.className).toBe('logo');
+      expect(node?.getAttribute('alt')).toBe('Logo');
+      expect(node?.getAttribute('sizes')).toBe('32px');
+      expect(node?.getAttribute('rrweb-original-srcset')).toBe(
+        'http://example.com/image.png 1x, http://example.com/image2x.png 2x',
+      );
+    });
   });
 
   describe('rr_width/rr_height', function () {
