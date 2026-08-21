@@ -321,14 +321,12 @@ function buildNode(
             // ignore
           } else if (
             tagName === 'img' &&
-            n.attributes.srcset &&
+            name === 'srcset' &&
             n.attributes.rr_dataURL
           ) {
-            // backup original img srcset
-            node.setAttribute(
-              'rrweb-original-srcset',
-              n.attributes.srcset as string,
-            );
+            // backup original img srcset; every other attribute on this
+            // element still needs to fall through to the `else` branch below
+            node.setAttribute('rrweb-original-srcset', value.toString());
           } else {
             node.setAttribute(name, value.toString());
           }
